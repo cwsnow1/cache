@@ -105,7 +105,7 @@ error:
  * @param addr  Out. Parsed address value
  * @param rw    Out. Access type, read or write
  */
-void parse_line(uint8_t *line, uint64_t *addr, access_t *rw) {
+static void parse_line (uint8_t *line, uint64_t *addr, access_t *rw) {
     line += FIRST_ADDRESS_LENGTH_IN_BYTES;
     char rw_c = *line;
     *rw = (rw_c == 'R') ? READ : WRITE;
@@ -122,7 +122,7 @@ void parse_line(uint8_t *line, uint64_t *addr, access_t *rw) {
  * @param length    Lenght of buffer in bytes
  * @return          Array of instruction structs for internal use
  */
-instruction_t * parse_buffer (uint8_t *buffer, uint64_t length) {
+static instruction_t * parse_buffer (uint8_t *buffer, uint64_t length) {
     assert(buffer);
     uint8_t *buffer_start = buffer;
     uint64_t num_lines = length / FILE_LINE_LENGTH_IN_BYTES;
@@ -147,10 +147,9 @@ static void usage (void) {
  * 
  * @param L1_cache      Top level cache pointer, assumed to be initialized
  */
-void *sim_cache (void *L1_cache) {
+void * sim_cache (void *L1_cache) {
     cache_t *this_cache = (cache_t *) L1_cache;
     assert(this_cache->cache_level == 0);
-    //cache__print_info(this_cache); TODO: print cache config in a thread-safe way
     for (uint64_t i = 0; i < num_accesses; i++) {
         cache__handle_access(this_cache, accesses[i]);
     }
@@ -162,7 +161,7 @@ void *sim_cache (void *L1_cache) {
  * @brief Generate threads that will call sim_cache
  * 
  */
-void create_and_run_threads (void) {
+static void create_and_run_threads (void) {
     for (uint64_t i = 0; i < num_configs; i++) {
         if (pthread_create(&threads[i], NULL, sim_cache, (void*) &g_caches[i][0])) {
             fprintf(stderr, "Error in creating thread %lu\n", i);
@@ -212,7 +211,7 @@ static void setup_caches (uint8_t cache_level, uint64_t min_block_size, uint64_t
  * @param min_block_size    Minimum block size as specfied in cache_params.h
  * @param min_cache_size    Minimum cache size as specfied in cache_params.h
  */
-void calculate_num_valid_configs(uint64_t *num_configs, uint8_t cache_level, uint64_t min_block_size, uint64_t min_cache_size) {
+static void calculate_num_valid_configs (uint64_t *num_configs, uint8_t cache_level, uint64_t min_block_size, uint64_t min_cache_size) {
     for (uint64_t block_size = min_block_size; block_size <= MAX_BLOCK_SIZE; block_size <<= 1) {
         for (uint64_t cache_size = MAX(min_cache_size, block_size); cache_size <= MAX_CACHE_SIZE; cache_size <<= 1) {
             for (uint8_t blocks_per_slot = MIN_BLOCKS_PER_SLOT; blocks_per_slot <= MAX_BLOCKS_PER_SLOT; blocks_per_slot <<= 1) {
