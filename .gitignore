@@ -1,6 +1,7 @@
 # build files
 *.o
 cache
+build/
 
 # generated parameters file
 test_params.ini

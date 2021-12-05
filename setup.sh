@@ -7,6 +7,7 @@ make pinatrace.test TARGET=intel64
 ../../../pin -t obj-intel64/pinatrace.so -- /bin/ls -l
 mv pinatrace.out $WD/ls-l.txt
 cd $WD
+mkdir build
 
 ./build.sh
 ./cache ls-l.txt
