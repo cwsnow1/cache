@@ -8,6 +8,7 @@
 #include <pthread.h>
 
 #include "cache.h"
+#include "cache_params.h"
 
 #define MAX(x, y)   (x > y ? x : y)
 

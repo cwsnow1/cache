@@ -1,4 +1,3 @@
-#include "cache_params.h"
 #define ADDR_BITS                   (48)
 #define MAX_TRACE_FILENAME_LENGTH   (100)
 
