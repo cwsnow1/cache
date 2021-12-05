@@ -1,0 +1,18 @@
+# build files
+*.o
+cache
+
+# trace files
+*.txt
+
+# programs that generate traces
+*.bin
+sort
+matrix
+sequential_read
+
+# debug trace files
+*.zip
+
+# vscode
+.vscode/
