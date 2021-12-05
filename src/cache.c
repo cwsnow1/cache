@@ -13,7 +13,6 @@ extern cache_t** g_caches;
 
 bool cache__is_cache_config_valid (config_t config) {
     assert((config.cache_size % config.block_size == 0) && "Block size must be a factor of cache size!");
-    assert((config.cache_size % config.block_size == 0) && "Block size must be a factor of cache size!");
     uint64_t num_blocks = config.cache_size / config.block_size;
     return num_blocks >= config.num_blocks_per_slot;
 }
