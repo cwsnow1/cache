@@ -18,7 +18,7 @@ uint64_t num_accesses;
 pthread_t *threads;
 cache_t **g_caches;
 uint64_t num_configs = 0;
-// Note: No performance difference is seen by limiting the
+// Note: No performance benefit is seen by limiting the
 // number of outstanding threads. The only benefit would be
 // memory savings when running with large numbers of configs
 static volatile int32_t threads_outstanding;
