@@ -9,6 +9,7 @@
 
 extern stats_t *stats;
 extern cache_t** g_caches;
+extern test_params_t g_test_params;
 
 
 bool cache__is_cache_config_valid (config_t config) {
@@ -21,7 +22,7 @@ bool cache__init (cache_t *caches, uint8_t cache_level, config_t *cache_configs,
     assert(caches);
     cache_t *me = &caches[cache_level];
     config_t cache_config = cache_configs[cache_level];
-    me->lower_cache = (cache_level == NUM_CACHE_LEVELS - 1) ? NULL : &caches[cache_level + 1];
+    me->lower_cache = (cache_level == g_test_params.num_cache_levels - 1) ? NULL : &caches[cache_level + 1];
     me->cache_level = cache_level;
     me->cache_size = cache_config.cache_size;
     me->block_size = cache_config.block_size;

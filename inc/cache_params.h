@@ -1,6 +1,5 @@
-// Add this to .gitignore if you want to change it freely...
-// TODO: find a better solution than this
-
+// Default cache test parameters that will be used
+// to generate the .ini file if it doesn't exist
 #define NUM_CACHE_LEVELS    (2)
 #define MIN_BLOCK_SIZE      (64)
 #define MAX_BLOCK_SIZE      (128)
@@ -8,4 +7,8 @@
 #define MAX_CACHE_SIZE      (1024)
 #define MIN_BLOCKS_PER_SLOT (1)
 #define MAX_BLOCKS_PER_SLOT (4)
+
+// Defined for simplification, not a test parameter
+#define MAX_NUM_CACHE_LEVELS (4)
+
 //#define DEBUG_TRACE

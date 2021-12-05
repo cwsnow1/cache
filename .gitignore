@@ -2,6 +2,9 @@
 *.o
 cache
 
+# generated parameters file
+test_params.ini
+
 # trace files
 *.txt
 

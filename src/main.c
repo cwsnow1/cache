@@ -22,6 +22,9 @@ uint64_t num_configs = 0;
 // memory savings when running with large numbers of configs
 static volatile uint64_t threads_outstanding;
 
+test_params_t g_test_params;
+const char params_filename[] = "./test_params.ini";
+
 /**
  * @brief Prints the gathered statistics for a given run
  * 
@@ -34,11 +37,76 @@ static void print_stats (cache_t *cache) {
     printf("size=%lu, block_size=%lu, num_blocks_per_slot=%lu\n", cache->cache_size, cache->block_size, cache->num_blocks_per_slot);
     float miss_rate = (float)(((float)cache->stats.read_misses + (float)cache->stats.write_misses) / ((float)cache->stats.read_hits + (float)cache->stats.write_hits + (float)cache->stats.read_misses + (float)cache->stats.write_misses));
     printf("Miss Rate:      %7.3f%%\n", 100.0f * miss_rate);
-    if (cache->cache_level == NUM_CACHE_LEVELS - 1) {
+    if (cache->cache_level == g_test_params.num_cache_levels - 1) {
         printf("=========================\n\n");
     } else {
         print_stats(cache + 1);
     }
+}
+
+/**
+ * @brief Verifies the global test parameters struct is valid
+ * 
+ */
+static void verify_test_params (void) {
+    // Check that all values were read in correctly
+    int line_number = 1;
+    if (!g_test_params.num_cache_levels)    goto verify_fail;
+    line_number++;
+    if (!g_test_params.min_block_size)      goto verify_fail;
+    line_number++;
+    if (!g_test_params.max_block_size)      goto verify_fail;
+    line_number++;
+    if (!g_test_params.min_cache_size)      goto verify_fail;
+    line_number++;
+    if (!g_test_params.max_cache_size)      goto verify_fail;
+    line_number++;
+    if (!g_test_params.min_blocks_per_slot) goto verify_fail;
+    line_number++;
+    if (!g_test_params.max_blocks_per_slot) goto verify_fail;
+
+    // Check that values make sense. May help in understanding why a parameter config
+    // will be found to have 0 possible cache configs
+    assert(g_test_params.num_cache_levels <= MAX_NUM_CACHE_LEVELS);
+    assert(g_test_params.min_block_size <= g_test_params.max_block_size);
+    assert(g_test_params.min_cache_size <= g_test_params.max_cache_size);
+    assert(g_test_params.min_cache_size >= g_test_params.min_block_size);
+    return;
+
+verify_fail:
+    fprintf(stderr, "Error in reading %s:%d\n", params_filename, line_number);
+    exit(1);
+}
+
+/**
+ * @brief Loads test_params.ini if extant, creates it otherwise
+ * 
+ */
+static void load_test_parameters (void) {
+    FILE *params_f = fopen(params_filename, "r");
+    // If file does not exist, generate a default
+    if (params_f == NULL) {
+        params_f = fopen(params_filename, "w+");
+        assert(params_f);
+        fprintf(params_f, "NUM_CACHE_LEVELS=%d\n",    NUM_CACHE_LEVELS);
+        fprintf(params_f, "MIN_BLOCK_SIZE=%d\n",      MIN_BLOCK_SIZE);
+        fprintf(params_f, "MAX_BLOCK_SIZE=%d\n",      MAX_BLOCK_SIZE);
+        fprintf(params_f, "MIN_CACHE_SIZE=%d\n",      MIN_CACHE_SIZE);
+        fprintf(params_f, "MAX_CACHE_SIZE=%d\n",      MAX_CACHE_SIZE);
+        fprintf(params_f, "MIN_BLOCKS_PER_SLOT=%d\n", MIN_BLOCKS_PER_SLOT);
+        fprintf(params_f, "MAX_BLOCKS_PER_SLOT=%d\n", MAX_BLOCKS_PER_SLOT);
+        assert(fseek(params_f, 0, SEEK_SET) == 0);
+    }
+    // File exists, read it in
+    fscanf(params_f, "NUM_CACHE_LEVELS=%hhu\n",    &g_test_params.num_cache_levels);
+    fscanf(params_f, "MIN_BLOCK_SIZE=%lu\n",       &g_test_params.min_block_size);
+    fscanf(params_f, "MAX_BLOCK_SIZE=%lu\n",       &g_test_params.max_block_size);
+    fscanf(params_f, "MIN_CACHE_SIZE=%lu\n",       &g_test_params.min_cache_size);
+    fscanf(params_f, "MAX_CACHE_SIZE=%lu\n",       &g_test_params.max_cache_size);
+    fscanf(params_f, "MIN_BLOCKS_PER_SLOT=%hhu\n", &g_test_params.min_blocks_per_slot);
+    fscanf(params_f, "MAX_BLOCKS_PER_SLOT=%hhu\n", &g_test_params.max_blocks_per_slot);
+    fclose(params_f);
+    verify_test_params();
 }
 
 /**
@@ -183,15 +251,15 @@ static void create_and_run_threads (void) {
  */
 static void setup_caches (uint8_t cache_level, uint64_t min_block_size, uint64_t min_cache_size) {
     static uint64_t thread_num = 0;
-    static config_t configs[NUM_CACHE_LEVELS];
-    for (uint64_t block_size = min_block_size; block_size <= MAX_BLOCK_SIZE; block_size <<= 1) {
-        for (uint64_t cache_size = MAX(min_cache_size, block_size); cache_size <= MAX_CACHE_SIZE; cache_size <<= 1) {
-            for (uint8_t blocks_per_slot = MIN_BLOCKS_PER_SLOT; blocks_per_slot <= MAX_BLOCKS_PER_SLOT; blocks_per_slot <<= 1) {
+    static config_t configs[MAX_NUM_CACHE_LEVELS];
+    for (uint64_t block_size = min_block_size; block_size <= g_test_params.max_block_size; block_size <<= 1) {
+        for (uint64_t cache_size = MAX(min_cache_size, block_size); cache_size <= g_test_params.max_cache_size; cache_size <<= 1) {
+            for (uint8_t blocks_per_slot = g_test_params.min_blocks_per_slot; blocks_per_slot <= g_test_params.max_blocks_per_slot; blocks_per_slot <<= 1) {
                 configs[cache_level].block_size = block_size;
                 configs[cache_level].cache_size = cache_size;
                 configs[cache_level].num_blocks_per_slot = blocks_per_slot;
                 if (cache__is_cache_config_valid(configs[cache_level])) {
-                    if (cache_level < NUM_CACHE_LEVELS - 1) {
+                    if (cache_level < g_test_params.num_cache_levels - 1) {
                         setup_caches(cache_level + 1, block_size, cache_size);
                     } else {
                         assert(cache__init(&g_caches[thread_num][0], 0, configs, thread_num));
@@ -212,16 +280,16 @@ static void setup_caches (uint8_t cache_level, uint64_t min_block_size, uint64_t
  * @param min_cache_size    Minimum cache size as specfied in cache_params.h
  */
 static void calculate_num_valid_configs (uint64_t *num_configs, uint8_t cache_level, uint64_t min_block_size, uint64_t min_cache_size) {
-    for (uint64_t block_size = min_block_size; block_size <= MAX_BLOCK_SIZE; block_size <<= 1) {
-        for (uint64_t cache_size = MAX(min_cache_size, block_size); cache_size <= MAX_CACHE_SIZE; cache_size <<= 1) {
-            for (uint8_t blocks_per_slot = MIN_BLOCKS_PER_SLOT; blocks_per_slot <= MAX_BLOCKS_PER_SLOT; blocks_per_slot <<= 1) {
+    for (uint64_t block_size = min_block_size; block_size <= g_test_params.max_block_size; block_size <<= 1) {
+        for (uint64_t cache_size = MAX(min_cache_size, block_size); cache_size <= g_test_params.max_cache_size; cache_size <<= 1) {
+            for (uint8_t blocks_per_slot = g_test_params.min_blocks_per_slot; blocks_per_slot <= g_test_params.max_blocks_per_slot; blocks_per_slot <<= 1) {
                 config_t config = {
                     .block_size = block_size,
                     .cache_size = cache_size,
                     .num_blocks_per_slot = blocks_per_slot,
                 };
                 if (cache__is_cache_config_valid(config)) {
-                    if (cache_level < NUM_CACHE_LEVELS - 1) {
+                    if (cache_level < g_test_params.num_cache_levels - 1) {
                         calculate_num_valid_configs(num_configs, cache_level + 1, block_size, cache_size);
                     } else {
                         (*num_configs)++;
@@ -241,6 +309,11 @@ int main (int argc, char** argv) {
         fprintf(stderr, "Not enough args!\n");
         usage();
     }
+
+    // Look for test parameters file and generate a default if not found
+    load_test_parameters();
+
+    // Read in trace file
     uint64_t file_length = 0;
     uint8_t *file_contents = read_in_file(argv[1], &file_length);
     accesses = parse_buffer(file_contents, file_length);
@@ -248,7 +321,7 @@ int main (int argc, char** argv) {
     assert(accesses != NULL);
     num_accesses = file_length / FILE_LINE_LENGTH_IN_BYTES;
 
-    calculate_num_valid_configs(&num_configs, 0, MIN_BLOCK_SIZE, MIN_CACHE_SIZE);
+    calculate_num_valid_configs(&num_configs, 0, g_test_params.min_block_size, g_test_params.min_cache_size);
     printf("Total number of possible configs = %lu\n", num_configs);
     threads_outstanding = num_configs;
     threads = (pthread_t*) malloc(sizeof(pthread_t) * num_configs);
@@ -256,10 +329,10 @@ int main (int argc, char** argv) {
     g_caches = (cache_t**) malloc(sizeof(cache_t *) * num_configs);
     assert(g_caches);
     for (uint64_t i = 0; i < num_configs; i++) {
-        g_caches[i] = (cache_t*) malloc(sizeof(cache_t) * NUM_CACHE_LEVELS);
+        g_caches[i] = (cache_t*) malloc(sizeof(cache_t) * g_test_params.num_cache_levels);
         assert(g_caches[i]);
     }
-    setup_caches(0, MIN_BLOCK_SIZE, MIN_CACHE_SIZE);
+    setup_caches(0, g_test_params.min_block_size, g_test_params.min_cache_size);
     create_and_run_threads();
     for (uint64_t i = 0; i < num_configs; i++) {
         print_stats(g_caches[i]);
