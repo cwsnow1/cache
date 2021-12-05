@@ -33,12 +33,25 @@ const char params_filename[] = "./test_params.ini";
 static void print_stats (cache_t *cache) {
     if (cache->cache_level == 0) {
         printf("=========================\n");
+    } else {
+        printf("-------------------------\n");
     }
     printf("CACHE LEVEL %d\n", cache->cache_level);
-    printf("size=%lu, block_size=%lu, num_blocks_per_slot=%lu\n", cache->cache_size, cache->block_size, cache->num_blocks_per_slot);
-    float miss_rate = (float)(((float)cache->stats.read_misses + (float)cache->stats.write_misses) / ((float)cache->stats.read_hits + (float)cache->stats.write_hits + (float)cache->stats.read_misses + (float)cache->stats.write_misses));
-    printf("Miss Rate:      %7.3f%%\n", 100.0f * miss_rate);
+    printf("size=%luB, block_size=%luB, num_blocks_per_slot=%lu\n", cache->cache_size, cache->block_size, cache->num_blocks_per_slot);
+    float num_reads =  (float) (cache->stats.read_hits  + cache->stats.read_misses);
+    float num_writes = (float) (cache->stats.write_hits + cache->stats.write_misses);
+    float read_miss_rate =  (float) cache->stats.read_misses  / num_reads;
+    float write_miss_rate = (float) cache->stats.write_misses / num_writes;
+    float total_miss_rate = (float) (cache->stats.read_misses + cache->stats.write_misses) / (num_writes + num_reads);
+    printf("Number of reads:    %08d\n", (int) num_reads);
+    printf("Read miss rate:     %7.3f%%\n", 100.f * read_miss_rate);
+    printf("Number of writes:   %08d\n", (int) num_writes);
+    printf("Write miss rate:    %7.3f%%\n", 100.0f * write_miss_rate);
+    printf("Total miss rate:    %7.3f%%\n", 100.0f * total_miss_rate);
     if (cache->cache_level == g_test_params.num_cache_levels - 1) {
+        printf("-------------------------\n");
+        printf("Main memory reads:  %08lu\n", cache->stats.read_misses + cache->stats.write_misses);
+        printf("Main memory writes: %08lu\n", cache->stats.writebacks);
         printf("=========================\n\n");
     } else {
         print_stats(cache + 1);
