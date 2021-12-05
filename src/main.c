@@ -6,6 +6,7 @@
 #include <stdbool.h>
 #include <time.h>
 #include <pthread.h>
+#include <unistd.h>
 
 #include "cache.h"
 #include "default_test_params.h"
@@ -19,9 +20,11 @@ pthread_t *threads;
 cache_t **g_caches;
 uint64_t num_configs = 0;
 // Note: No performance benefit is seen by limiting the
-// number of outstanding threads. The only benefit would be
-// memory savings when running with large numbers of configs
+// number of outstanding threads. The only benefit is
+// memory savings & keeping the computer usable when
+// running with large numbers of configs
 static volatile int32_t threads_outstanding;
+static volatile uint64_t configs_to_test;
 
 test_params_t g_test_params;
 const char params_filename[] = "./test_params.ini";
@@ -229,6 +232,22 @@ static void usage (void) {
 }
 
 /**
+ * @brief Prints program progress every second
+ * 
+ */
+void * track_progress(void * empty) {
+    printf("Running... %02.0f%% complete\n", 0.0f);
+    while(configs_to_test) {
+        float configs_done = (float) (num_configs - configs_to_test);
+        float progress_percent = (configs_done / (float) num_configs) * 100.0f;
+        printf("\x1b[1A");
+        printf("Running... %02.0f%% complete\n", progress_percent);
+        sleep(1);
+    }
+    pthread_exit(NULL);
+}
+
+/**
  * @brief               Runs through all memory accesses with given setup cache
  * 
  * @param L1_cache      Top level cache pointer, assumed to be initialized
@@ -239,6 +258,7 @@ void * sim_cache (void *L1_cache) {
     for (uint64_t i = 0; i < num_accesses; i++) {
         cache__handle_access(this_cache, accesses[i]);
     }
+    configs_to_test--;
     threads_outstanding--;
     pthread_exit(NULL);
 }
@@ -248,6 +268,8 @@ void * sim_cache (void *L1_cache) {
  * 
  */
 static void create_and_run_threads (void) {
+    pthread_t progress_thread;
+    pthread_create(&progress_thread, NULL, track_progress, NULL);
     for (uint64_t i = 0; i < num_configs; i++) {
         while (threads_outstanding == g_test_params.max_num_threads)
             ;
@@ -259,7 +281,7 @@ static void create_and_run_threads (void) {
     for (uint64_t i = 0; i < num_configs; i++) {
         pthread_join(threads[i], NULL);
     }
-    assert(threads_outstanding == 0);
+    assert(threads_outstanding == 0); // If this fails, there is likely a race condition between threads
 }
 
 /**
@@ -344,7 +366,7 @@ int main (int argc, char** argv) {
 
     calculate_num_valid_configs(&num_configs, 0, g_test_params.min_block_size, g_test_params.min_cache_size);
     printf("Total number of possible configs = %lu\n", num_configs);
-    threads_outstanding = 0;
+    configs_to_test = num_configs;
     threads = (pthread_t*) malloc(sizeof(pthread_t) * num_configs);
     assert(threads);
     g_caches = (cache_t**) malloc(sizeof(cache_t *) * num_configs);

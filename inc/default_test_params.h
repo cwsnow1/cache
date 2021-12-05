@@ -7,7 +7,7 @@
 #define MAX_CACHE_SIZE      (1024)
 #define MIN_BLOCKS_PER_SLOT (1)
 #define MAX_BLOCKS_PER_SLOT (4)
-#define MAX_NUM_THREADS     (-1) // -1 for no limit
+#define MAX_NUM_THREADS     (12) // -1 for no limit
 
 // Defined for simplification, not a test parameter
 #define MAX_NUM_CACHE_LEVELS (4)
