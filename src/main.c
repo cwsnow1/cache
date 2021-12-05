@@ -42,11 +42,11 @@ static void print_stats (cache_t *cache) {
 }
 
 /**
- *  @brief Takes in a trace file produced by pin
+ *  @brief                  Takes in a trace file
  * 
  *  @param filename         Name of the trace file to read
- *  @param num_accesses     Output. Returns the length of the file in lines
- *  @return                 Array of instruction structs, length is num_accesses
+ *  @param num_accesses     Output. Returns the length of the file in bytes
+ *  @return                 Array of file contents
  */
 static uint8_t * read_in_file (const char* filename, uint64_t *length) {
     assert(length);
