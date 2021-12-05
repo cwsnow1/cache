@@ -60,6 +60,7 @@ typedef struct test_params_s {
     uint64_t max_cache_size;
     uint8_t  min_blocks_per_slot;
     uint8_t  max_blocks_per_slot;
+    int32_t  max_num_threads;
 } test_params_t;
 
 /**

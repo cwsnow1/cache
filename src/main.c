@@ -8,7 +8,7 @@
 #include <pthread.h>
 
 #include "cache.h"
-#include "cache_params.h"
+#include "default_test_params.h"
 
 #define MAX(x, y)   (x > y ? x : y)
 
@@ -21,7 +21,7 @@ uint64_t num_configs = 0;
 // Note: No performance difference is seen by limiting the
 // number of outstanding threads. The only benefit would be
 // memory savings when running with large numbers of configs
-static volatile uint64_t threads_outstanding;
+static volatile int32_t threads_outstanding;
 
 test_params_t g_test_params;
 const char params_filename[] = "./test_params.ini";
@@ -65,6 +65,8 @@ static void verify_test_params (void) {
     if (!g_test_params.min_blocks_per_slot) goto verify_fail;
     line_number++;
     if (!g_test_params.max_blocks_per_slot) goto verify_fail;
+    line_number++;
+    if (!g_test_params.max_num_threads)     goto verify_fail;
 
     // Check that values make sense. May help in understanding why a parameter config
     // will be found to have 0 possible cache configs
@@ -96,6 +98,7 @@ static void load_test_parameters (void) {
         fprintf(params_f, "MAX_CACHE_SIZE=%d\n",      MAX_CACHE_SIZE);
         fprintf(params_f, "MIN_BLOCKS_PER_SLOT=%d\n", MIN_BLOCKS_PER_SLOT);
         fprintf(params_f, "MAX_BLOCKS_PER_SLOT=%d\n", MAX_BLOCKS_PER_SLOT);
+        fprintf(params_f, "MAX_NUM_THREADS=%d\n",     MAX_NUM_THREADS);
         assert(fseek(params_f, 0, SEEK_SET) == 0);
     }
     // File exists, read it in
@@ -106,6 +109,7 @@ static void load_test_parameters (void) {
     fscanf(params_f, "MAX_CACHE_SIZE=%lu\n",       &g_test_params.max_cache_size);
     fscanf(params_f, "MIN_BLOCKS_PER_SLOT=%hhu\n", &g_test_params.min_blocks_per_slot);
     fscanf(params_f, "MAX_BLOCKS_PER_SLOT=%hhu\n", &g_test_params.max_blocks_per_slot);
+    fscanf(params_f, "MAX_NUM_THREADS=%d\n",       &g_test_params.max_num_threads);
     fclose(params_f);
     verify_test_params();
 }
@@ -232,9 +236,12 @@ void * sim_cache (void *L1_cache) {
  */
 static void create_and_run_threads (void) {
     for (uint64_t i = 0; i < num_configs; i++) {
+        while (threads_outstanding == g_test_params.max_num_threads)
+            ;
         if (pthread_create(&threads[i], NULL, sim_cache, (void*) &g_caches[i][0])) {
             fprintf(stderr, "Error in creating thread %lu\n", i);
         }
+        threads_outstanding++;
     }
     for (uint64_t i = 0; i < num_configs; i++) {
         pthread_join(threads[i], NULL);
@@ -324,7 +331,7 @@ int main (int argc, char** argv) {
 
     calculate_num_valid_configs(&num_configs, 0, g_test_params.min_block_size, g_test_params.min_cache_size);
     printf("Total number of possible configs = %lu\n", num_configs);
-    threads_outstanding = num_configs;
+    threads_outstanding = 0;
     threads = (pthread_t*) malloc(sizeof(pthread_t) * num_configs);
     assert(threads);
     g_caches = (cache_t**) malloc(sizeof(cache_t *) * num_configs);
