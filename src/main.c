@@ -97,8 +97,6 @@ error:
 #define FIRST_ADDRESS_LENGTH_IN_BYTES       (16)
 #define RW_LENGHT_IN_BYTES                  (1)
 #define AFTER_RW_LENGTH_IN_BYTES            (3)
-#define ADDRESS_LENGTH_IN_BYTES             (12)
-#define NEWLINE_LENGTH_IN_BYTES             (1)
 
 /**
  * @brief       Parses a single line of the trace file
@@ -111,7 +109,7 @@ void parse_line(uint8_t *line, uint64_t *addr, access_t *rw) {
     line += FIRST_ADDRESS_LENGTH_IN_BYTES;
     char rw_c = *line;
     *rw = (rw_c == 'R') ? READ : WRITE;
-    line += AFTER_RW_LENGTH_IN_BYTES + 1; // + 1 is the rw byte itself
+    line += RW_LENGHT_IN_BYTES + AFTER_RW_LENGTH_IN_BYTES;
     char* end_ptr;
     *addr = strtoll((char*) line, &end_ptr, 16);
     assert(*end_ptr == '\n');
