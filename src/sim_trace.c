@@ -24,11 +24,8 @@ void sim_trace__init(void) {
 }
 
 void sim_trace__print(trace_entry_id_t trace_entry_id, uint64_t thread_id, uint64_t *values) {
-    sim_trace_entry_t entry = {.trace_entry_id = trace_entry_id};
-    for (int i = 0; i < MAX_NUM_SIM_TRACE_VALUES; i++) {
-        entry.values[i] = values[i];
-    }
-    sim_trace_buffer[thread_id][thread_indices[thread_id]] = entry;
+    sim_trace_buffer[thread_id][thread_indices[thread_id]].trace_entry_id = trace_entry_id;
+    memcpy(&sim_trace_buffer[thread_id][thread_indices[thread_id]].values[0], values, sizeof(uint64_t) * MAX_NUM_SIM_TRACE_VALUES);
     // Roll over when buffer is filled
     if (++thread_indices[thread_id] == SIM_TRACE_BUFFER_SIZE_IN_ENTRIES) {
         thread_indices[thread_id] = 0;
