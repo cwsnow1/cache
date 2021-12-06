@@ -1,4 +1,4 @@
-#define SIM_TRACE
+//#define SIM_TRACE
 #ifdef SIM_TRACE
 
 #define MAX_NUM_SIM_TRACE_VALUES            (4)
