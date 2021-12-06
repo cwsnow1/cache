@@ -232,12 +232,6 @@ void cache__handle_access (cache_t *cache, instruction_t access) {
     uint8_t block_index;
     bool hit = find_block_in_slot(cache, slot_index, block_addr, &block_index);
     if (hit) {
-#ifdef SIM_TRACE
-        {
-            uint64_t values[MAX_NUM_SIM_TRACE_VALUES] = {block_index};
-            sim_trace__print(SIM_TRACE__HIT, cache->thread_id, values);
-        }
-#endif
         if (access.rw == READ) {
             ++cache->stats.read_hits;
         } else {

@@ -8,7 +8,6 @@
 
 typedef enum trace_entry_id_e {
     SIM_TRACE__ACCESS_BEGIN,
-    SIM_TRACE__HIT,
     SIM_TRACE__MISS,
     SIM_TRACE__LRU_UPDATE,
     SIM_TRACE__EVICT,
