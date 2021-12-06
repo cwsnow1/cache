@@ -6,6 +6,7 @@
 #include <string.h>
 
 #include "cache.h"
+#include "sim_trace.h"
 
 extern cache_t **g_caches;
 extern test_params_t g_test_params;
@@ -57,13 +58,6 @@ bool cache__init (cache_t *caches, uint8_t cache_level, config_t *cache_configs,
         bool ret = cache__init(caches, cache_level + 1, cache_configs, thread_id);
         assert(ret);
     }
-#ifdef DEBUG_TRACE
-    #error Not ready with multi-level cache // TODO
-    char filename[MAX_TRACE_FILENAME_LENGTH];
-    sprintf(filename, "trace_%lu_%lu_%lu.txt", me->cache_size, me->block_size, me->num_blocks_per_slot);
-    me->tracefile = fopen(filename, "w");
-#endif
-
     return true;
 }
 
@@ -77,11 +71,6 @@ void cache__reset (cache_t *me) {
         }
         free(me->slots);
     }
-#ifdef DEBUG_TRACE
-    if (me->tracefile) {
-        fclose(me->tracefile);
-    }
-#endif
     if (me->lower_cache) {
         cache__reset(me->lower_cache);
     }
@@ -104,7 +93,7 @@ void cache__print_info (cache_t *me) {
  *  @param addr         Raw address, 64 bits
  *  @return             Block address, i.e. x MSB of the raw address
  */
-inline uint64_t addr_to_block_addr (cache_t *cache, uint64_t addr) {
+static inline uint64_t addr_to_block_addr (cache_t *cache, uint64_t addr) {
     return addr >> cache->block_size_bits;
 }
 
@@ -115,7 +104,7 @@ inline uint64_t addr_to_block_addr (cache_t *cache, uint64_t addr) {
  *  @param block_addr   Block address, i.e. the raw address shifted
  *  @return             Slot index
  */
-inline uint64_t block_addr_to_slot_index (cache_t *cache, uint64_t block_addr) {
+static inline uint64_t block_addr_to_slot_index (cache_t *cache, uint64_t block_addr) {
     uint64_t mask = cache->num_slots - 1;
     return (block_addr & mask);
 }
@@ -127,7 +116,7 @@ inline uint64_t block_addr_to_slot_index (cache_t *cache, uint64_t block_addr) {
  *  @param block_addr   Raw address, 64 bits
  *  @return             Slot index
  */
-inline uint64_t addr_to_slot_index (cache_t *cache, uint64_t addr) {
+static inline uint64_t addr_to_slot_index (cache_t *cache, uint64_t addr) {
     return block_addr_to_slot_index(cache, addr_to_block_addr(cache, addr));
 }
 
@@ -150,12 +139,9 @@ static void update_lru_list (cache_t * cache, uint64_t slot_index, uint8_t mru_i
         }
         prev_val = tmp;
     }
-#ifdef DEBUG_TRACE
-    fprintf(cache->tracefile, "LRU Update: slot_index=0x%08lx, { ", slot_index);
-    for (int i = 0; i < cache->num_blocks_per_slot; i++) {
-        fprintf(cache->tracefile, "0x%02x ", lru_list[i]);
-    }
-    fprintf(cache->tracefile, "}\n");
+#ifdef SIM_TRACE
+    uint64_t values[MAX_NUM_SIM_TRACE_VALUES] = {slot_index, lru_list[0], lru_list[cache->num_blocks_per_slot - 1]};
+    sim_trace__print(SIM_TRACE__LRU_UPDATE, cache->thread_id, values);
 #endif
 }
 
@@ -216,8 +202,9 @@ static bool find_block_in_slot (cache_t *cache, uint64_t slot_index, uint64_t bl
  */
 static uint8_t request_block (cache_t *cache, uint64_t slot_index, uint64_t block_addr) {
     uint8_t block_index = evict_block(cache, slot_index, block_addr);
-#ifdef DEBUG_TRACE
-    fprintf(cache->tracefile, "MISS: Evict from slot_index=0x%08lx block_index=0x%02x\n", slot_index, block_index);
+#ifdef SIM_TRACE
+    uint64_t values[MAX_NUM_SIM_TRACE_VALUES] = {slot_index, block_index};
+    sim_trace__print(SIM_TRACE__EVICT, cache->thread_id, values);
 #endif
     instruction_t read_request_to_lower_cache = {
         .ptr = block_addr << cache->block_size_bits,
@@ -235,15 +222,21 @@ void cache__handle_access (cache_t *cache, instruction_t access) {
     assert(cache);
     uint64_t block_addr = addr_to_block_addr(cache, access.ptr);
     uint64_t slot_index = addr_to_slot_index(cache, access.ptr);
-#ifdef DEBUG_TRACE
-    char rw = access.rw == READ ? 'r' : 'w';
-    fprintf(cache->tracefile, "%c 0x%012lx, block_address=0x%012lx, slot_index=0x%08lx\n", rw, access.ptr, block_addr, slot_index);
+#ifdef SIM_TRACE
+    {
+        char rw = access.rw == READ ? 'r' : 'w';
+        uint64_t values[MAX_NUM_SIM_TRACE_VALUES] = {(uint64_t) rw, (uint64_t) cache->cache_level, block_addr, slot_index};
+        sim_trace__print(SIM_TRACE__ACCESS_BEGIN, cache->thread_id, values);
+    }
 #endif
     uint8_t block_index;
     bool hit = find_block_in_slot(cache, slot_index, block_addr, &block_index);
     if (hit) {
-#ifdef DEBUG_TRACE
-        fprintf(cache->tracefile, "HIT: block_index=0x%02x\n", block_index);
+#ifdef SIM_TRACE
+        {
+            uint64_t values[MAX_NUM_SIM_TRACE_VALUES] = {block_index};
+            sim_trace__print(SIM_TRACE__HIT, cache->thread_id, values);
+        }
 #endif
         if (access.rw == READ) {
             ++cache->stats.read_hits;
@@ -252,8 +245,11 @@ void cache__handle_access (cache_t *cache, instruction_t access) {
             cache->slots[slot_index].blocks[block_index].dirty = true;
         }
     } else {
-#ifdef DEBUG_TRACE
-        fprintf(cache->tracefile, "MISS: Requesting block\n");
+#ifdef SIM_TRACE
+        {
+            uint64_t values[MAX_NUM_SIM_TRACE_VALUES] = {slot_index};
+            sim_trace__print(SIM_TRACE__MISS, cache->thread_id, values);
+        }
 #endif
         block_index = request_block(cache, slot_index, block_addr);
         if (access.rw == READ) {

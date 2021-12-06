@@ -41,9 +41,6 @@ typedef struct cache_s {
     uint64_t num_blocks;
     slot_t  *slots;
     stats_t stats;
-#ifdef DEBUG_TRACE
-    FILE* tracefile;
-#endif
 } cache_t;
 
 typedef struct config_s {

@@ -11,6 +11,7 @@
 #include "cache.h"
 #include "default_test_params.h"
 #include "io_utils.h"
+#include "sim_trace.h"
 
 #define MAX(x, y)   (x > y ? x : y)
 
@@ -181,12 +182,19 @@ int main (int argc, char** argv) {
         g_caches[i] = (cache_t*) malloc(sizeof(cache_t) * g_test_params.num_cache_levels);
         assert(g_caches[i]);
     }
+#ifdef SIM_TRACE
+    sim_trace__init();
+#endif
     setup_caches(0, g_test_params.min_block_size, g_test_params.min_cache_size);
     create_and_run_threads();
     for (uint64_t i = 0; i < num_configs; i++) {
         io_utils__print_stats(g_caches[i]);
         cache__reset(g_caches[i]);
     }
+
+#ifdef SIM_TRACE
+    sim_trace__write_to_file_and_exit("sim_trace.bin");
+#endif
 
     free(accesses);
     for (uint64_t i = 0; i < num_configs; i++) {

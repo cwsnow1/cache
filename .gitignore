@@ -15,8 +15,10 @@ sort
 matrix
 sequential_read
 
-# debug trace files
-*.zip
+# sim trace files
+sim_trace_*.bin
+sim_trace_*.txt
+decoder
 
 # vscode
 .vscode/

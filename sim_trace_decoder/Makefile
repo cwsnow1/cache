@@ -23,10 +23,10 @@ INCLUDES = -I../inc
 # define any libraries to link into executable:
 #   if I want to link in libraries (libx.so or libx.a) I use the -llibname 
 #   option, something like (this will link in libmylib.so and libm.so:
-LIBS = -lpthread
+# LIBS = -lmylib -lm
 
 # define the C source files
-SRCS = ./main.c ./cache.c ./io_utils.c ./sim_trace.c
+SRCS = sim_trace_decoder.c
 
 # define the C object files 
 #
@@ -39,7 +39,7 @@ SRCS = ./main.c ./cache.c ./io_utils.c ./sim_trace.c
 OBJS = $(SRCS:.c=.o)
 
 # define the executable file 
-MAIN = cache
+MAIN = decoder
 
 #
 # The following part of the makefile is generic; it can be used to 
