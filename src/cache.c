@@ -7,8 +7,7 @@
 
 #include "cache.h"
 
-extern stats_t *stats;
-extern cache_t** g_caches;
+extern cache_t **g_caches;
 extern test_params_t g_test_params;
 
 
@@ -105,7 +104,7 @@ void cache__print_info (cache_t *me) {
  *  @param addr         Raw address, 64 bits
  *  @return             Block address, i.e. x MSB of the raw address
  */
-static uint64_t addr_to_block_addr (cache_t *cache, uint64_t addr) {
+inline uint64_t addr_to_block_addr (cache_t *cache, uint64_t addr) {
     return addr >> cache->block_size_bits;
 }
 
@@ -116,7 +115,7 @@ static uint64_t addr_to_block_addr (cache_t *cache, uint64_t addr) {
  *  @param block_addr   Block address, i.e. the raw address shifted
  *  @return             Slot index
  */
-static uint64_t block_addr_to_slot_index (cache_t *cache, uint64_t block_addr) {
+inline uint64_t block_addr_to_slot_index (cache_t *cache, uint64_t block_addr) {
     uint64_t mask = cache->num_slots - 1;
     return (block_addr & mask);
 }
@@ -128,7 +127,7 @@ static uint64_t block_addr_to_slot_index (cache_t *cache, uint64_t block_addr) {
  *  @param block_addr   Raw address, 64 bits
  *  @return             Slot index
  */
-static uint64_t addr_to_slot_index (cache_t *cache, uint64_t addr) {
+inline uint64_t addr_to_slot_index (cache_t *cache, uint64_t addr) {
     return block_addr_to_slot_index(cache, addr_to_block_addr(cache, addr));
 }
 
