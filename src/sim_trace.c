@@ -11,7 +11,20 @@ static uint32_t *thread_indices;
 static sim_trace_entry_t **sim_trace_buffer;
 extern uint64_t num_configs;
 
-void sim_trace__init(void) {
+int sim_trace__init(void) {
+    if (num_configs > SIM_TRACE_WARNING_THRESHOLD) {
+        printf("The number of configs is very high for simulation tracing.\n");
+        printf("There is no issue with that, but it will take ~2 times as long\n");
+        printf("as normal, and will write a .bin file that will be %lu MiB\n\n", (num_configs * SIM_TRACE_BUFFER_SIZE_IN_BYTES) >> 20);
+        printf("Note: On my setup, making the number of threads unlimited has a\n");
+        printf("bigger benefit to performance when sim tracing than when not.\n\n");
+        printf("Do you wish to continue? [Y/n]\n");
+        char response;
+        scanf("%c", &response);
+        if (response != 'Y') {
+            return -1;
+        }
+    }
     assert(num_configs);
     assert(SIM_TRACE_BUFFER_SIZE_IN_BYTES <= UINT32_MAX);
     thread_indices = (uint32_t*) malloc(sizeof(uint32_t) * num_configs);
@@ -21,6 +34,7 @@ void sim_trace__init(void) {
         sim_trace_buffer[i] = (sim_trace_entry_t*) malloc(SIM_TRACE_BUFFER_SIZE_IN_BYTES);
         memset(sim_trace_buffer[i], SIM_TRACE__INVALID, SIM_TRACE_BUFFER_SIZE_IN_BYTES);
     }
+    return 0;
 }
 
 void sim_trace__print(trace_entry_id_t trace_entry_id, uint64_t thread_id, uint64_t *values) {

@@ -174,6 +174,12 @@ int main (int argc, char** argv) {
     calculate_num_valid_configs(&num_configs, 0, g_test_params.min_block_size, g_test_params.min_cache_size);
     printf("Total number of possible configs = %lu\n", num_configs);
     configs_to_test = num_configs;
+#ifdef SIM_TRACE
+    int ret = sim_trace__init();
+    if (ret < 0) {
+        exit(0);
+    }
+#endif
     threads = (pthread_t*) malloc(sizeof(pthread_t) * num_configs);
     assert(threads);
     g_caches = (cache_t**) malloc(sizeof(cache_t *) * num_configs);
@@ -182,9 +188,7 @@ int main (int argc, char** argv) {
         g_caches[i] = (cache_t*) malloc(sizeof(cache_t) * g_test_params.num_cache_levels);
         assert(g_caches[i]);
     }
-#ifdef SIM_TRACE
-    sim_trace__init();
-#endif
+
     setup_caches(0, g_test_params.min_block_size, g_test_params.min_cache_size);
     create_and_run_threads();
     for (uint64_t i = 0; i < num_configs; i++) {
