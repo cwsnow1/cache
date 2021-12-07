@@ -191,15 +191,13 @@ int main (int argc, char** argv) {
 
     setup_caches(0, g_test_params.min_block_size, g_test_params.min_cache_size);
     create_and_run_threads();
+#ifdef SIM_TRACE
+    sim_trace__write_to_file_and_exit(SIM_TRACE_FILENAME);
+#endif
     for (uint64_t i = 0; i < num_configs; i++) {
         io_utils__print_stats(g_caches[i]);
         cache__reset(g_caches[i]);
     }
-
-#ifdef SIM_TRACE
-    sim_trace__write_to_file_and_exit("sim_trace.bin");
-#endif
-
     free(accesses);
     for (uint64_t i = 0; i < num_configs; i++) {
         free(g_caches[i]);

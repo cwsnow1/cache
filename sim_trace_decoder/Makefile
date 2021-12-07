@@ -9,7 +9,7 @@
 CC = clang
 
 # define any compile-time flags
-CFLAGS = -Wall -O3 -Werror -std=c99 -pedantic
+CFLAGS = -Wall -g -Werror -std=c99 -pedantic
 
 # define any directories containing header files other than /usr/include
 #

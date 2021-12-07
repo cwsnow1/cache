@@ -19,6 +19,7 @@ sequential_read
 sim_trace_*.bin
 sim_trace_*.txt
 decoder
+sim_traces/*.zip
 
 # vscode
 .vscode/

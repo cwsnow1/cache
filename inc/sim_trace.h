@@ -1,4 +1,6 @@
-//#define SIM_TRACE
+#ifndef SIM_TRACE
+#define SIM_TRACE
+#endif
 #ifdef SIM_TRACE
 
 #define MAX_NUM_SIM_TRACE_VALUES            (4)
@@ -6,6 +8,7 @@
 #define SIM_TRACE_BUFFER_SIZE_IN_ENTRIES    (SIM_TRACE_BUFFER_SIZE_IN_BYTES / sizeof(sim_trace_entry_t))
 #define SIM_TRACE_WARNING_THRESHOLD         (128)
 
+#define SIM_TRACE_FILENAME "sim_trace.bin"
 
 typedef enum trace_entry_id_e {
     SIM_TRACE__ACCESS_BEGIN,

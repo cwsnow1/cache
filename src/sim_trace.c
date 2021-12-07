@@ -3,13 +3,17 @@
 #include <stdio.h>
 #include <assert.h>
 #include <string.h>
+#include <stdbool.h>
 
 #include "sim_trace.h"
+#include "cache.h"
 #ifdef SIM_TRACE
 
 static uint32_t *thread_indices;
 static sim_trace_entry_t **sim_trace_buffer;
 extern uint64_t num_configs;
+extern test_params_t g_test_params;
+extern cache_t **g_caches;
 
 int sim_trace__init(void) {
     if (num_configs > SIM_TRACE_WARNING_THRESHOLD) {
@@ -51,6 +55,8 @@ void sim_trace__print(trace_entry_id_t trace_entry_id, uint64_t thread_id, uint6
  * uint32_t number of entries in each sim_trace
  * uint16_t number of threads
  * uint32_t array of indices to oldest entry
+ * uint8_t num_cache_levels
+ * configs of each cache
  * buffers
  */
 
@@ -82,6 +88,20 @@ void sim_trace__write_to_file_and_exit(const char *filename) {
     assert(ret == num_threads);
     free(oldest_indices);
     free(thread_indices);
+    // uint8_t num_cache_levels
+    ret = fwrite(&g_test_params.num_cache_levels, sizeof(uint8_t), 1, f);
+    assert(ret == 1);
+    // configs of each cache
+    config_t *configs = (config_t*) malloc(sizeof(config_t) * g_test_params.num_cache_levels);
+    for (uint16_t i = 0; i < num_threads; i++) {
+        for (uint8_t j = 0; j < g_test_params.num_cache_levels; j++) {
+            configs[j].cache_size = g_caches[i][j].cache_size;
+            configs[j].block_size = g_caches[i][j].block_size;
+            configs[j].num_blocks_per_slot = g_caches[i][j].num_blocks_per_slot;
+        }
+        assert(fwrite(configs, sizeof(config_t), g_test_params.num_cache_levels, f) == g_test_params.num_cache_levels);
+    }
+    free(configs);
     // buffers
     for (uint16_t i = 0; i < num_threads; i++) {
         ret = fwrite(sim_trace_buffer[i], sizeof(sim_trace_entry_t), SIM_TRACE_BUFFER_SIZE_IN_ENTRIES, f);
