@@ -25,8 +25,9 @@ uint64_t num_configs = 0;
 // number of outstanding threads. The only benefit is
 // memory savings & keeping the computer usable when
 // running with large numbers of configs
-static volatile int32_t threads_outstanding;
-static volatile uint64_t configs_to_test;
+volatile static int32_t threads_outstanding;
+volatile static uint64_t configs_to_test;
+static pthread_mutex_t lock;
 
 test_params_t g_test_params;
 
@@ -65,8 +66,10 @@ void * sim_cache (void *L1_cache) {
     for (uint64_t i = 0; i < num_accesses; i++) {
         cache__handle_access(this_cache, accesses[i]);
     }
+    pthread_mutex_lock(&lock);
     configs_to_test--;
     threads_outstanding--;
+    pthread_mutex_unlock(&lock);
     pthread_exit(NULL);
 }
 
@@ -75,20 +78,26 @@ void * sim_cache (void *L1_cache) {
  * 
  */
 static void create_and_run_threads (void) {
+    if (pthread_mutex_init(&lock, NULL) != 0){
+        fprintf(stderr, "Mutex lock init failed\n");
+        exit(1);
+    }
     pthread_t progress_thread;
     pthread_create(&progress_thread, NULL, track_progress, NULL);
     for (uint64_t i = 0; i < num_configs; i++) {
         while (threads_outstanding == g_test_params.max_num_threads)
             ;
+        pthread_mutex_lock(&lock);
+        threads_outstanding++;
+        pthread_mutex_unlock(&lock);
         if (pthread_create(&threads[i], NULL, sim_cache, (void*) &g_caches[i][0])) {
             fprintf(stderr, "Error in creating thread %lu\n", i);
         }
-        threads_outstanding++;
     }
     for (uint64_t i = 0; i < num_configs; i++) {
         pthread_join(threads[i], NULL);
     }
-    assert(threads_outstanding == 0); // If this fails, there is likely a race condition between threads
+    assert(threads_outstanding == 0);
 }
 
 /**
@@ -206,5 +215,8 @@ int main (int argc, char** argv) {
     free(threads);
     t = time(NULL) - t;
     printf("Program took %ld seconds\n", t);
+#ifdef SIM_TRACE
+    printf("Wrote sim trace output to %s\n", SIM_TRACE_FILENAME);
+#endif
     return 0;
 }
