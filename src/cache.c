@@ -185,7 +185,7 @@ static uint8_t evict_block (cache_t *cache, uint64_t slot_index, uint64_t block_
  */
 static bool find_block_in_slot (cache_t *cache, uint64_t slot_index, uint64_t block_addr, uint8_t *block_index) {
     for (int i = 0; i < cache->num_blocks_per_slot; i++) {
-        if (cache->slots[slot_index].blocks[i].block_addr == block_addr) {
+        if (cache->slots[slot_index].blocks[i].valid && (cache->slots[slot_index].blocks[i].block_addr == block_addr)) {
             *block_index = i;
             update_lru_list(cache, slot_index, i);
             return true;
@@ -216,6 +216,7 @@ static uint8_t request_block (cache_t *cache, uint64_t slot_index, uint64_t bloc
         cache__handle_access(cache->lower_cache, read_request_to_lower_cache);
     }
     cache->slots[slot_index].blocks[block_index].block_addr = block_addr;
+    cache->slots[slot_index].blocks[block_index].valid = true;
     assert(cache->slots[slot_index].blocks[block_index].dirty == false);
     return block_index;
 }

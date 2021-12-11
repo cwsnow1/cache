@@ -12,8 +12,11 @@ typedef struct instruction_s {
 } instruction_t;
 
 typedef struct block_s {
+    // The LSB of the block_addr will be the
+    // slot_index, and would be redudant to store
     uint64_t block_addr;
-    uint8_t dirty;
+    bool dirty;
+    bool valid;
 } block_t;
 
 typedef struct slot_s {
