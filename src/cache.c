@@ -7,6 +7,7 @@
 
 #include "cache.h"
 #include "sim_trace.h"
+#include "inlines.h"
 
 extern cache_t **g_caches;
 extern test_params_t g_test_params;
@@ -40,10 +41,12 @@ bool cache__init (cache_t *caches, uint8_t cache_level, config_t *cache_configs,
         return false; // Redundant config
     }
     me->num_blocks_per_slot = cache_config.num_blocks_per_slot;
-    me->num_slots = me->num_blocks / me->num_blocks_per_slot;
-    for (tmp = me->num_slots; (tmp & 1) == 0; tmp >>= 1)
-        ;
-    assert((tmp == 1) && "Number of slots must be a power of 2!"); // TODO: does it?
+    me->num_slots = CEILING_DIVIDE(me->num_blocks, me->num_blocks_per_slot);
+    uint8_t slot_bits = BITS(me->num_slots);
+    // If num_slots is not a power of 2, round up to the next greatest power of 2 for bitmask
+    uint64_t num_slots_ceiling = (1 << (slot_bits - 1)) < me->num_slots ? 1 << slot_bits : me->num_slots;
+    // num_slots_ceiling is a power of 2, so the mask is one less
+    me->block_addr_to_slot_index_mask = num_slots_ceiling - 1;
     me->slots = (slot_t*) malloc(sizeof(slot_t) * me->num_slots);
     memset(me->slots, 0, sizeof(slot_t) * me->num_slots);
     for (int i = 0; i < me->num_slots; i++) {
@@ -105,8 +108,7 @@ static inline uint64_t addr_to_block_addr (cache_t *cache, uint64_t addr) {
  *  @return             Slot index
  */
 static inline uint64_t block_addr_to_slot_index (cache_t *cache, uint64_t block_addr) {
-    uint64_t mask = cache->num_slots - 1;
-    return (block_addr & mask);
+    return (block_addr & cache->block_addr_to_slot_index_mask);
 }
 
 /**

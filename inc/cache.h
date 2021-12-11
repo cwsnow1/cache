@@ -38,6 +38,7 @@ typedef struct cache_s {
     uint64_t block_size_bits;
     uint64_t num_blocks_per_slot;
     uint64_t num_slots;
+    uint64_t block_addr_to_slot_index_mask;
     uint64_t num_blocks;
     slot_t  *slots;
     stats_t stats;
