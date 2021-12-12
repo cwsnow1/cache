@@ -49,7 +49,7 @@ void * track_progress(void * empty) {
         float configs_done = (float) (num_configs - configs_to_test);
         float progress_percent = (configs_done / (float) num_configs) * 100.0f;
         printf("\x1b[1A");
-        printf("Running... %02.0f%% complete\n", progress_percent);
+        printf("Running... %d threads running, %lu to go. %02.0f%% complete\n", threads_outstanding, configs_to_test, progress_percent);
         sleep(1);
     }
     pthread_exit(NULL);
