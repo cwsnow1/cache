@@ -13,16 +13,16 @@ typedef struct instruction_s {
 
 typedef struct block_s {
     // The LSB of the block_addr will be the
-    // slot_index, and would be redudant to store
+    // set_index, and would be redudant to store
     uint64_t block_addr;
     bool dirty;
     bool valid;
 } block_t;
 
-typedef struct slot_s {
-    block_t *blocks;
+typedef struct set_s {
+    block_t *ways;
     uint8_t *lru_list;
-} slot_t;
+} set_t;
 
 typedef struct stats_s {
     uint64_t write_hits;
@@ -39,18 +39,18 @@ typedef struct cache_s {
     uint64_t cache_size;
     uint64_t block_size;
     uint64_t block_size_bits;
-    uint64_t num_blocks_per_slot;
-    uint64_t num_slots;
-    uint64_t block_addr_to_slot_index_mask;
+    uint64_t associativity;
+    uint64_t num_sets;
+    uint64_t block_addr_to_set_index_mask;
     uint64_t num_blocks;
-    slot_t  *slots;
+    set_t  *sets;
     stats_t stats;
 } cache_t;
 
 typedef struct config_s {
     uint64_t cache_size;
     uint64_t block_size;
-    uint64_t num_blocks_per_slot;
+    uint64_t associativity;
 } config_t;
 
 typedef struct test_params_s {
@@ -59,8 +59,8 @@ typedef struct test_params_s {
     uint64_t max_block_size;
     uint64_t min_cache_size;
     uint64_t max_cache_size;
-    uint8_t  min_blocks_per_slot;
-    uint8_t  max_blocks_per_slot;
+    uint8_t  min_blocks_per_set;
+    uint8_t  max_blocks_per_set;
     int32_t  max_num_threads;
 } test_params_t;
 

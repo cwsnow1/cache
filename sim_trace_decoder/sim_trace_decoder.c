@@ -83,7 +83,7 @@ int main (int argc, char* argv[]) {
     for (uint16_t thread_id = 0; thread_id < num_threads; thread_id++) {
         char *output_filename_begin = output_filename_buffer + output_filename_length;
         for (uint8_t j = 0; j < num_cache_levels; j++) {
-            int bytes_written = sprintf(output_filename_begin, "_%lu_%lu_%lu_", configs[thread_id][j].cache_size, configs[thread_id][j].block_size, configs[thread_id][j].num_blocks_per_slot);
+            int bytes_written = sprintf(output_filename_begin, "_%lu_%lu_%lu_", configs[thread_id][j].cache_size, configs[thread_id][j].block_size, configs[thread_id][j].associativity);
             output_filename_begin += bytes_written;
         }
         sprintf(output_filename_begin, ".txt");

@@ -113,10 +113,10 @@ static void setup_caches (uint8_t cache_level, uint64_t min_block_size, uint64_t
     static config_t configs[MAX_NUM_CACHE_LEVELS];
     for (uint64_t block_size = min_block_size; block_size <= g_test_params.max_block_size; block_size <<= 1) {
         for (uint64_t cache_size = MAX(min_cache_size, block_size); cache_size <= (g_test_params.max_cache_size * (1 << cache_level)); cache_size <<= 1) {
-            for (uint8_t blocks_per_slot = g_test_params.min_blocks_per_slot; blocks_per_slot <= g_test_params.max_blocks_per_slot; blocks_per_slot <<= 1) {
+            for (uint8_t blocks_per_set = g_test_params.min_blocks_per_set; blocks_per_set <= g_test_params.max_blocks_per_set; blocks_per_set <<= 1) {
                 configs[cache_level].block_size = block_size;
                 configs[cache_level].cache_size = cache_size;
-                configs[cache_level].num_blocks_per_slot = blocks_per_slot;
+                configs[cache_level].associativity = blocks_per_set;
                 if (cache__is_cache_config_valid(configs[cache_level])) {
                     if (cache_level < g_test_params.num_cache_levels - 1) {
                         setup_caches(cache_level + 1, block_size, cache_size * 2);
@@ -141,11 +141,11 @@ static void setup_caches (uint8_t cache_level, uint64_t min_block_size, uint64_t
 static void calculate_num_valid_configs (uint64_t *num_configs, uint8_t cache_level, uint64_t min_block_size, uint64_t min_cache_size) {
     for (uint64_t block_size = min_block_size; block_size <= g_test_params.max_block_size; block_size <<= 1) {
         for (uint64_t cache_size = MAX(min_cache_size, block_size); cache_size <= g_test_params.max_cache_size; cache_size <<= 1) {
-            for (uint8_t blocks_per_slot = g_test_params.min_blocks_per_slot; blocks_per_slot <= g_test_params.max_blocks_per_slot; blocks_per_slot <<= 1) {
+            for (uint8_t blocks_per_set = g_test_params.min_blocks_per_set; blocks_per_set <= g_test_params.max_blocks_per_set; blocks_per_set <<= 1) {
                 config_t config = {
                     .block_size = block_size,
                     .cache_size = cache_size,
-                    .num_blocks_per_slot = blocks_per_slot,
+                    .associativity = blocks_per_set,
                 };
                 if (cache__is_cache_config_valid(config)) {
                     if (cache_level < g_test_params.num_cache_levels - 1) {

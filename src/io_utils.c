@@ -18,7 +18,7 @@ void io_utils__print_stats (cache_t *cache) {
         printf("-------------------------\n");
     }
     printf("CACHE LEVEL %d\n", cache->cache_level);
-    printf("size=%luB, block_size=%luB, num_blocks_per_slot=%lu\n", cache->cache_size, cache->block_size, cache->num_blocks_per_slot);
+    printf("size=%luB, block_size=%luB, associativity=%lu\n", cache->cache_size, cache->block_size, cache->associativity);
     float num_reads =  (float) (cache->stats.read_hits  + cache->stats.read_misses);
     float num_writes = (float) (cache->stats.write_hits + cache->stats.write_misses);
     float read_miss_rate =  (float) cache->stats.read_misses  / num_reads;
@@ -56,9 +56,9 @@ static void verify_test_params (void) {
     line_number++;
     if (!g_test_params.max_cache_size)      goto verify_fail;
     line_number++;
-    if (!g_test_params.min_blocks_per_slot) goto verify_fail;
+    if (!g_test_params.min_blocks_per_set) goto verify_fail;
     line_number++;
-    if (!g_test_params.max_blocks_per_slot) goto verify_fail;
+    if (!g_test_params.max_blocks_per_set) goto verify_fail;
     line_number++;
     if (!g_test_params.max_num_threads)     goto verify_fail;
 
@@ -97,8 +97,8 @@ void io_utils__load_test_parameters (void) {
     fscanf(params_f, "MAX_BLOCK_SIZE=%lu\n",       &g_test_params.max_block_size);
     fscanf(params_f, "MIN_CACHE_SIZE=%lu\n",       &g_test_params.min_cache_size);
     fscanf(params_f, "MAX_CACHE_SIZE=%lu\n",       &g_test_params.max_cache_size);
-    fscanf(params_f, "MIN_BLOCKS_PER_SLOT=%hhu\n", &g_test_params.min_blocks_per_slot);
-    fscanf(params_f, "MAX_BLOCKS_PER_SLOT=%hhu\n", &g_test_params.max_blocks_per_slot);
+    fscanf(params_f, "MIN_BLOCKS_PER_SLOT=%hhu\n", &g_test_params.min_blocks_per_set);
+    fscanf(params_f, "MAX_BLOCKS_PER_SLOT=%hhu\n", &g_test_params.max_blocks_per_set);
     fscanf(params_f, "MAX_NUM_THREADS=%d\n",       &g_test_params.max_num_threads);
     fclose(params_f);
     verify_test_params();

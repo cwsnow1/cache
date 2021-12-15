@@ -1,5 +1,5 @@
 #ifndef SIM_TRACE
-#define SIM_TRACE
+//#define SIM_TRACE
 #endif
 #ifdef SIM_TRACE
 
