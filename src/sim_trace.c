@@ -97,7 +97,7 @@ void sim_trace__write_to_file_and_exit(const char *filename) {
         for (uint8_t j = 0; j < g_test_params.num_cache_levels; j++) {
             configs[j].cache_size = g_caches[i][j].cache_size;
             configs[j].block_size = g_caches[i][j].block_size;
-            configs[j].num_blocks_per_slot = g_caches[i][j].num_blocks_per_slot;
+            configs[j].associativity = g_caches[i][j].associativity;
         }
         assert(fwrite(configs, sizeof(config_t), g_test_params.num_cache_levels, f) == g_test_params.num_cache_levels);
     }

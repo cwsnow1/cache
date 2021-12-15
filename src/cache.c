@@ -16,7 +16,7 @@ extern test_params_t g_test_params;
 bool cache__is_cache_config_valid (config_t config) {
     assert((config.cache_size % config.block_size == 0) && "Block size must be a factor of cache size!");
     uint64_t num_blocks = config.cache_size / config.block_size;
-    return num_blocks >= config.num_blocks_per_slot;
+    return num_blocks >= config.associativity;
 }
 
 bool cache__init (cache_t *caches, uint8_t cache_level, config_t *cache_configs, uint64_t thread_id) {
@@ -36,25 +36,25 @@ bool cache__init (cache_t *caches, uint8_t cache_level, config_t *cache_configs,
     assert((tmp == 1) && "Block size must be a power of 2!");
     assert((me->cache_size % me->block_size == 0) && "Block size must be a factor of cache size!");
     me->num_blocks = me->cache_size / me->block_size;
-    if (me->num_blocks < cache_config.num_blocks_per_slot) {
+    if (me->num_blocks < cache_config.associativity) {
         memset(me, 0, sizeof(cache_t));
         return false; // Redundant config
     }
-    me->num_blocks_per_slot = cache_config.num_blocks_per_slot;
-    me->num_slots = CEILING_DIVIDE(me->num_blocks, me->num_blocks_per_slot);
-    uint8_t slot_bits = BITS(me->num_slots);
-    // If num_slots is not a power of 2, round up to the next greatest power of 2 for bitmask
-    uint64_t num_slots_ceiling = (1 << (slot_bits - 1)) < me->num_slots ? 1 << slot_bits : me->num_slots;
-    // num_slots_ceiling is a power of 2, so the mask is one less
-    me->block_addr_to_slot_index_mask = num_slots_ceiling - 1;
-    me->slots = (slot_t*) malloc(sizeof(slot_t) * me->num_slots);
-    memset(me->slots, 0, sizeof(slot_t) * me->num_slots);
-    for (int i = 0; i < me->num_slots; i++) {
-        me->slots[i].blocks = (block_t*) malloc(sizeof(block_t) * me->num_blocks_per_slot);
-        me->slots[i].lru_list = (uint8_t*) malloc(sizeof(uint8_t) * me->num_blocks_per_slot);
-        memset(me->slots[i].blocks, 0, sizeof(block_t) * me->num_blocks_per_slot);
-        for (int j = 0; j < me->num_blocks_per_slot; j++) {
-            me->slots[i].lru_list[j] = (uint8_t) j;
+    me->associativity = cache_config.associativity;
+    me->num_sets = CEILING_DIVIDE(me->num_blocks, me->associativity);
+    uint8_t set_bits = BITS(me->num_sets);
+    // If num_sets is not a power of 2, round up to the next greatest power of 2 for bitmask
+    uint64_t num_sets_ceiling = (1 << (set_bits - 1)) < me->num_sets ? 1 << set_bits : me->num_sets;
+    // num_sets_ceiling is a power of 2, so the mask is one less
+    me->block_addr_to_set_index_mask = num_sets_ceiling - 1;
+    me->sets = (set_t*) malloc(sizeof(set_t) * me->num_sets);
+    memset(me->sets, 0, sizeof(set_t) * me->num_sets);
+    for (int i = 0; i < me->num_sets; i++) {
+        me->sets[i].ways = (block_t*) malloc(sizeof(block_t) * me->associativity);
+        me->sets[i].lru_list = (uint8_t*) malloc(sizeof(uint8_t) * me->associativity);
+        memset(me->sets[i].ways, 0, sizeof(block_t) * me->associativity);
+        for (int j = 0; j < me->associativity; j++) {
+            me->sets[i].lru_list[j] = (uint8_t) j;
         }
     }
     if (me->lower_cache) {
@@ -65,14 +65,14 @@ bool cache__init (cache_t *caches, uint8_t cache_level, config_t *cache_configs,
 }
 
 void cache__reset (cache_t *me) {
-    if (me->slots) {
-        for (int i = 0; i < me->num_slots; i++) {
-            if (me->slots[i].blocks) {
-                free(me->slots[i].blocks);
-                free(me->slots[i].lru_list);
+    if (me->sets) {
+        for (int i = 0; i < me->num_sets; i++) {
+            if (me->sets[i].ways) {
+                free(me->sets[i].ways);
+                free(me->sets[i].lru_list);
             }
         }
-        free(me->slots);
+        free(me->sets);
     }
     if (me->lower_cache) {
         cache__reset(me->lower_cache);
@@ -82,8 +82,8 @@ void cache__reset (cache_t *me) {
 
 void cache__print_info (cache_t *me) {
     printf("== CACHE LEVEL %u ==\n", me->cache_level);
-    printf("cache_size = %lu, block_size = %lu, num_blocks = %lu, num_slots = %lu, num_blocks_per_slot = %lu\n",
-        me->cache_size, me->block_size, me->num_blocks, me->num_slots, me->num_blocks_per_slot);
+    printf("cache_size = %lu, block_size = %lu, num_blocks = %lu, num_sets = %lu, associativity = %lu\n",
+        me->cache_size, me->block_size, me->num_blocks, me->num_sets, me->associativity);
     if (me->lower_cache) {
         cache__print_info(me->lower_cache);
     }
@@ -101,39 +101,39 @@ static inline uint64_t addr_to_block_addr (cache_t *cache, uint64_t addr) {
 }
 
 /**
- *  @brief Translates a block address to a slot index
+ *  @brief Translates a block address to a set index
  * 
  *  @param cache        Cache struct to use for config
  *  @param block_addr   Block address, i.e. the raw address shifted
  *  @return             Slot index
  */
-static inline uint64_t block_addr_to_slot_index (cache_t *cache, uint64_t block_addr) {
-    return (block_addr & cache->block_addr_to_slot_index_mask);
+static inline uint64_t block_addr_to_set_index (cache_t *cache, uint64_t block_addr) {
+    return (block_addr & cache->block_addr_to_set_index_mask);
 }
 
 /**
- *  @brief Translates a raw address to a slot index
+ *  @brief Translates a raw address to a set index
  * 
  *  @param cache        Cache struct to use for config
  *  @param block_addr   Raw address, 64 bits
  *  @return             Slot index
  */
-static inline uint64_t addr_to_slot_index (cache_t *cache, uint64_t addr) {
-    return block_addr_to_slot_index(cache, addr_to_block_addr(cache, addr));
+static inline uint64_t addr_to_set_index (cache_t *cache, uint64_t addr) {
+    return block_addr_to_set_index(cache, addr_to_block_addr(cache, addr));
 }
 
 /**
- * @brief               Reorder the LRU list for the given slot
+ * @brief               Reorder the LRU list for the given set
  * 
  * @param cache         Cache structure
- * @param slot_index    Slot whose LRU list is to be reordered
+ * @param set_index    Slot whose LRU list is to be reordered
  * @param mru_index     Block index that is now the most recently used
  */
-static void update_lru_list (cache_t * cache, uint64_t slot_index, uint8_t mru_index) {
-    uint8_t *lru_list = cache->slots[slot_index].lru_list;
+static void update_lru_list (cache_t * cache, uint64_t set_index, uint8_t mru_index) {
+    uint8_t *lru_list = cache->sets[set_index].lru_list;
     uint8_t prev_val = mru_index;
     // find MRU index in the lru_list
-    for (uint8_t i = 0; i < cache->num_blocks_per_slot; i++) {
+    for (uint8_t i = 0; i < cache->associativity; i++) {
         uint8_t tmp = lru_list[i];
         lru_list[i] = prev_val;
         if (tmp == mru_index) {
@@ -142,7 +142,7 @@ static void update_lru_list (cache_t * cache, uint64_t slot_index, uint8_t mru_i
         prev_val = tmp;
     }
 #ifdef SIM_TRACE
-    uint64_t values[MAX_NUM_SIM_TRACE_VALUES] = {slot_index, lru_list[0], lru_list[cache->num_blocks_per_slot - 1]};
+    uint64_t values[MAX_NUM_SIM_TRACE_VALUES] = {set_index, lru_list[0], lru_list[cache->associativity - 1]};
     sim_trace__print(SIM_TRACE__LRU_UPDATE, cache->thread_id, values);
 #endif
 }
@@ -151,43 +151,43 @@ static void update_lru_list (cache_t * cache, uint64_t slot_index, uint8_t mru_i
  * @brief               Handles the eviction and subsequent interactions with lower cache(s)
  * 
  * @param cache         Current cache structure
- * @param slot_index    Slot index from which block needs to be evicted
+ * @param set_index    Slot index from which block needs to be evicted
  * @param block_addr    Block address that will replace the evicted block
- * @return              Block index within the provided slot that the new block occupies
+ * @return              Block index within the provided set that the new block occupies
  */
-static uint8_t evict_block (cache_t *cache, uint64_t slot_index, uint64_t block_addr) {
-    uint8_t lru_block_index = cache->slots[slot_index].lru_list[cache->num_blocks_per_slot - 1];
-    uint64_t old_block_addr = cache->slots[slot_index].blocks[lru_block_index].block_addr;
+static uint8_t evict_block (cache_t *cache, uint64_t set_index, uint64_t block_addr) {
+    uint8_t lru_block_index = cache->sets[set_index].lru_list[cache->associativity - 1];
+    uint64_t old_block_addr = cache->sets[set_index].ways[lru_block_index].block_addr;
     instruction_t lower_cache_access = {
         .ptr = old_block_addr << cache->block_size_bits,
         .rw  = READ,
     };
-    if (cache->slots[slot_index].blocks[lru_block_index].dirty) {
+    if (cache->sets[set_index].ways[lru_block_index].dirty) {
         lower_cache_access.rw = WRITE;
         ++cache->stats.writebacks;
-        cache->slots[slot_index].blocks[lru_block_index].dirty = false;
+        cache->sets[set_index].ways[lru_block_index].dirty = false;
     }
     if (cache->lower_cache) {
         cache__handle_access(cache->lower_cache, lower_cache_access);
     }
-    update_lru_list(cache, slot_index, lru_block_index);
+    update_lru_list(cache, set_index, lru_block_index);
     return lru_block_index;
 }
 
 /**
- * @brief               Searches the given slot for the given block address
+ * @brief               Searches the given set for the given block address
  * 
  * @param cache         Current cache structure
- * @param slot_index    Slot index to search
+ * @param set_index    Slot index to search
  * @param block_addr    Block address for which to search
- * @param block_index   Output: The block index within the slot iff found
- * @return true         if the block is found in the slot
+ * @param block_index   Output: The block index within the set iff found
+ * @return true         if the block is found in the set
  */
-static bool find_block_in_slot (cache_t *cache, uint64_t slot_index, uint64_t block_addr, uint8_t *block_index) {
-    for (int i = 0; i < cache->num_blocks_per_slot; i++) {
-        if (cache->slots[slot_index].blocks[i].valid && (cache->slots[slot_index].blocks[i].block_addr == block_addr)) {
+static bool find_block_in_set (cache_t *cache, uint64_t set_index, uint64_t block_addr, uint8_t *block_index) {
+    for (int i = 0; i < cache->associativity; i++) {
+        if (cache->sets[set_index].ways[i].valid && (cache->sets[set_index].ways[i].block_addr == block_addr)) {
             *block_index = i;
-            update_lru_list(cache, slot_index, i);
+            update_lru_list(cache, set_index, i);
             return true;
         }
     }
@@ -195,17 +195,17 @@ static bool find_block_in_slot (cache_t *cache, uint64_t slot_index, uint64_t bl
 }
 
 /**
- * @brief               Acquires the given block address into the given slot. Makes any subsequent calls necessary to lower caches
+ * @brief               Acquires the given block address into the given set. Makes any subsequent calls necessary to lower caches
  * 
  * @param cache         Current cache structure
- * @param slot_index    Slot in which to put new block
+ * @param set_index    Slot in which to put new block
  * @param block_addr    Block address of block to acquire
- * @return              Block index acquired within slot
+ * @return              Block index acquired within set
  */
-static uint8_t request_block (cache_t *cache, uint64_t slot_index, uint64_t block_addr) {
-    uint8_t block_index = evict_block(cache, slot_index, block_addr);
+static uint8_t request_block (cache_t *cache, uint64_t set_index, uint64_t block_addr) {
+    uint8_t block_index = evict_block(cache, set_index, block_addr);
 #ifdef SIM_TRACE
-    uint64_t values[MAX_NUM_SIM_TRACE_VALUES] = {slot_index, block_index};
+    uint64_t values[MAX_NUM_SIM_TRACE_VALUES] = {set_index, block_index};
     sim_trace__print(SIM_TRACE__EVICT, cache->thread_id, values);
 #endif
     instruction_t read_request_to_lower_cache = {
@@ -215,45 +215,45 @@ static uint8_t request_block (cache_t *cache, uint64_t slot_index, uint64_t bloc
     if (cache->lower_cache) {
         cache__handle_access(cache->lower_cache, read_request_to_lower_cache);
     }
-    cache->slots[slot_index].blocks[block_index].block_addr = block_addr;
-    cache->slots[slot_index].blocks[block_index].valid = true;
-    assert(cache->slots[slot_index].blocks[block_index].dirty == false);
+    cache->sets[set_index].ways[block_index].block_addr = block_addr;
+    cache->sets[set_index].ways[block_index].valid = true;
+    assert(cache->sets[set_index].ways[block_index].dirty == false);
     return block_index;
 }
 
 void cache__handle_access (cache_t *cache, instruction_t access) {
     assert(cache);
     uint64_t block_addr = addr_to_block_addr(cache, access.ptr);
-    uint64_t slot_index = addr_to_slot_index(cache, access.ptr);
+    uint64_t set_index = addr_to_set_index(cache, access.ptr);
 #ifdef SIM_TRACE
     {
         char rw = access.rw == READ ? 'r' : 'w';
-        uint64_t values[MAX_NUM_SIM_TRACE_VALUES] = {(uint64_t) rw, (uint64_t) cache->cache_level, block_addr, slot_index};
+        uint64_t values[MAX_NUM_SIM_TRACE_VALUES] = {(uint64_t) rw, (uint64_t) cache->cache_level, block_addr, set_index};
         sim_trace__print(SIM_TRACE__ACCESS_BEGIN, cache->thread_id, values);
     }
 #endif
     uint8_t block_index;
-    bool hit = find_block_in_slot(cache, slot_index, block_addr, &block_index);
+    bool hit = find_block_in_set(cache, set_index, block_addr, &block_index);
     if (hit) {
         if (access.rw == READ) {
             ++cache->stats.read_hits;
         } else {
             ++cache->stats.write_hits;
-            cache->slots[slot_index].blocks[block_index].dirty = true;
+            cache->sets[set_index].ways[block_index].dirty = true;
         }
     } else {
 #ifdef SIM_TRACE
         {
-            uint64_t values[MAX_NUM_SIM_TRACE_VALUES] = {slot_index};
+            uint64_t values[MAX_NUM_SIM_TRACE_VALUES] = {set_index};
             sim_trace__print(SIM_TRACE__MISS, cache->thread_id, values);
         }
 #endif
-        block_index = request_block(cache, slot_index, block_addr);
+        block_index = request_block(cache, set_index, block_addr);
         if (access.rw == READ) {
             ++cache->stats.read_misses;
         } else {
             ++cache->stats.write_misses;
-            cache->slots[slot_index].blocks[block_index].dirty = true;
+            cache->sets[set_index].ways[block_index].dirty = true;
         }
     }
 }
