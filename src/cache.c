@@ -12,6 +12,14 @@
 extern cache_t **g_caches;
 extern test_params_t g_test_params;
 
+// Obviously these are approximations
+const uint64_t access_time_in_cycles[] = {
+    3,  // L1
+    12, // L2
+    38, // L3
+    195 // Main Memory
+};
+
 
 bool cache__is_cache_config_valid (config_t config) {
     assert((config.cache_size % config.block_size == 0) && "Block size must be a factor of cache size!");
@@ -169,6 +177,8 @@ static uint8_t evict_block (cache_t *cache, uint64_t set_index, uint64_t block_a
     }
     if (cache->lower_cache) {
         cache__handle_access(cache->lower_cache, lower_cache_access);
+    } else {
+        cache->stats.cycles += access_time_in_cycles[MAIN_MEMORY];
     }
     update_lru_list(cache, set_index, lru_block_index);
     return lru_block_index;
@@ -223,6 +233,7 @@ static uint8_t request_block (cache_t *cache, uint64_t set_index, uint64_t block
 
 void cache__handle_access (cache_t *cache, instruction_t access) {
     assert(cache);
+    cache->stats.cycles += access_time_in_cycles[cache->cache_level];
     uint64_t block_addr = addr_to_block_addr(cache, access.ptr);
     uint64_t set_index = addr_to_set_index(cache, access.ptr);
 #ifdef SIM_TRACE

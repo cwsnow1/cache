@@ -1,6 +1,13 @@
 #define ADDR_BITS                   (48)
 #define MAX_TRACE_FILENAME_LENGTH   (100)
 
+enum cache_levels {
+    L1,
+    L2,
+    L3,
+    MAIN_MEMORY
+};
+
 typedef enum access_e {
     READ,
     WRITE
@@ -30,6 +37,7 @@ typedef struct stats_s {
     uint64_t write_misses;
     uint64_t read_misses;
     uint64_t writebacks;
+    uint64_t cycles;
 } stats_t;
 
 typedef struct cache_s {
