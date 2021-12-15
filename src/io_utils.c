@@ -11,7 +11,8 @@
 extern test_params_t g_test_params;
 const char params_filename[] = "./test_params.ini";
 
-void io_utils__print_stats (cache_t *cache) {
+void io_utils__print_stats (cache_t *cache, uint64_t cycles) {
+    cycles += cache->stats.cycles;
     if (cache->cache_level == 0) {
         printf("=========================\n");
     } else {
@@ -32,10 +33,11 @@ void io_utils__print_stats (cache_t *cache) {
     if (cache->cache_level == g_test_params.num_cache_levels - 1) {
         printf("-------------------------\n");
         printf("Main memory reads:  %08lu\n", cache->stats.read_misses + cache->stats.write_misses);
-        printf("Main memory writes: %08lu\n", cache->stats.writebacks);
+        printf("Main memory writes: %08lu\n\n", cache->stats.writebacks);
+        printf("Total number of cycles: %010lu\n", cycles);
         printf("=========================\n\n");
     } else {
-        io_utils__print_stats(cache + 1);
+        io_utils__print_stats(cache + 1, cycles);
     }
 }
 
@@ -68,6 +70,7 @@ static void verify_test_params (void) {
     assert(g_test_params.min_block_size <= g_test_params.max_block_size);
     assert(g_test_params.min_cache_size <= g_test_params.max_cache_size);
     assert(g_test_params.min_cache_size >= g_test_params.min_block_size);
+    assert(g_test_params.num_cache_levels <= MAIN_MEMORY && "Update access_time_in_cycles & enum cache_levels");
     return;
 
 verify_fail:
