@@ -5,8 +5,7 @@
 #include <string.h>
 #include <stdbool.h>
 #include <time.h>
-#include <pthread.h>
-#include <unistd.h>
+#include <Windows.h>
 
 #include "cache.h"
 #include "default_test_params.h"
@@ -18,7 +17,7 @@
 // Common across all threads
 instruction_t *accesses;
 uint64_t num_accesses;
-pthread_t *threads;
+HANDLE *threads;
 cache_t **g_caches;
 uint64_t num_configs = 0;
 // Note: No performance benefit is seen by limiting the
@@ -27,7 +26,7 @@ uint64_t num_configs = 0;
 // running with large numbers of configs
 volatile static int32_t threads_outstanding;
 volatile static uint64_t configs_to_test;
-static pthread_mutex_t lock;
+static HANDLE lock;
 
 test_params_t g_test_params;
 
@@ -43,16 +42,16 @@ static void usage (void) {
  * @brief Prints program progress every second
  * 
  */
-void * track_progress(void * empty) {
+DWORD WINAPI track_progress(void * empty) {
     printf("Running... %02.0f%% complete\n", 0.0f);
     while(configs_to_test) {
         float configs_done = (float) (num_configs - configs_to_test);
         float progress_percent = (configs_done / (float) num_configs) * 100.0f;
         printf("\x1b[1A");
         printf("Running... %d threads running, %lu to go. %02.0f%% complete\n", threads_outstanding, configs_to_test, progress_percent);
-        sleep(1);
+        Sleep(1);
     }
-    pthread_exit(NULL);
+    ExitThread(0);
 }
 
 /**
@@ -60,17 +59,17 @@ void * track_progress(void * empty) {
  * 
  * @param L1_cache      Top level cache pointer, assumed to be initialized
  */
-void * sim_cache (void *L1_cache) {
+DWORD WINAPI sim_cache (void *L1_cache) {
     cache_t *this_cache = (cache_t *) L1_cache;
     assert(this_cache->cache_level == 0);
     for (uint64_t i = 0; i < num_accesses; i++) {
         cache__handle_access(this_cache, accesses[i]);
     }
-    pthread_mutex_lock(&lock);
+    WaitForSingleObject(lock, INFINITE);
     configs_to_test--;
     threads_outstanding--;
-    pthread_mutex_unlock(&lock);
-    pthread_exit(NULL);
+    ReleaseMutex(lock);
+    ExitThread(0);
 }
 
 /**
@@ -78,25 +77,21 @@ void * sim_cache (void *L1_cache) {
  * 
  */
 static void create_and_run_threads (void) {
-    if (pthread_mutex_init(&lock, NULL) != 0){
+    lock = CreateMutex(NULL, false, NULL);
+    if (lock == NULL) {
         fprintf(stderr, "Mutex lock init failed\n");
         exit(1);
     }
-    pthread_t progress_thread;
-    pthread_create(&progress_thread, NULL, track_progress, NULL);
+    HANDLE progress_thread = CreateThread(NULL, 0, track_progress, NULL, 0, NULL);
     for (uint64_t i = 0; i < num_configs; i++) {
         while (threads_outstanding == g_test_params.max_num_threads)
             ;
-        pthread_mutex_lock(&lock);
+        WaitForSingleObject(lock, INFINITE);
         threads_outstanding++;
-        pthread_mutex_unlock(&lock);
-        if (pthread_create(&threads[i], NULL, sim_cache, (void*) &g_caches[i][0])) {
-            fprintf(stderr, "Error in creating thread %lu\n", i);
-        }
+        ReleaseMutex(lock);
+        threads[i] = CreateThread(NULL, 0, sim_cache, (void*)&g_caches[i][0], 0, NULL);
     }
-    for (uint64_t i = 0; i < num_configs; i++) {
-        pthread_join(threads[i], NULL);
-    }
+    WaitForMultipleObjects(num_configs, threads, true, INFINITE);
     assert(threads_outstanding == 0);
 }
 
@@ -189,7 +184,7 @@ int main (int argc, char** argv) {
         exit(0);
     }
 #endif
-    threads = (pthread_t*) malloc(sizeof(pthread_t) * num_configs);
+    threads = (HANDLE*) malloc(sizeof(HANDLE) * num_configs);
     assert(threads);
     g_caches = (cache_t**) malloc(sizeof(cache_t *) * num_configs);
     assert(g_caches);
