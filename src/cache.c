@@ -11,6 +11,7 @@
 
 extern cache_t **g_caches;
 extern test_params_t g_test_params;
+extern uint64_t *cycle_counter;
 
 // Obviously these are approximations
 const uint64_t access_time_in_cycles[] = {
@@ -31,6 +32,9 @@ bool cache__init (cache_t *caches, uint8_t cache_level, config_t *cache_configs,
     assert(caches);
     cache_t *me = &caches[cache_level];
     config_t cache_config = cache_configs[cache_level];
+    if (cache_level != 0) {
+        me->upper_cache = &caches[cache_level - 1];
+    }
     me->lower_cache = (cache_level == g_test_params.num_cache_levels - 1) ? NULL : &caches[cache_level + 1];
     me->cache_level = cache_level;
     me->cache_size = cache_config.cache_size;
@@ -65,6 +69,8 @@ bool cache__init (cache_t *caches, uint8_t cache_level, config_t *cache_configs,
             me->sets[i].lru_list[j] = (uint8_t) j;
         }
     }
+    me->requests = (request_t*) malloc(sizeof(request_t) * MAX_NUM_REQUESTS);
+    memset(me->requests, 0, sizeof(request_t) * MAX_NUM_REQUESTS);
     if (me->lower_cache) {
         bool ret = cache__init(caches, cache_level + 1, cache_configs, thread_id);
         assert(ret);
@@ -176,7 +182,7 @@ static uint8_t evict_block (cache_t *cache, uint64_t set_index, uint64_t block_a
         cache->sets[set_index].ways[lru_block_index].dirty = false;
     }
     if (cache->lower_cache) {
-        cache__handle_access(cache->lower_cache, lower_cache_access);
+        assert(cache__add_access_request(cache->lower_cache, lower_cache_access));
     } else {
         cache->stats.cycles += access_time_in_cycles[MAIN_MEMORY];
     }
@@ -223,7 +229,7 @@ static uint8_t request_block (cache_t *cache, uint64_t set_index, uint64_t block
         .rw  = READ,
     };
     if (cache->lower_cache) {
-        cache__handle_access(cache->lower_cache, read_request_to_lower_cache);
+        assert(cache__add_access_request(cache->lower_cache, read_request_to_lower_cache));
     }
     cache->sets[set_index].ways[block_index].block_addr = block_addr;
     cache->sets[set_index].ways[block_index].valid = true;
@@ -231,11 +237,18 @@ static uint8_t request_block (cache_t *cache, uint64_t set_index, uint64_t block
     return block_index;
 }
 
-void cache__handle_access (cache_t *cache, instruction_t access) {
+static bool handle_access (cache_t *cache, request_t request) {
     assert(cache);
+    if (cycle_counter[cache->thread_id] - request.cycle < access_time_in_cycles[cache->cache_level]) {
+        return false;
+    }
+    instruction_t access = request.instruction;
     cache->stats.cycles += access_time_in_cycles[cache->cache_level];
     uint64_t block_addr = addr_to_block_addr(cache, access.ptr);
     uint64_t set_index = addr_to_set_index(cache, access.ptr);
+    if (cache->sets[set_index].busy) {
+        return false;
+    }
 #ifdef SIM_TRACE
     {
         char rw = access.rw == READ ? 'r' : 'w';
@@ -259,6 +272,7 @@ void cache__handle_access (cache_t *cache, instruction_t access) {
             sim_trace__print(SIM_TRACE__MISS, cache->thread_id, values);
         }
 #endif
+        cache->sets[set_index].busy = true;
         block_index = request_block(cache, set_index, block_addr);
         if (access.rw == READ) {
             ++cache->stats.read_misses;
@@ -266,5 +280,36 @@ void cache__handle_access (cache_t *cache, instruction_t access) {
             ++cache->stats.write_misses;
             cache->sets[set_index].ways[block_index].dirty = true;
         }
+    }
+    return hit;
+}
+
+bool cache__add_access_request (cache_t *cache, instruction_t access) {
+    for (uint64_t i = 0; i < MAX_NUM_REQUESTS; i++) {
+        if (!cache->requests[i].valid) {
+            cache->requests[i].instruction = access;
+            cache->requests[i].cycle = cycle_counter[cache->thread_id];
+            cache->requests[i].valid = true;
+            return true;
+        }
+    }
+    return false;
+}
+
+void cache__process_cache (cache_t *cache) {
+    // TODO: make the cache process from bottom-up
+    for (uint64_t i = 0; i < MAX_NUM_REQUESTS; i++) {
+        if (cache->requests[i].valid) {
+            if (handle_access(cache, cache->requests[i])) {
+                if (cache->upper_cache) {
+                    uint64_t set_index = addr_to_set_index(cache->upper_cache, cache->requests[i].instruction.ptr);
+                    cache->upper_cache->sets[set_index].busy = false;
+                }
+                cache->requests[i].valid = false;
+            }
+        }
+    }
+    if (cache->lower_cache) {
+        cache__process_cache(cache->lower_cache);
     }
 }

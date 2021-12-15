@@ -1,6 +1,8 @@
 #define ADDR_BITS                   (48)
 #define MAX_TRACE_FILENAME_LENGTH   (100)
 
+#define MAX_NUM_REQUESTS            (8)
+
 enum cache_levels {
     L1,
     L2,
@@ -18,6 +20,12 @@ typedef struct instruction_s {
     access_t rw;
 } instruction_t;
 
+typedef struct request_s {
+    instruction_t instruction;
+    uint64_t cycle;
+    bool valid;
+} request_t;
+
 typedef struct block_s {
     // The LSB of the block_addr will be the
     // set_index, and would be redudant to store
@@ -29,6 +37,7 @@ typedef struct block_s {
 typedef struct set_s {
     block_t *ways;
     uint8_t *lru_list;
+    bool busy;
 } set_t;
 
 typedef struct stats_s {
@@ -42,6 +51,7 @@ typedef struct stats_s {
 
 typedef struct cache_s {
     uint64_t thread_id;
+    struct cache_s *upper_cache;
     struct cache_s *lower_cache;
     uint8_t cache_level;
     uint64_t cache_size;
@@ -53,6 +63,8 @@ typedef struct cache_s {
     uint64_t num_blocks;
     set_t  *sets;
     stats_t stats;
+    request_t *requests;
+    uint64_t outstanding_request_count;
 } cache_t;
 
 typedef struct config_s {
@@ -110,4 +122,6 @@ void cache__print_info(cache_t *me);
  * @param cache    The cache struct being written/read
  * @param access   Instruction struct, comprises an address and access type (R/W)
  */
-void cache__handle_access(cache_t *cache, instruction_t access);
+bool cache__add_access_request(cache_t *cache, instruction_t access);
+
+void cache__process_cache (cache_t *cache);
