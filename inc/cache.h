@@ -46,7 +46,6 @@ typedef struct stats_s {
     uint64_t write_misses;
     uint64_t read_misses;
     uint64_t writebacks;
-    uint64_t cycles;
 } stats_t;
 
 typedef struct cache_s {

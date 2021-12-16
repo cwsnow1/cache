@@ -271,7 +271,6 @@ static bool handle_access (cache_t *cache, request_t request) {
         return false;
     }
     instruction_t access = request.instruction;
-    cache->stats.cycles += access_time_in_cycles[cache->cache_level];
     uint64_t block_addr = addr_to_block_addr(cache, access.ptr);
     uint64_t set_index = addr_to_set_index(cache, access.ptr);
     if (cache->sets[set_index].busy) {

@@ -213,7 +213,7 @@ int main (int argc, char** argv) {
     sim_trace__write_to_file_and_exit(SIM_TRACE_FILENAME);
 #endif
     for (uint64_t i = 0; i < num_configs; i++) {
-        io_utils__print_stats(g_caches[i], 0);
+        io_utils__print_stats(g_caches[i]);
         cache__reset(g_caches[i]);
     }
     free(accesses);
