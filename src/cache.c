@@ -21,6 +21,12 @@ const uint64_t access_time_in_cycles[] = {
     195 // Main Memory
 };
 
+#ifdef CONSOLE_PRINT
+#define DEBUG_TRACE printf
+#else
+#define DEBUG_TRACE(...)
+#endif
+
 
 bool cache__is_cache_config_valid (config_t config) {
     assert((config.cache_size % config.block_size == 0) && "Block size must be a factor of cache size!");
@@ -190,7 +196,7 @@ static void update_lru_list (cache_t * cache, uint64_t set_index, uint8_t mru_in
 static int16_t evict_block (cache_t *cache, uint64_t set_index, uint64_t block_addr) {
     int16_t lru_block_index = cache->sets[set_index].lru_list[cache->associativity - 1];
     if (!cache->sets[set_index].ways[lru_block_index].valid) {
-        //printf("Cache[%hhu] not evicting invalid block from set %lu\n", cache->cache_level, set_index);
+        DEBUG_TRACE("Cache[%hhu] not evicting invalid block from set %lu\n", cache->cache_level, set_index);
         return lru_block_index;
     }
     uint64_t old_block_addr = cache->sets[set_index].ways[lru_block_index].block_addr;
@@ -204,7 +210,7 @@ static int16_t evict_block (cache_t *cache, uint64_t set_index, uint64_t block_a
         cache->sets[set_index].ways[lru_block_index].dirty = false;
     }
     if (!cache__add_access_request(cache->lower_cache, lower_cache_access)) {
-        //printf("Cache[%hhu] could not make request in evict, returning\n", cache->cache_level);
+        DEBUG_TRACE("Cache[%hhu] could not make request in evict, returning\n", cache->cache_level);
         return -1;
     }
     cache->sets[set_index].ways[lru_block_index].valid = false;
@@ -255,7 +261,7 @@ static int16_t request_block (cache_t *cache, uint64_t set_index, uint64_t block
     };
     bool ret = cache__add_access_request(cache->lower_cache, read_request_to_lower_cache);
     if (!ret) {
-        //printf("Cache[%hhu] could not make request in request, returning\n", cache->cache_level);
+        DEBUG_TRACE("Cache[%hhu] could not make request in request, returning\n", cache->cache_level);
         return -1;
     }
     cache->sets[set_index].ways[block_index].block_addr = block_addr;
@@ -267,14 +273,14 @@ static int16_t request_block (cache_t *cache, uint64_t set_index, uint64_t block
 static bool handle_access (cache_t *cache, request_t request) {
     assert(cache);
     if (cycle_counter[cache->thread_id] - request.cycle < access_time_in_cycles[cache->cache_level]) {
-        //printf("%lu/%lu cycles for this operation in cache_level=%hhu\n", cycle_counter[cache->thread_id] - request.cycle, access_time_in_cycles[cache->cache_level], cache->cache_level);
+        DEBUG_TRACE("%lu/%lu cycles for this operation in cache_level=%hhu\n", cycle_counter[cache->thread_id] - request.cycle, access_time_in_cycles[cache->cache_level], cache->cache_level);
         return false;
     }
     instruction_t access = request.instruction;
     uint64_t block_addr = addr_to_block_addr(cache, access.ptr);
     uint64_t set_index = addr_to_set_index(cache, access.ptr);
     if (cache->sets[set_index].busy) {
-        //printf("cache[%hhu] set %lu is busy\n", cache->cache_level, set_index);
+        DEBUG_TRACE("Cache[%hhu] set %lu is busy\n", cache->cache_level, set_index);
         return false;
     }
 #ifdef SIM_TRACE
@@ -307,7 +313,7 @@ static bool handle_access (cache_t *cache, request_t request) {
         }
         block_index = (uint8_t) requested_block;
         cache->sets[set_index].busy = true;
-        //printf("cache[%hhu] set %lu marked as busy due to miss\n", cache->cache_level, set_index);
+        DEBUG_TRACE("Cache[%hhu] set %lu marked as busy due to miss\n", cache->cache_level, set_index);
         if (access.rw == READ) {
             ++cache->stats.read_misses;
         } else {
@@ -322,14 +328,14 @@ static void process_main_memory (cache_t *mm) {
     for (uint64_t i = 0; i < MAX_NUM_REQUESTS << MAIN_MEMORY; i++) {
         if (mm->requests[i].valid) {
             if (cycle_counter[mm->thread_id] - mm->requests[i].cycle == access_time_in_cycles[MAIN_MEMORY]) {
-                //printf("Main memory hit\n");
+                DEBUG_TRACE("Main memory hit\n");
                 uint64_t set_index = addr_to_set_index(mm->upper_cache, mm->requests[i].instruction.ptr);
-                //printf("Cache[%hhu] marking set %lu as no longer busy\n", mm->upper_cache->cache_level, set_index);
+                DEBUG_TRACE("Cache[%hhu] marking set %lu as no longer busy\n", mm->upper_cache->cache_level, set_index);
                 mm->upper_cache->sets[set_index].busy = false;
                 mm->requests[i].valid = false;
                 mm->outstanding_request_count--;
             } else {
-                //printf("MM request %lu: %lu/%lu cycles\n", i, cycle_counter[mm->thread_id] - mm->requests[i].cycle, access_time_in_cycles[MAIN_MEMORY]);
+                DEBUG_TRACE("MM request %lu: %lu/%lu cycles\n", i, cycle_counter[mm->thread_id] - mm->requests[i].cycle, access_time_in_cycles[MAIN_MEMORY]);
             }
         }
     }
@@ -343,7 +349,7 @@ bool cache__add_access_request (cache_t *cache, instruction_t access) {
                 cache->requests[i].cycle = cycle_counter[cache->thread_id];
                 cache->requests[i].valid = true;
                 cache->outstanding_request_count++;
-                //printf("Cache[%hhu] New request added at index %lu\n", cache->cache_level, i);
+                DEBUG_TRACE("Cache[%hhu] New request added at index %lu\n", cache->cache_level, i);
                 return true;
             }
         }
@@ -355,12 +361,12 @@ void cache__process_cache (cache_t *cache) {
     // TODO: make the cache process from bottom-up
     for (uint64_t i = 0; i < (MAX_NUM_REQUESTS << cache->cache_level); i++) {
         if (cache->requests[i].valid) {
-            //printf("Cache[%hhu] Trying request %lu, addr=0x%012lx\n", cache->cache_level, i, cache->requests[i].instruction.ptr);
+            DEBUG_TRACE("Cache[%hhu] Trying request %lu, addr=0x%012lx\n", cache->cache_level, i, cache->requests[i].instruction.ptr);
             if (handle_access(cache, cache->requests[i])) {
-                //printf("Cache[%hhu] hit\n", cache->cache_level);
+                DEBUG_TRACE("Cache[%hhu] hit, set=%lu\n", cache->cache_level, addr_to_set_index(cache, cache->requests[i].instruction.ptr));
                 if (cache->upper_cache) {
                     uint64_t set_index = addr_to_set_index(cache->upper_cache, cache->requests[i].instruction.ptr);
-                    //printf("Cache[%hhu] marking set %lu as no longer busy\n", (uint8_t)(cache->cache_level - 1), set_index);
+                    DEBUG_TRACE("Cache[%hhu] marking set %lu as no longer busy\n", (uint8_t)(cache->cache_level - 1), set_index);
                     cache->upper_cache->sets[set_index].busy = false;
                 }
                 cache->requests[i].valid = false;
@@ -368,7 +374,7 @@ void cache__process_cache (cache_t *cache) {
             }
         }
     }
-    //printf("\n");
+    DEBUG_TRACE("\n");
     if (cache->lower_cache->cache_size) {
         cache__process_cache(cache->lower_cache);
     } else {

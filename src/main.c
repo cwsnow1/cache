@@ -47,10 +47,10 @@ static void usage (void) {
 void * track_progress(void * empty) {
     printf("Running... %02.0f%% complete\n", 0.0f);
     while(configs_to_test) {
-        //float configs_done = (float) (num_configs - configs_to_test);
-        //float progress_percent = (configs_done / (float) num_configs) * 100.0f;
-        //printf("\x1b[1A");
-        //printf("Running... %d threads running, %lu to go. %02.0f%% complete\n", threads_outstanding, configs_to_test, progress_percent);
+        float configs_done = (float) (num_configs - configs_to_test);
+        float progress_percent = (configs_done / (float) num_configs) * 100.0f;
+        printf("\x1b[1A");
+        printf("Running... %d threads running, %lu to go. %02.0f%% complete\n", threads_outstanding, configs_to_test, progress_percent);
         sleep(1);
     }
     pthread_exit(NULL);
@@ -66,11 +66,15 @@ void * sim_cache (void *L1_cache) {
     assert(this_cache->cache_level == 0);
     cycle_counter[this_cache->thread_id] = 0;
     for (uint64_t i = 0; i < num_accesses; cycle_counter[this_cache->thread_id]++) {
+#ifdef CONSOLE_PRINT
+        printf("====================\nTICK %010lu\n====================\n", cycle_counter[this_cache->thread_id]);
+        char c;
+        scanf("%c", &c);
+#endif
         if (cache__add_access_request(this_cache, accesses[i])) {
             i++;
         }
         cache__process_cache(this_cache);
-        //printf("====================\nTICK %010lu\n====================\n", cycle_counter[this_cache->thread_id]);
     }
     pthread_mutex_lock(&lock);
     configs_to_test--;
@@ -88,8 +92,10 @@ static void create_and_run_threads (void) {
         fprintf(stderr, "Mutex lock init failed\n");
         exit(1);
     }
+#ifndef CONSOLE_PRINT
     pthread_t progress_thread;
     pthread_create(&progress_thread, NULL, track_progress, NULL);
+#endif
     for (uint64_t i = 0; i < num_configs; i++) {
         while (threads_outstanding == g_test_params.max_num_threads)
             ;
