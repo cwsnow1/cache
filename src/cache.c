@@ -360,20 +360,18 @@ bool cache__add_access_request (cache_t *cache, instruction_t access, uint64_t c
 }
 
 void cache__process_cache (cache_t *cache, uint64_t cycle) {
-    if (cache->request_manager.outstanding_requests->count) {
-        for_each_in_double_list(cache->request_manager.outstanding_requests) {
-            DEBUG_TRACE("Cache[%hhu] Trying request %lu, addr=0x%012lx\n", cache->cache_level, pool_index, cache->request_manager.request_pool[pool_index].instruction.ptr);
-            if (handle_access(cache, cache->request_manager.request_pool[pool_index], cycle)) {
-                DEBUG_TRACE("Cache[%hhu] hit, set=%lu\n", cache->cache_level, addr_to_set_index(cache, cache->request_manager.request_pool[pool_index].instruction.ptr));
-                if (cache->upper_cache) {
-                    uint64_t set_index = addr_to_set_index(cache->upper_cache, cache->request_manager.request_pool[pool_index].instruction.ptr);
-                    DEBUG_TRACE("Cache[%hhu] marking set %lu as no longer busy\n", (uint8_t)(cache->cache_level - 1), set_index);
-                    cache->upper_cache->sets[set_index].busy = false;
-                }
-                cache->request_manager.request_pool[pool_index].valid = false;
-                assert(double_list__remove_element(cache->request_manager.outstanding_requests, element_i));
-                assert(double_list__push_element(cache->request_manager.free_requests, element_i));
+    for_each_in_double_list(cache->request_manager.outstanding_requests) {
+        DEBUG_TRACE("Cache[%hhu] Trying request %lu, addr=0x%012lx\n", cache->cache_level, pool_index, cache->request_manager.request_pool[pool_index].instruction.ptr);
+        if (handle_access(cache, cache->request_manager.request_pool[pool_index], cycle)) {
+            DEBUG_TRACE("Cache[%hhu] hit, set=%lu\n", cache->cache_level, addr_to_set_index(cache, cache->request_manager.request_pool[pool_index].instruction.ptr));
+            if (cache->upper_cache) {
+                uint64_t set_index = addr_to_set_index(cache->upper_cache, cache->request_manager.request_pool[pool_index].instruction.ptr);
+                DEBUG_TRACE("Cache[%hhu] marking set %lu as no longer busy\n", (uint8_t)(cache->cache_level - 1), set_index);
+                cache->upper_cache->sets[set_index].busy = false;
             }
+            cache->request_manager.request_pool[pool_index].valid = false;
+            assert(double_list__remove_element(cache->request_manager.outstanding_requests, element_i));
+            assert(double_list__push_element(cache->request_manager.free_requests, element_i));
         }
     }
     DEBUG_TRACE("\n");
