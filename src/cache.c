@@ -8,7 +8,6 @@
 #include "list.h"
 #include "cache.h"
 #include "sim_trace.h"
-#include "inlines.h"
 
 // Obviously these are approximations
 const uint64_t access_time_in_cycles[] = {
