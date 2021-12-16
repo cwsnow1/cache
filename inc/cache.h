@@ -130,6 +130,6 @@ void cache__print_info(cache_t *me);
  * @param cache    The cache struct being written/read
  * @param access   Instruction struct, comprises an address and access type (R/W)
  */
-bool cache__add_access_request(cache_t *cache, instruction_t access);
+bool cache__add_access_request(cache_t *cache, instruction_t access, uint64_t cycle);
 
-void cache__process_cache (cache_t *cache);
+void cache__process_cache (cache_t *cache, uint64_t cycle);

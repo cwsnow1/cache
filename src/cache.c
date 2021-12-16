@@ -12,7 +12,6 @@
 
 extern cache_t **g_caches;
 extern test_params_t g_test_params;
-extern uint64_t *cycle_counter;
 
 // Obviously these are approximations
 const uint64_t access_time_in_cycles[] = {
@@ -205,7 +204,7 @@ static void update_lru_list (cache_t * cache, uint64_t set_index, uint8_t mru_in
  * @param block_addr    Block address that will replace the evicted block
  * @return              Block index within the provided set that the new block occupies
  */
-static int16_t evict_block (cache_t *cache, uint64_t set_index, uint64_t block_addr) {
+static int16_t evict_block (cache_t *cache, uint64_t set_index, uint64_t block_addr, uint64_t cycle) {
     int16_t lru_block_index = cache->sets[set_index].lru_list[cache->associativity - 1];
     if (!cache->sets[set_index].ways[lru_block_index].valid) {
         DEBUG_TRACE("Cache[%hhu] not evicting invalid block from set %lu\n", cache->cache_level, set_index);
@@ -221,7 +220,7 @@ static int16_t evict_block (cache_t *cache, uint64_t set_index, uint64_t block_a
         ++cache->stats.writebacks;
         cache->sets[set_index].ways[lru_block_index].dirty = false;
     }
-    if (!cache__add_access_request(cache->lower_cache, lower_cache_access)) {
+    if (!cache__add_access_request(cache->lower_cache, lower_cache_access, cycle)) {
         DEBUG_TRACE("Cache[%hhu] could not make request in evict, returning\n", cache->cache_level);
         return -1;
     }
@@ -258,8 +257,8 @@ static bool find_block_in_set (cache_t *cache, uint64_t set_index, uint64_t bloc
  * @param block_addr    Block address of block to acquire
  * @return              Block index acquired within set
  */
-static int16_t request_block (cache_t *cache, uint64_t set_index, uint64_t block_addr) {
-    int16_t block_index = evict_block(cache, set_index, block_addr);
+static int16_t request_block (cache_t *cache, uint64_t set_index, uint64_t block_addr, uint64_t cycle) {
+    int16_t block_index = evict_block(cache, set_index, block_addr, cycle);
     if (block_index == -1) {
         return -1;
     }
@@ -271,7 +270,7 @@ static int16_t request_block (cache_t *cache, uint64_t set_index, uint64_t block
         .ptr = block_addr << cache->block_size_bits,
         .rw  = READ,
     };
-    bool ret = cache__add_access_request(cache->lower_cache, read_request_to_lower_cache);
+    bool ret = cache__add_access_request(cache->lower_cache, read_request_to_lower_cache, cycle);
     if (!ret) {
         DEBUG_TRACE("Cache[%hhu] could not make request in request, returning\n", cache->cache_level);
         return -1;
@@ -282,9 +281,9 @@ static int16_t request_block (cache_t *cache, uint64_t set_index, uint64_t block
     return block_index;
 }
 
-static bool handle_access (cache_t *cache, request_t request) {
+static bool handle_access (cache_t *cache, request_t request, uint64_t cycle) {
     assert(cache);
-    if (cycle_counter[cache->thread_id] - request.cycle < access_time_in_cycles[cache->cache_level]) {
+    if (cycle - request.cycle < access_time_in_cycles[cache->cache_level]) {
         DEBUG_TRACE("%lu/%lu cycles for this operation in cache_level=%hhu\n", cycle_counter[cache->thread_id] - request.cycle, access_time_in_cycles[cache->cache_level], cache->cache_level);
         return false;
     }
@@ -319,7 +318,7 @@ static bool handle_access (cache_t *cache, request_t request) {
         }
 #endif
 
-        int16_t requested_block = request_block(cache, set_index, block_addr);
+        int16_t requested_block = request_block(cache, set_index, block_addr, cycle);
         if (requested_block == -1) {
             return hit;
         }
@@ -336,10 +335,10 @@ static bool handle_access (cache_t *cache, request_t request) {
     return hit;
 }
 
-static void process_main_memory (cache_t *mm) {
+static void process_main_memory (cache_t *mm, uint64_t cycle) {
     if (mm->request_manager.outstanding_requests->count) {
         for_each_in_double_list(mm->request_manager.outstanding_requests) {
-            if (cycle_counter[mm->thread_id] - mm->request_manager.request_pool[pool_index].cycle == access_time_in_cycles[MAIN_MEMORY]) {
+            if (cycle - mm->request_manager.request_pool[pool_index].cycle == access_time_in_cycles[MAIN_MEMORY]) {
                 DEBUG_TRACE("Main memory hit\n");
                 uint64_t set_index = addr_to_set_index(mm->upper_cache, mm->request_manager.request_pool[pool_index].instruction.ptr);
                 DEBUG_TRACE("Cache[%hhu] marking set %lu as no longer busy\n", mm->upper_cache->cache_level, set_index);
@@ -348,19 +347,19 @@ static void process_main_memory (cache_t *mm) {
                 assert(double_list__remove_element(mm->request_manager.outstanding_requests, element_i));
                 assert(double_list__push_element(mm->request_manager.free_requests, element_i));
             } else {
-                DEBUG_TRACE("MM request %lu: %lu/%lu cycles\n", pool_index, cycle_counter[mm->thread_id] - mm->request_manager.request_pool[pool_index].cycle, access_time_in_cycles[MAIN_MEMORY]);
+                DEBUG_TRACE("MM request %lu: %lu/%lu cycles\n", pool_index, cycle - mm->request_manager.request_pool[pool_index].cycle, access_time_in_cycles[MAIN_MEMORY]);
             }
         }
     }
 }
 
-bool cache__add_access_request (cache_t *cache, instruction_t access) {
+bool cache__add_access_request (cache_t *cache, instruction_t access, uint64_t cycle) {
     double_list_element_t *element = double_list__pop_element(cache->request_manager.free_requests);
     if (element) {
         assert(double_list__add_element_to_tail(cache->request_manager.outstanding_requests, element));
         uint64_t pool_index = element->pool_index;
         cache->request_manager.request_pool[pool_index].instruction = access;
-        cache->request_manager.request_pool[pool_index].cycle = cycle_counter[cache->thread_id];
+        cache->request_manager.request_pool[pool_index].cycle = cycle;
         cache->request_manager.request_pool[pool_index].valid = true;
         DEBUG_TRACE("Cache[%hhu] New request added at index %lu\n", cache->cache_level, pool_index);
         return true;
@@ -368,11 +367,11 @@ bool cache__add_access_request (cache_t *cache, instruction_t access) {
     return false;
 }
 
-void cache__process_cache (cache_t *cache) {
+void cache__process_cache (cache_t *cache, uint64_t cycle) {
     if (cache->request_manager.outstanding_requests->count) {
         for_each_in_double_list(cache->request_manager.outstanding_requests) {
             DEBUG_TRACE("Cache[%hhu] Trying request %lu, addr=0x%012lx\n", cache->cache_level, pool_index, cache->request_manager.request_pool[pool_index].instruction.ptr);
-            if (handle_access(cache, cache->request_manager.request_pool[pool_index])) {
+            if (handle_access(cache, cache->request_manager.request_pool[pool_index], cycle)) {
                 DEBUG_TRACE("Cache[%hhu] hit, set=%lu\n", cache->cache_level, addr_to_set_index(cache, cache->request_manager.request_pool[pool_index].instruction.ptr));
                 if (cache->upper_cache) {
                     uint64_t set_index = addr_to_set_index(cache->upper_cache, cache->request_manager.request_pool[pool_index].instruction.ptr);
@@ -387,8 +386,8 @@ void cache__process_cache (cache_t *cache) {
     }
     DEBUG_TRACE("\n");
     if (cache->lower_cache->cache_size) {
-        cache__process_cache(cache->lower_cache);
+        cache__process_cache(cache->lower_cache, cycle);
     } else {
-        process_main_memory(cache->lower_cache);
+        process_main_memory(cache->lower_cache, cycle);
     }
 }

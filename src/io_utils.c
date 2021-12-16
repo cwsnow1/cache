@@ -10,9 +10,8 @@
 
 extern test_params_t g_test_params;
 const char params_filename[] = "./test_params.ini";
-extern uint64_t *cycle_counter;
 
-void io_utils__print_stats (cache_t *cache) {
+void io_utils__print_stats (cache_t *cache, uint64_t cycle) {
     if (cache->cache_level == 0) {
         printf("=========================\n");
     } else {
@@ -34,10 +33,10 @@ void io_utils__print_stats (cache_t *cache) {
         printf("-------------------------\n");
         printf("Main memory reads:  %08lu\n", cache->stats.read_misses + cache->stats.write_misses);
         printf("Main memory writes: %08lu\n\n", cache->stats.writebacks);
-        printf("Total number of cycles: %010lu\n", cycle_counter[cache->thread_id]);
+        printf("Total number of cycles: %010lu\n", cycle);
         printf("=========================\n\n");
     } else {
-        io_utils__print_stats(cache + 1);
+        io_utils__print_stats(cache + 1, cycle);
     }
 }
 

@@ -20,7 +20,7 @@ instruction_t *accesses;
 uint64_t num_accesses;
 pthread_t *threads;
 cache_t **g_caches;
-uint64_t *cycle_counter;
+static uint64_t *cycle_counter;
 uint64_t num_configs = 0;
 // Note: No performance benefit is seen by limiting the
 // number of outstanding threads. The only benefit is
@@ -71,10 +71,10 @@ void * sim_cache (void *L1_cache) {
         char c;
         scanf("%c", &c);
 #endif
-        if (cache__add_access_request(this_cache, accesses[i])) {
+        if (cache__add_access_request(this_cache, accesses[i], cycle_counter[this_cache->thread_id])) {
             i++;
         }
-        cache__process_cache(this_cache);
+        cache__process_cache(this_cache, cycle_counter[this_cache->thread_id]);
     }
     pthread_mutex_lock(&lock);
     configs_to_test--;
@@ -219,7 +219,7 @@ int main (int argc, char** argv) {
     sim_trace__write_to_file_and_exit(SIM_TRACE_FILENAME);
 #endif
     for (uint64_t i = 0; i < num_configs; i++) {
-        io_utils__print_stats(g_caches[i]);
+        io_utils__print_stats(g_caches[i], cycle_counter[i]);
         cache__reset(g_caches[i]);
     }
     free(accesses);
