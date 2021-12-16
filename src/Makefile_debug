@@ -26,7 +26,7 @@ INCLUDES = -I../inc
 LIBS = -lpthread
 
 # define the C source files
-SRCS = ./main.c ./cache.c ./io_utils.c ./sim_trace.c
+SRCS = ./main.c ./cache.c ./io_utils.c ./sim_trace.c ./list.c
 
 # define the C object files 
 #

@@ -1,8 +1,10 @@
+#include "list.h"
+
 #define ADDR_BITS                   (48)
 #define MAX_TRACE_FILENAME_LENGTH   (100)
 
 #define MAX_NUM_REQUESTS            (8)
-#define CONSOLE_PRINT
+//#define CONSOLE_PRINT
 
 enum cache_levels {
     L1,
@@ -26,6 +28,13 @@ typedef struct request_s {
     uint64_t cycle;
     bool valid;
 } request_t;
+
+typedef struct request_manager_s {
+    request_t *request_pool;
+    double_list_t *outstanding_requests;
+    double_list_t *free_requests;
+    uint64_t max_outstanding_requests;
+} request_manager_t;
 
 typedef struct block_s {
     // The LSB of the block_addr will be the
@@ -63,8 +72,7 @@ typedef struct cache_s {
     uint64_t num_blocks;
     set_t  *sets;
     stats_t stats;
-    request_t *requests;
-    uint64_t outstanding_request_count;
+    request_manager_t request_manager;
 } cache_t;
 
 typedef struct config_s {

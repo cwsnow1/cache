@@ -5,6 +5,7 @@
 #include <stdbool.h>
 #include <string.h>
 
+#include "list.h"
 #include "cache.h"
 #include "sim_trace.h"
 #include "inlines.h"
@@ -27,22 +28,13 @@ const uint64_t access_time_in_cycles[] = {
 #define DEBUG_TRACE(...)
 #endif
 
+static void init_main_memory (cache_t *lowest_cache);
+static void init_request_manager (cache_t *me);
 
 bool cache__is_cache_config_valid (config_t config) {
     assert((config.cache_size % config.block_size == 0) && "Block size must be a factor of cache size!");
     uint64_t num_blocks = config.cache_size / config.block_size;
     return num_blocks >= config.associativity;
-}
-
-static void init_main_memory (cache_t *lowest_cache) {
-    lowest_cache->lower_cache = (cache_t*) malloc(sizeof(cache_t));
-    memset(lowest_cache->lower_cache, 0, sizeof(cache_t));
-    lowest_cache->lower_cache->requests = (request_t*) malloc(sizeof(request_t) * (MAX_NUM_REQUESTS << MAIN_MEMORY));
-    memset(lowest_cache->lower_cache->requests, 0, sizeof(request_t) * (MAX_NUM_REQUESTS << MAIN_MEMORY));
-    lowest_cache->lower_cache->outstanding_request_count = 0;
-    lowest_cache->lower_cache->thread_id = lowest_cache->thread_id;
-    lowest_cache->lower_cache->upper_cache = lowest_cache;
-    lowest_cache->lower_cache->cache_level = MAIN_MEMORY;
 }
 
 bool cache__init (cache_t *caches, uint8_t cache_level, config_t *cache_configs, uint64_t thread_id) {
@@ -88,9 +80,7 @@ bool cache__init (cache_t *caches, uint8_t cache_level, config_t *cache_configs,
             me->sets[i].lru_list[j] = (uint8_t) j;
         }
     }
-    me->requests = (request_t*) malloc(sizeof(request_t) * (MAX_NUM_REQUESTS << me->cache_level));
-    memset(me->requests, 0, sizeof(request_t) * (MAX_NUM_REQUESTS << me->cache_level));
-    me->outstanding_request_count = 0;
+    init_request_manager(me);
     if (me->lower_cache) {
         bool ret = cache__init(caches, cache_level + 1, cache_configs, thread_id);
         assert(ret);
@@ -98,6 +88,28 @@ bool cache__init (cache_t *caches, uint8_t cache_level, config_t *cache_configs,
         init_main_memory(me);
     }
     return true;
+}
+
+static void init_main_memory (cache_t *lowest_cache) {
+    lowest_cache->lower_cache = (cache_t*) malloc(sizeof(cache_t));
+    memset(lowest_cache->lower_cache, 0, sizeof(cache_t));
+    lowest_cache->lower_cache->cache_level = MAIN_MEMORY;
+    lowest_cache->lower_cache->thread_id = lowest_cache->thread_id;
+    lowest_cache->lower_cache->upper_cache = lowest_cache;
+    init_request_manager(lowest_cache->lower_cache);
+}
+
+static void init_request_manager (cache_t *me) {
+    assert(me);
+    me->request_manager.max_outstanding_requests = MAX_NUM_REQUESTS << me->cache_level;
+    me->request_manager.request_pool = (request_t*) malloc(sizeof(request_t) * me->request_manager.max_outstanding_requests);
+    me->request_manager.outstanding_requests = double_list__init_list(me->request_manager.max_outstanding_requests);
+    me->request_manager.free_requests = double_list__init_list(me->request_manager.max_outstanding_requests);
+    for (uint64_t i = 0; i < me->request_manager.max_outstanding_requests; i++) {
+        double_list_element_t *element = (double_list_element_t*) malloc(sizeof(double_list_element_t));
+        element->pool_index = i;
+        double_list__push_element(me->request_manager.free_requests, element);
+    }
 }
 
 void cache__reset (cache_t *me) {
@@ -325,52 +337,51 @@ static bool handle_access (cache_t *cache, request_t request) {
 }
 
 static void process_main_memory (cache_t *mm) {
-    for (uint64_t i = 0; i < MAX_NUM_REQUESTS << MAIN_MEMORY; i++) {
-        if (mm->requests[i].valid) {
-            if (cycle_counter[mm->thread_id] - mm->requests[i].cycle == access_time_in_cycles[MAIN_MEMORY]) {
+    if (mm->request_manager.outstanding_requests->count) {
+        for_each_in_double_list(mm->request_manager.outstanding_requests) {
+            if (cycle_counter[mm->thread_id] - mm->request_manager.request_pool[pool_index].cycle == access_time_in_cycles[MAIN_MEMORY]) {
                 DEBUG_TRACE("Main memory hit\n");
-                uint64_t set_index = addr_to_set_index(mm->upper_cache, mm->requests[i].instruction.ptr);
+                uint64_t set_index = addr_to_set_index(mm->upper_cache, mm->request_manager.request_pool[pool_index].instruction.ptr);
                 DEBUG_TRACE("Cache[%hhu] marking set %lu as no longer busy\n", mm->upper_cache->cache_level, set_index);
                 mm->upper_cache->sets[set_index].busy = false;
-                mm->requests[i].valid = false;
-                mm->outstanding_request_count--;
+                mm->request_manager.request_pool[pool_index].valid = false;
+                assert(double_list__remove_element(mm->request_manager.outstanding_requests, element_i));
+                assert(double_list__push_element(mm->request_manager.free_requests, element_i));
             } else {
-                DEBUG_TRACE("MM request %lu: %lu/%lu cycles\n", i, cycle_counter[mm->thread_id] - mm->requests[i].cycle, access_time_in_cycles[MAIN_MEMORY]);
+                DEBUG_TRACE("MM request %lu: %lu/%lu cycles\n", pool_index, cycle_counter[mm->thread_id] - mm->request_manager.request_pool[pool_index].cycle, access_time_in_cycles[MAIN_MEMORY]);
             }
         }
     }
 }
 
 bool cache__add_access_request (cache_t *cache, instruction_t access) {
-    if (cache->outstanding_request_count < (MAX_NUM_REQUESTS << cache->cache_level)) {
-        for (uint64_t i = 0; i < (MAX_NUM_REQUESTS << cache->cache_level); i++) {
-            if (!cache->requests[i].valid) {
-                cache->requests[i].instruction = access;
-                cache->requests[i].cycle = cycle_counter[cache->thread_id];
-                cache->requests[i].valid = true;
-                cache->outstanding_request_count++;
-                DEBUG_TRACE("Cache[%hhu] New request added at index %lu\n", cache->cache_level, i);
-                return true;
-            }
-        }
+    double_list_element_t *element = double_list__pop_element(cache->request_manager.free_requests);
+    if (element) {
+        assert(double_list__add_element_to_tail(cache->request_manager.outstanding_requests, element));
+        uint64_t pool_index = element->pool_index;
+        cache->request_manager.request_pool[pool_index].instruction = access;
+        cache->request_manager.request_pool[pool_index].cycle = cycle_counter[cache->thread_id];
+        cache->request_manager.request_pool[pool_index].valid = true;
+        DEBUG_TRACE("Cache[%hhu] New request added at index %lu\n", cache->cache_level, pool_index);
+        return true;
     }
     return false;
 }
 
 void cache__process_cache (cache_t *cache) {
-    // TODO: make the cache process from bottom-up
-    for (uint64_t i = 0; i < (MAX_NUM_REQUESTS << cache->cache_level); i++) {
-        if (cache->requests[i].valid) {
-            DEBUG_TRACE("Cache[%hhu] Trying request %lu, addr=0x%012lx\n", cache->cache_level, i, cache->requests[i].instruction.ptr);
-            if (handle_access(cache, cache->requests[i])) {
-                DEBUG_TRACE("Cache[%hhu] hit, set=%lu\n", cache->cache_level, addr_to_set_index(cache, cache->requests[i].instruction.ptr));
+    if (cache->request_manager.outstanding_requests->count) {
+        for_each_in_double_list(cache->request_manager.outstanding_requests) {
+            DEBUG_TRACE("Cache[%hhu] Trying request %lu, addr=0x%012lx\n", cache->cache_level, pool_index, cache->request_manager.request_pool[pool_index].instruction.ptr);
+            if (handle_access(cache, cache->request_manager.request_pool[pool_index])) {
+                DEBUG_TRACE("Cache[%hhu] hit, set=%lu\n", cache->cache_level, addr_to_set_index(cache, cache->request_manager.request_pool[pool_index].instruction.ptr));
                 if (cache->upper_cache) {
-                    uint64_t set_index = addr_to_set_index(cache->upper_cache, cache->requests[i].instruction.ptr);
+                    uint64_t set_index = addr_to_set_index(cache->upper_cache, cache->request_manager.request_pool[pool_index].instruction.ptr);
                     DEBUG_TRACE("Cache[%hhu] marking set %lu as no longer busy\n", (uint8_t)(cache->cache_level - 1), set_index);
                     cache->upper_cache->sets[set_index].busy = false;
                 }
-                cache->requests[i].valid = false;
-                cache->outstanding_request_count--;
+                cache->request_manager.request_pool[pool_index].valid = false;
+                assert(double_list__remove_element(cache->request_manager.outstanding_requests, element_i));
+                assert(double_list__push_element(cache->request_manager.free_requests, element_i));
             }
         }
     }
