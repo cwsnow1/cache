@@ -34,6 +34,11 @@ void io_utils__print_stats (cache_t *cache, uint64_t cycle) {
         printf("Main memory reads:  %08lu\n", cache->stats.read_misses + cache->stats.write_misses);
         printf("Main memory writes: %08lu\n\n", cache->stats.writebacks);
         printf("Total number of cycles: %010lu\n", cycle);
+        cache_t *top_level_cache = cache - cache->cache_level;
+        float num_reads =  (float) (top_level_cache->stats.read_hits  + top_level_cache->stats.read_misses);
+        float num_writes = (float) (top_level_cache->stats.write_hits + top_level_cache->stats.write_misses);
+        float cpi = (float) cycle / (num_reads + num_writes);
+        printf("CPI: %.4f\n", cpi);
         printf("=========================\n\n");
     } else {
         io_utils__print_stats(cache + 1, cycle);
