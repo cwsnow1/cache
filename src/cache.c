@@ -281,7 +281,7 @@ static int16_t request_block (cache_t *cache, uint64_t set_index, uint64_t block
 static bool handle_access (cache_t *cache, request_t request, uint64_t cycle) {
     assert(cache);
     if (cycle - request.cycle < access_time_in_cycles[cache->cache_level]) {
-        DEBUG_TRACE("%lu/%lu cycles for this operation in cache_level=%hhu\n", cycle_counter[cache->thread_id] - request.cycle, access_time_in_cycles[cache->cache_level], cache->cache_level);
+        DEBUG_TRACE("%lu/%lu cycles for this operation in cache_level=%hhu\n", cycle - request.cycle, access_time_in_cycles[cache->cache_level], cache->cache_level);
         return false;
     }
     instruction_t access = request.instruction;
