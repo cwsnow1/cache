@@ -79,6 +79,7 @@ typedef struct config_s {
     uint64_t cache_size;
     uint64_t block_size;
     uint64_t associativity;
+    uint8_t num_cache_levels;
 } config_t;
 
 typedef struct test_params_s {

@@ -129,6 +129,7 @@ static void setup_caches (uint8_t cache_level, uint64_t min_block_size, uint64_t
                 configs[cache_level].block_size = block_size;
                 configs[cache_level].cache_size = cache_size;
                 configs[cache_level].associativity = blocks_per_set;
+                configs[cache_level].num_cache_levels = g_test_params.num_cache_levels;
                 if (cache__is_cache_config_valid(configs[cache_level])) {
                     if (cache_level < g_test_params.num_cache_levels - 1) {
                         setup_caches(cache_level + 1, block_size, cache_size * 2);

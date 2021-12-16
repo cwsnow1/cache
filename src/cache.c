@@ -10,9 +10,6 @@
 #include "sim_trace.h"
 #include "inlines.h"
 
-extern cache_t **g_caches;
-extern test_params_t g_test_params;
-
 // Obviously these are approximations
 const uint64_t access_time_in_cycles[] = {
     3,  // L1
@@ -45,7 +42,7 @@ bool cache__init (cache_t *caches, uint8_t cache_level, config_t *cache_configs,
     } else {
         me->upper_cache = NULL;
     }
-    me->lower_cache = (cache_level == g_test_params.num_cache_levels - 1) ? NULL : &caches[cache_level + 1];
+    me->lower_cache = (cache_level == cache_configs[cache_level].num_cache_levels - 1) ? NULL : &caches[cache_level + 1];
     me->cache_level = cache_level;
     me->cache_size = cache_config.cache_size;
     me->block_size = cache_config.block_size;
