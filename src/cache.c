@@ -60,12 +60,13 @@ bool cache__init (cache_t *caches, uint8_t cache_level, config_t *cache_configs,
         return false; // Redundant config
     }
     me->config.associativity = cache_config.associativity;
-    me->num_sets = CEILING_DIVIDE(num_blocks, me->config.associativity);
-    uint8_t set_bits = BITS(me->num_sets);
-    // If num_sets is not a power of 2, round up to the next greatest power of 2 for bitmask
-    uint64_t num_sets_ceiling = (1 << (set_bits - 1)) < me->num_sets ? 1 << set_bits : me->num_sets;
-    // num_sets_ceiling is a power of 2, so the mask is one less
-    me->block_addr_to_set_index_mask = num_sets_ceiling - 1;
+    assert(num_blocks % me->config.associativity == 0 && "Number of blocks must divide evenly with associativity");
+    me->num_sets = num_blocks / me->config.associativity;
+    tmp = me->num_sets;
+    for (; (tmp & 1) == 0; tmp >>= 1)
+        ;
+    assert(tmp == 1 && "Number of sets must be a power of 2");
+    me->block_addr_to_set_index_mask = me->num_sets - 1;
     me->sets = (set_t*) malloc(sizeof(set_t) * me->num_sets);
     memset(me->sets, 0, sizeof(set_t) * me->num_sets);
     for (int i = 0; i < me->num_sets; i++) {
