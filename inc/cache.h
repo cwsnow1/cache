@@ -58,29 +58,36 @@ typedef struct stats_s {
     uint64_t writebacks;
 } stats_t;
 
-typedef struct cache_s {
-    uint64_t thread_id;
-    struct cache_s *upper_cache;
-    struct cache_s *lower_cache;
-    uint8_t cache_level;
-    uint64_t cache_size;
-    uint64_t block_size;
-    uint64_t block_size_bits;
-    uint64_t associativity;
-    uint64_t num_sets;
-    uint64_t block_addr_to_set_index_mask;
-    uint64_t num_blocks;
-    set_t  *sets;
-    stats_t stats;
-    request_manager_t request_manager;
-} cache_t;
-
 typedef struct config_s {
     uint64_t cache_size;
     uint64_t block_size;
     uint64_t associativity;
     uint8_t num_cache_levels;
 } config_t;
+
+typedef struct cache_s {
+    // Multi-threading fields
+    uint64_t thread_id;
+
+    // Cache hierarchy fields
+    struct cache_s *upper_cache;
+    struct cache_s *lower_cache;
+    uint8_t cache_level;
+
+    // Cache sizing fields
+    config_t config;
+    uint64_t num_sets;
+
+    // Sizing fields used in calculations
+    uint64_t block_size_bits;
+    uint64_t block_addr_to_set_index_mask;
+
+    // Data
+    set_t  *sets;
+    request_manager_t request_manager;
+
+    stats_t stats;
+} cache_t;
 
 typedef struct test_params_s {
     uint8_t  num_cache_levels;
@@ -107,6 +114,7 @@ bool cache__is_cache_config_valid(config_t config);
  * @param caches                Array of cache structure pointers, length is number of cache levels
  * @param cache_level           Level of cache, 0 is L1, 1 is L2, etc.
  * @param configs               Array of structure containing all the config info needed per cache level
+ * @param thread_id             Used to index into this thread's global data structures
  * @return true                 if cache config is valid
  */
 bool cache__init(cache_t *caches, uint8_t cache_level, config_t *configs, uint64_t thread_id);
@@ -128,9 +136,18 @@ void cache__print_info(cache_t *me);
 /**
  * @brief Simulates a read or write to an address
  * 
- * @param cache    The cache struct being written/read
- * @param access   Instruction struct, comprises an address and access type (R/W)
+ * @param cache     The cache struct being written/read
+ * @param access    Instruction struct, comprises an address and access type (R/W)
+ * @param cycle     Current clock cycle
+ * 
+ * @return true     If the request was accepted, otherwise this will need to be called again
  */
 bool cache__add_access_request(cache_t *cache, instruction_t access, uint64_t cycle);
 
+/**
+ * @brief       Simulate a clock cycle in the cache structure(s)
+ * 
+ * @param cache Cache structure. This function will recursively call all lower caches
+ * @param cycle Current clock cycle
+ */
 void cache__process_cache (cache_t *cache, uint64_t cycle);

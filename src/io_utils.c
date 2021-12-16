@@ -18,7 +18,7 @@ void io_utils__print_stats (cache_t *cache, uint64_t cycle) {
         printf("-------------------------\n");
     }
     printf("CACHE LEVEL %d\n", cache->cache_level);
-    printf("size=%luB, block_size=%luB, associativity=%lu\n", cache->cache_size, cache->block_size, cache->associativity);
+    printf("size=%luB, block_size=%luB, associativity=%lu\n", cache->config.cache_size, cache->config.block_size, cache->config.associativity);
     float num_reads =  (float) (cache->stats.read_hits  + cache->stats.read_misses);
     float num_writes = (float) (cache->stats.write_hits + cache->stats.write_misses);
     float read_miss_rate =  (float) cache->stats.read_misses  / num_reads;
