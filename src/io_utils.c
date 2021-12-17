@@ -62,9 +62,9 @@ static void verify_test_params (void) {
     line_number++;
     if (!g_test_params.max_cache_size)      goto verify_fail;
     line_number++;
-    if (!g_test_params.min_blocks_per_set) goto verify_fail;
+    if (!g_test_params.min_blocks_per_set)  goto verify_fail;
     line_number++;
-    if (!g_test_params.max_blocks_per_set) goto verify_fail;
+    if (!g_test_params.max_blocks_per_set)  goto verify_fail;
     line_number++;
     if (!g_test_params.max_num_threads)     goto verify_fail;
 
