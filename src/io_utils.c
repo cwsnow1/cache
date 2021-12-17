@@ -93,8 +93,8 @@ void io_utils__load_test_parameters (void) {
         fprintf(params_f, "MAX_BLOCK_SIZE=%d\n",      MAX_BLOCK_SIZE);
         fprintf(params_f, "MIN_CACHE_SIZE=%d\n",      MIN_CACHE_SIZE);
         fprintf(params_f, "MAX_CACHE_SIZE=%d\n",      MAX_CACHE_SIZE);
-        fprintf(params_f, "MIN_BLOCKS_PER_SLOT=%d\n", MIN_BLOCKS_PER_SLOT);
-        fprintf(params_f, "MAX_BLOCKS_PER_SLOT=%d\n", MAX_BLOCKS_PER_SLOT);
+        fprintf(params_f, "MIN_ASSOCIATIVITY=%d\n",   MIN_ASSOCIATIVITY);
+        fprintf(params_f, "MAX_ASSOCIATIVITY=%d\n",   MAX_ASSOCIATIVITY);
         fprintf(params_f, "MAX_NUM_THREADS=%d\n",     MAX_NUM_THREADS);
         assert(fseek(params_f, 0, SEEK_SET) == 0);
     }
@@ -104,8 +104,8 @@ void io_utils__load_test_parameters (void) {
     fscanf(params_f, "MAX_BLOCK_SIZE=%lu\n",       &g_test_params.max_block_size);
     fscanf(params_f, "MIN_CACHE_SIZE=%lu\n",       &g_test_params.min_cache_size);
     fscanf(params_f, "MAX_CACHE_SIZE=%lu\n",       &g_test_params.max_cache_size);
-    fscanf(params_f, "MIN_BLOCKS_PER_SLOT=%hhu\n", &g_test_params.min_blocks_per_set);
-    fscanf(params_f, "MAX_BLOCKS_PER_SLOT=%hhu\n", &g_test_params.max_blocks_per_set);
+    fscanf(params_f, "MIN_ASSOCIATIVITY=%hhu\n",   &g_test_params.min_blocks_per_set);
+    fscanf(params_f, "MAX_ASSOCIATIVITY=%hhu\n",   &g_test_params.max_blocks_per_set);
     fscanf(params_f, "MAX_NUM_THREADS=%d\n",       &g_test_params.max_num_threads);
     fclose(params_f);
     verify_test_params();

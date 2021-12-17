@@ -5,8 +5,8 @@
 #define MAX_BLOCK_SIZE      (128)
 #define MIN_CACHE_SIZE      (MIN_BLOCK_SIZE * 16)
 #define MAX_CACHE_SIZE      (1024)
-#define MIN_BLOCKS_PER_SLOT (1)
-#define MAX_BLOCKS_PER_SLOT (4)
+#define MIN_ASSOCIATIVITY   (1)
+#define MAX_ASSOCIATIVITY   (4)
 #define MAX_NUM_THREADS     (12) // -1 for no limit
 
 // Defined for simplification, not a test parameter
