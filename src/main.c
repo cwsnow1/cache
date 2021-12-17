@@ -71,10 +71,11 @@ void * sim_cache (void *L1_cache) {
         char c;
         scanf("%c", &c);
 #endif
-        if (cache__add_access_request(this_cache, accesses[i], cycle_counter[this_cache->thread_id])) {
-            i++;
+        int16_t request_index = cache__add_access_request(this_cache, accesses[i], cycle_counter[this_cache->thread_id]);
+        if (request_index != -1) {
+            ++i;
         }
-        cache__process_cache(this_cache, cycle_counter[this_cache->thread_id]);
+        cache__process_cache(this_cache, cycle_counter[this_cache->thread_id], NULL);
     }
     pthread_mutex_lock(&lock);
     configs_to_test--;

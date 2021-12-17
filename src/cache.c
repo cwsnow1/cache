@@ -224,7 +224,7 @@ static int16_t evict_block (cache_t *cache, uint64_t set_index, uint64_t block_a
         ++cache->stats.writebacks;
         cache->sets[set_index].ways[lru_block_index].dirty = false;
     }
-    if (!cache__add_access_request(cache->lower_cache, lower_cache_access, cycle)) {
+    if (cache__add_access_request(cache->lower_cache, lower_cache_access, cycle) == -1) {
         DEBUG_TRACE("Cache[%hhu] could not make request to lower cache in evict_block, returning\n", cache->cache_level);
         return -1;
     }
@@ -274,8 +274,7 @@ static int16_t request_block (cache_t *cache, uint64_t set_index, uint64_t block
         .ptr = block_addr << cache->block_size_bits,
         .rw  = READ,
     };
-    bool ret = cache__add_access_request(cache->lower_cache, read_request_to_lower_cache, cycle);
-    if (!ret) {
+    if (cache__add_access_request(cache->lower_cache, read_request_to_lower_cache, cycle) == -1) {
         DEBUG_TRACE("Cache[%hhu] could not make request to lower cache in request_block, returning\n", cache->cache_level);
         return -1;
     }
@@ -321,9 +320,13 @@ static bool handle_access (cache_t *cache, request_t request, uint64_t cycle) {
     bool hit = find_block_in_set(cache, set_index, block_addr, &block_index);
     if (hit) {
         if (access.rw == READ) {
-            ++cache->stats.read_hits;
+            if (request.first_attempt) {
+                ++cache->stats.read_hits;
+            }
         } else {
-            ++cache->stats.write_hits;
+            if (request.first_attempt) {
+                ++cache->stats.write_hits;
+            }
             cache->sets[set_index].ways[block_index].dirty = true;
         }
     } else {
@@ -333,6 +336,7 @@ static bool handle_access (cache_t *cache, request_t request, uint64_t cycle) {
             sim_trace__print(SIM_TRACE__MISS, cache->thread_id, values);
         }
 #endif
+        request.first_attempt = false;
         int16_t requested_block = request_block(cache, set_index, block_addr, cycle);
         if (requested_block == -1) {
             return hit;
@@ -350,20 +354,22 @@ static bool handle_access (cache_t *cache, request_t request, uint64_t cycle) {
     return hit;
 }
 
-bool cache__add_access_request (cache_t *cache, instruction_t access, uint64_t cycle) {
+int16_t cache__add_access_request (cache_t *cache, instruction_t access, uint64_t cycle) {
     double_list_element_t *element = double_list__pop_element(cache->request_manager.free_requests);
     if (element) {
         assert(double_list__add_element_to_tail(cache->request_manager.outstanding_requests, element));
         uint64_t pool_index = element->pool_index;
         cache->request_manager.request_pool[pool_index].instruction = access;
         cache->request_manager.request_pool[pool_index].cycle = cycle;
+        cache->request_manager.request_pool[pool_index].first_attempt = true;
         DEBUG_TRACE("Cache[%hhu] New request added at index %lu\n", cache->cache_level, pool_index);
-        return true;
+        return (int16_t) pool_index;
     }
-    return false;
+    return -1;
 }
 
-void cache__process_cache (cache_t *cache, uint64_t cycle) {
+uint64_t cache__process_cache (cache_t *cache, uint64_t cycle, int16_t *completed_requests) {
+    uint64_t num_requests_completed = 0;
     for_each_in_double_list(cache->request_manager.outstanding_requests) {
         DEBUG_TRACE("Cache[%hhu] Trying request %lu, addr=0x%012lx\n", cache->cache_level, pool_index, cache->request_manager.request_pool[pool_index].instruction.ptr);
         if (handle_access(cache, cache->request_manager.request_pool[pool_index], cycle)) {
@@ -373,12 +379,16 @@ void cache__process_cache (cache_t *cache, uint64_t cycle) {
                 DEBUG_TRACE("Cache[%hhu] marking set %lu as no longer busy\n", (uint8_t)(cache->cache_level - 1), set_index);
                 cache->upper_cache->sets[set_index].busy = false;
             }
+            if (completed_requests) {
+                completed_requests[num_requests_completed++] = pool_index;
+            }
             assert(double_list__remove_element(cache->request_manager.outstanding_requests, element_i));
             assert(double_list__push_element(cache->request_manager.free_requests, element_i));
         }
     }
     DEBUG_TRACE("\n");
     if (cache->lower_cache) {
-        cache__process_cache(cache->lower_cache, cycle);
+        cache__process_cache(cache->lower_cache, cycle, NULL);
     }
+    return num_requests_completed;
 }

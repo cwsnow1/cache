@@ -26,6 +26,7 @@ typedef struct instruction_s {
 typedef struct request_s {
     instruction_t instruction;
     uint64_t cycle;
+    bool first_attempt;
 } request_t;
 
 typedef struct request_manager_s {
@@ -139,14 +140,17 @@ void cache__print_info(cache_t *me);
  * @param access    Instruction struct, comprises an address and access type (R/W)
  * @param cycle     Current clock cycle
  * 
- * @return true     If the request was accepted, otherwise this will need to be called again
+ * @return          The index of the added request, -1 if request add failed
  */
-bool cache__add_access_request(cache_t *cache, instruction_t access, uint64_t cycle);
+int16_t cache__add_access_request(cache_t *cache, instruction_t access, uint64_t cycle);
 
 /**
- * @brief       Simulate a clock cycle in the cache structure(s)
+ * @brief                       Simulate a clock cycle in the cache structure(s)
  * 
- * @param cache Cache structure. This function will recursively call all lower caches
- * @param cycle Current clock cycle
+ * @param cache                 Cache structure. This function will recursively call all lower caches
+ * @param cycle                 Current clock cycle
+ * @param completed_requests    Out. An array of the request indices that were completed this tick. Length is the return value
+ * 
+ * @return                      Number of requests completed this tick
  */
-void cache__process_cache (cache_t *cache, uint64_t cycle);
+uint64_t cache__process_cache (cache_t *cache, uint64_t cycle, int16_t *completed_requests);
