@@ -118,10 +118,16 @@ void cache__reset (cache_t *me) {
         }
         free(me->sets);
     }
+    if (me->request_manager.request_pool) {
+        free(me->request_manager.request_pool);
+    }
+    double_list__free_list(me->request_manager.outstanding_requests);
+    double_list__free_list(me->request_manager.free_requests);
     if (me->lower_cache) {
         cache__reset(me->lower_cache);
+    } else {
+        free(me);
     }
-    memset(me, 0, sizeof(cache_t));
 }
 
 void cache__print_info (cache_t *me) {
@@ -351,7 +357,6 @@ bool cache__add_access_request (cache_t *cache, instruction_t access, uint64_t c
         uint64_t pool_index = element->pool_index;
         cache->request_manager.request_pool[pool_index].instruction = access;
         cache->request_manager.request_pool[pool_index].cycle = cycle;
-        cache->request_manager.request_pool[pool_index].valid = true;
         DEBUG_TRACE("Cache[%hhu] New request added at index %lu\n", cache->cache_level, pool_index);
         return true;
     }
@@ -368,7 +373,6 @@ void cache__process_cache (cache_t *cache, uint64_t cycle) {
                 DEBUG_TRACE("Cache[%hhu] marking set %lu as no longer busy\n", (uint8_t)(cache->cache_level - 1), set_index);
                 cache->upper_cache->sets[set_index].busy = false;
             }
-            cache->request_manager.request_pool[pool_index].valid = false;
             assert(double_list__remove_element(cache->request_manager.outstanding_requests, element_i));
             assert(double_list__push_element(cache->request_manager.free_requests, element_i));
         }

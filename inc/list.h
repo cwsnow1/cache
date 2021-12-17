@@ -24,6 +24,8 @@ bool double_list__push_element(double_list_t *list, double_list_element_t *eleme
 
 double_list_element_t *double_list__pop_element(double_list_t *list);
 
+void double_list__free_list(double_list_t *list);
+
 #define for_each_in_double_list(list)   double_list_element_t *element_i = list->head;                              \
                                         double_list_element_t *next_element = element_i ? element_i->next : NULL;   \
                                         for (uint64_t pool_index = element_i ? element_i->pool_index : 0;           \

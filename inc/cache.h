@@ -26,7 +26,6 @@ typedef struct instruction_s {
 typedef struct request_s {
     instruction_t instruction;
     uint64_t cycle;
-    bool valid;
 } request_t;
 
 typedef struct request_manager_s {

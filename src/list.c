@@ -15,6 +15,15 @@ double_list_t *double_list__init_list(uint64_t capacity) {
     return list;
 }
 
+void double_list__free_list(double_list_t *list) {
+    if (list) {
+        for_each_in_double_list(list) {
+            free(element_i);
+        }
+        free(list);
+    }
+}
+
 bool double_list__remove_element(double_list_t *list, double_list_element_t *element) {
     for_each_in_double_list(list) {
         if (element_i == element) {

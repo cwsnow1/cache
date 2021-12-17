@@ -223,6 +223,7 @@ int main (int argc, char** argv) {
         io_utils__print_stats(g_caches[i], cycle_counter[i]);
         cache__reset(g_caches[i]);
     }
+    free(cycle_counter);
     free(accesses);
     for (uint64_t i = 0; i < num_configs; i++) {
         free(g_caches[i]);
