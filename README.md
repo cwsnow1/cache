@@ -32,7 +32,7 @@ For a -O3 build, a clean -O3 build, and a -g build, respectively. Since it build
 
 To run the program, the command is
 ```
-$ ./cache tracefile
+$ ./cache <tracefile>
 ```
 ## Sim Trace
 If <code>SIM_TRACE</code> is defined in <code>./inc/sim_trace.h</code>, the program will produce a binary file that can be decoded by the decoder in <code>./sim_trace_decoder</code>. The text file(s) will contain a trace of the operation of the cache simulation. These files can be large, so I recommend using a log viewing program such as [glogg](https://github.com/nickbnf/glogg) or [klogg](https://klogg.filimonov.dev/).
