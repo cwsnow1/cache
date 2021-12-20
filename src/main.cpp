@@ -16,10 +16,9 @@
 #define MAX(x, y)   (x > y ? x : y)
 
 // Common across all threads
-instruction_t *accesses;
+Instruction *accesses;
 uint64_t num_accesses;
 pthread_t *threads;
-cache_t **g_caches;
 static uint64_t *cycle_counter;
 uint64_t num_configs = 0;
 // Note: No performance benefit is seen by limiting the
@@ -30,7 +29,7 @@ volatile static int32_t threads_outstanding;
 volatile static uint64_t configs_to_test;
 static pthread_mutex_t lock;
 
-test_params_t g_test_params;
+TestParams g_test_params;
 
 /**
  *  @brief Prints the usage of the program in case of error
@@ -157,8 +156,8 @@ static void calculate_num_valid_configs (uint64_t *num_configs, uint8_t cache_le
         for (uint64_t cache_size = MAX(min_cache_size, block_size); cache_size <= g_test_params.max_cache_size; cache_size <<= 1) {
             for (uint8_t blocks_per_set = g_test_params.min_blocks_per_set; blocks_per_set <= g_test_params.max_blocks_per_set; blocks_per_set <<= 1) {
                 config_t config = {
-                    .block_size = block_size,
                     .cache_size = cache_size,
+                    .block_size = block_size,
                     .associativity = blocks_per_set,
                 };
                 if (cache__is_cache_config_valid(config)) {
@@ -203,17 +202,9 @@ int main (int argc, char** argv) {
         exit(0);
     }
 #endif
-    cycle_counter = (uint64_t*) malloc(sizeof(uint64_t) * num_configs);
-    assert(cycle_counter);
+    cycle_counter = new uint64_t[num_configs];
     memset(cycle_counter, 0, sizeof(uint64_t) * num_configs);
-    threads = (pthread_t*) malloc(sizeof(pthread_t) * num_configs);
-    assert(threads);
-    g_caches = (cache_t**) malloc(sizeof(cache_t *) * num_configs);
-    assert(g_caches);
-    for (uint64_t i = 0; i < num_configs; i++) {
-        g_caches[i] = (cache_t*) malloc(sizeof(cache_t) * g_test_params.num_cache_levels);
-        assert(g_caches[i]);
-    }
+    threads = new pthread_t[num_configs];
 
     setup_caches(0, g_test_params.min_block_size, g_test_params.min_cache_size);
     create_and_run_threads();

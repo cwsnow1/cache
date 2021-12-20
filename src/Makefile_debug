@@ -9,7 +9,7 @@
 CC = clang
 
 # define any compile-time flags
-CFLAGS = -Wall -g -Werror -std=c99 -pedantic -fsanitize=memory
+CFLAGS = -Wall -g -Werror -pedantic -fsanitize=memory
 
 # define any directories containing header files other than /usr/include
 #
@@ -26,7 +26,7 @@ INCLUDES = -I../inc
 LIBS = -lpthread
 
 # define the C source files
-SRCS = ./main.c ./cache.c ./io_utils.c ./sim_trace.c ./list.c
+SRCS = ./main.cpp ./cache.cpp ./io_utils.cpp ./sim_trace.cpp ./list.cpp
 
 # define the C object files 
 #

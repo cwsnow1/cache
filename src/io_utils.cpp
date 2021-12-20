@@ -115,6 +115,7 @@ uint8_t * io_utils__read_in_file (const char* filename, uint64_t *length) {
     assert(length);
 
     uint8_t *buffer = NULL;
+    long m;
 
     FILE* f = fopen(filename, "r");
     if (f == NULL) {
@@ -126,7 +127,7 @@ uint8_t * io_utils__read_in_file (const char* filename, uint64_t *length) {
         fprintf(stderr, "Error in file seek of %s\n", filename);
         goto error;
     }
-    long m = ftell(f);
+    m = ftell(f);
     if (m < 0) goto error;
     buffer = (uint8_t *) malloc(m);
     if (buffer == NULL)                 goto error;
