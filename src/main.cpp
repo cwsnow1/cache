@@ -12,6 +12,7 @@
 #include "default_test_params.h"
 #include "io_utils.h"
 #include "sim_trace.h"
+#include "test_params.h"
 
 #define MAX(x, y)   (x > y ? x : y)
 
@@ -29,7 +30,7 @@ volatile static int32_t threads_outstanding;
 volatile static uint64_t configs_to_test;
 static pthread_mutex_t lock;
 
-TestParams g_test_params;
+TestParams *g_test_params;
 
 /**
  *  @brief Prints the usage of the program in case of error
@@ -61,20 +62,21 @@ void * track_progress(void * empty) {
  * @param L1_cache      Top level cache pointer, assumed to be initialized
  */
 void * sim_cache (void *L1_cache) {
-    cache_t *this_cache = (cache_t *) L1_cache;
-    assert(this_cache->cache_level == 0);
-    cycle_counter[this_cache->thread_id] = 0;
-    for (uint64_t i = 0; i < num_accesses; cycle_counter[this_cache->thread_id]++) {
+    Cache *this_cache = static_cast<Cache*>(L1_cache);
+    assert(this_cache->getCacheLevel() == 0);
+    uint64_t thread_id = this_cache->getThreadID();
+    cycle_counter[thread_id] = 0;
+    for (uint64_t i = 0; i < num_accesses; cycle_counter[thread_id]++) {
 #ifdef CONSOLE_PRINT
-        printf("====================\nTICK %010lu\n====================\n", cycle_counter[this_cache->thread_id]);
-        char c;
-        scanf("%c", &c);
+        printf("====================\nTICK %010lu\n====================\n", cycle_counter[thread_id]);
+        //char c;
+        //assert(scanf("%c", &c));
 #endif
-        int16_t request_index = cache__add_access_request(this_cache, accesses[i], cycle_counter[this_cache->thread_id]);
+        int16_t request_index = this_cache->addAccessRequest(accesses[i], cycle_counter[thread_id]);
         if (request_index != -1) {
             ++i;
         }
-        cache__process_cache(this_cache, cycle_counter[this_cache->thread_id], NULL);
+        this_cache->processCache(cycle_counter[thread_id], NULL);
     }
     pthread_mutex_lock(&lock);
     configs_to_test--;
@@ -87,7 +89,7 @@ void * sim_cache (void *L1_cache) {
  * @brief Generate threads that will call sim_cache
  * 
  */
-static void create_and_run_threads (void) {
+static void create_and_run_threads (Cache **caches) {
     if (pthread_mutex_init(&lock, NULL) != 0){
         fprintf(stderr, "Mutex lock init failed\n");
         exit(1);
@@ -97,12 +99,12 @@ static void create_and_run_threads (void) {
     pthread_create(&progress_thread, NULL, track_progress, NULL);
 #endif
     for (uint64_t i = 0; i < num_configs; i++) {
-        while (threads_outstanding == g_test_params.max_num_threads)
+        while (threads_outstanding == g_test_params->getMaxNumThreads())
             ;
         pthread_mutex_lock(&lock);
         threads_outstanding++;
         pthread_mutex_unlock(&lock);
-        if (pthread_create(&threads[i], NULL, sim_cache, (void*) &g_caches[i][0])) {
+        if (pthread_create(&threads[i], NULL, sim_cache, (void*) caches[i])) {
             fprintf(stderr, "Error in creating thread %lu\n", i);
         }
     }
@@ -120,27 +122,32 @@ static void create_and_run_threads (void) {
  *  @param min_block_size   minimum block size this cache level will try to init
  *  @param min_cache_size   minimum cache size this cache level will try to init
  */
-static void setup_caches (uint8_t cache_level, uint64_t min_block_size, uint64_t min_cache_size) {
+static Cache **setup_caches (uint64_t num_configs, uint8_t cache_level, uint64_t min_block_size, uint64_t min_cache_size) {
+    static Cache **caches = NULL;
+    if (caches == NULL) {
+        caches = new Cache*[num_configs];
+    }
     static uint64_t thread_num = 0;
-    static config_t configs[MAX_NUM_CACHE_LEVELS];
-    for (uint64_t block_size = min_block_size; block_size <= g_test_params.max_block_size; block_size <<= 1) {
-        for (uint64_t cache_size = MAX(min_cache_size, block_size); cache_size <= (g_test_params.max_cache_size * (1 << cache_level)); cache_size <<= 1) {
-            for (uint8_t blocks_per_set = g_test_params.min_blocks_per_set; blocks_per_set <= g_test_params.max_blocks_per_set; blocks_per_set <<= 1) {
+    static Config configs[MAX_NUM_CACHE_LEVELS];
+    for (uint64_t block_size = min_block_size; block_size <= g_test_params->getMaxBlockSize(); block_size <<= 1) {
+        for (uint64_t cache_size = MAX(min_cache_size, block_size); cache_size <= (g_test_params->getMaxCacheSize() * (1 << cache_level)); cache_size <<= 1) {
+            for (uint8_t blocks_per_set = g_test_params->getMinAssociativity(); blocks_per_set <= g_test_params->getMaxAssociativity(); blocks_per_set <<= 1) {
                 configs[cache_level].block_size = block_size;
                 configs[cache_level].cache_size = cache_size;
                 configs[cache_level].associativity = blocks_per_set;
-                configs[cache_level].num_cache_levels = g_test_params.num_cache_levels;
-                if (cache__is_cache_config_valid(configs[cache_level])) {
-                    if (cache_level < g_test_params.num_cache_levels - 1) {
-                        setup_caches(cache_level + 1, block_size, cache_size * 2);
+                configs[cache_level].num_cache_levels = g_test_params->getNumCacheLevels();
+                if (Cache::isCacheConfigValid(configs[cache_level])) {
+                    if (cache_level < g_test_params->getNumCacheLevels() - 1) {
+                        setup_caches(num_configs, cache_level + 1, block_size, cache_size * 2);
                     } else {
-                        assert(cache__init(&g_caches[thread_num][0], 0, configs, thread_num));
-                        thread_num++;
+                        caches[thread_num] = new Cache(NULL, 0, configs, thread_num);
+                        ++thread_num;
                     }
                 }
             }
         }
     }
+    return caches;
 }
 
 /**
@@ -152,16 +159,15 @@ static void setup_caches (uint8_t cache_level, uint64_t min_block_size, uint64_t
  * @param min_cache_size    Minimum cache size as specfied in cache_params.h
  */
 static void calculate_num_valid_configs (uint64_t *num_configs, uint8_t cache_level, uint64_t min_block_size, uint64_t min_cache_size) {
-    for (uint64_t block_size = min_block_size; block_size <= g_test_params.max_block_size; block_size <<= 1) {
-        for (uint64_t cache_size = MAX(min_cache_size, block_size); cache_size <= g_test_params.max_cache_size; cache_size <<= 1) {
-            for (uint8_t blocks_per_set = g_test_params.min_blocks_per_set; blocks_per_set <= g_test_params.max_blocks_per_set; blocks_per_set <<= 1) {
-                config_t config = {
-                    .cache_size = cache_size,
-                    .block_size = block_size,
-                    .associativity = blocks_per_set,
-                };
-                if (cache__is_cache_config_valid(config)) {
-                    if (cache_level < g_test_params.num_cache_levels - 1) {
+    for (uint64_t block_size = min_block_size; block_size <= g_test_params->getMaxBlockSize(); block_size <<= 1) {
+        for (uint64_t cache_size = MAX(min_cache_size, block_size); cache_size <= g_test_params->getMaxCacheSize(); cache_size <<= 1) {
+            for (uint8_t blocks_per_set = g_test_params->getMinAssociativity(); blocks_per_set <= g_test_params->getMaxAssociativity(); blocks_per_set <<= 1) {
+                Config config;
+                config.cache_size = cache_size;
+                config.block_size = block_size;
+                config.associativity = blocks_per_set;
+                if (Cache::isCacheConfigValid(config)) {
+                    if (cache_level < g_test_params->getNumCacheLevels() - 1) {
                         calculate_num_valid_configs(num_configs, cache_level + 1, block_size, cache_size);
                     } else {
                         (*num_configs)++;
@@ -183,17 +189,17 @@ int main (int argc, char** argv) {
     }
 
     // Look for test parameters file and generate a default if not found
-    io_utils__load_test_parameters();
+    g_test_params = io_utils::loadTestParameters();
 
     // Read in trace file
     uint64_t file_length = 0;
-    uint8_t *file_contents = io_utils__read_in_file(argv[1], &file_length);
-    accesses = io_utils__parse_buffer(file_contents, file_length);
+    uint8_t *file_contents = io_utils::readInFile(argv[1], &file_length);
+    accesses = io_utils::parseBuffer(file_contents, file_length);
 
     assert(accesses != NULL);
     num_accesses = file_length / FILE_LINE_LENGTH_IN_BYTES;
 
-    calculate_num_valid_configs(&num_configs, 0, g_test_params.min_block_size, g_test_params.min_cache_size);
+    calculate_num_valid_configs(&num_configs, 0, g_test_params->getMinBlockSize(), g_test_params->getMinCacheSize());
     printf("Total number of possible configs = %lu\n", num_configs);
     configs_to_test = num_configs;
 #ifdef SIM_TRACE
@@ -206,22 +212,19 @@ int main (int argc, char** argv) {
     memset(cycle_counter, 0, sizeof(uint64_t) * num_configs);
     threads = new pthread_t[num_configs];
 
-    setup_caches(0, g_test_params.min_block_size, g_test_params.min_cache_size);
-    create_and_run_threads();
+    Cache** caches = setup_caches(num_configs, 0, g_test_params->getMinBlockSize(), g_test_params->getMinCacheSize());
+    create_and_run_threads(caches);
 #ifdef SIM_TRACE
     sim_trace__write_to_file_and_exit(SIM_TRACE_FILENAME);
 #endif
     for (uint64_t i = 0; i < num_configs; i++) {
-        io_utils__print_stats(g_caches[i], cycle_counter[i]);
-        cache__reset(g_caches[i]);
+        caches[i]->printStats(cycle_counter[i]);
+        caches[i]->~Cache();
     }
-    free(cycle_counter);
-    free(accesses);
-    for (uint64_t i = 0; i < num_configs; i++) {
-        free(g_caches[i]);
-    }
-    free(g_caches);
-    free(threads);
+    delete cycle_counter;
+    delete accesses;
+    delete caches;
+    delete threads;
     t = time(NULL) - t;
     printf("Program took %ld seconds\n", t);
 #ifdef SIM_TRACE

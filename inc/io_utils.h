@@ -1,3 +1,6 @@
+class TestParams;
+
+namespace io_utils {
 /**
  * Trace file format is as follows:
  * 0xdeadbeefdead: W 0xbeefdeadbeef\n
@@ -16,16 +19,10 @@
 #define AFTER_RW_LENGTH_IN_BYTES            (3)
 
 /**
- * @brief Prints the gathered statistics for a given run
- * 
- */
-void io_utils__print_stats (cache_t *cache, uint64_t cycle);
-
-/**
  * @brief Loads test_params.ini if extant, creates it otherwise
  * 
  */
-void io_utils__load_test_parameters (void);
+TestParams *loadTestParameters();
 
 /**
  *  @brief                  Takes in a trace file
@@ -34,7 +31,7 @@ void io_utils__load_test_parameters (void);
  *  @param num_accesses     Output. Returns the length of the file in bytes
  *  @return                 Array of file contents
  */
-uint8_t * io_utils__read_in_file (const char* filename, uint64_t *length);
+uint8_t *readInFile(const char* filename, uint64_t *length);
 
 /**
  * @brief           Parses the contents of a trace file and coverts to internal structure array
@@ -43,4 +40,6 @@ uint8_t * io_utils__read_in_file (const char* filename, uint64_t *length);
  * @param length    Lenght of buffer in bytes
  * @return          Array of instruction structs for internal use
  */
-instruction_t * io_utils__parse_buffer (uint8_t *buffer, uint64_t length);
+Instruction *parseBuffer(uint8_t *buffer, uint64_t length);
+
+}

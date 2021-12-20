@@ -18,6 +18,7 @@ double_list_t *double_list__init_list(uint64_t capacity) {
 void double_list__free_list(double_list_t *list) {
     if (list) {
         for_each_in_double_list(list) {
+            (void) pool_index;
             free(element_i);
         }
         free(list);
@@ -26,6 +27,7 @@ void double_list__free_list(double_list_t *list) {
 
 bool double_list__remove_element(double_list_t *list, double_list_element_t *element) {
     for_each_in_double_list(list) {
+        (void) pool_index;
         if (element_i == element) {
             if (element->prev) {
                 element->prev->next = element->next;

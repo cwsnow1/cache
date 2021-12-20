@@ -21,11 +21,26 @@ enum Access {
 };
 
 struct Instruction {
-    uint64_t ptr;
-    Access rw;
+
+    Instruction() {
+        ptr = 0x0;
+        rw = READ;
+    }
+
+    Instruction(uint64_t ptr, Access rw) {
+        this->ptr = ptr;
+        this->rw = rw;
+    }
+    uint64_t ptr = 0x0;
+    Access rw = READ;
 };
 
 struct Request {
+    Request() {
+        instruction = Instruction();
+        cycle = 0;
+        first_attempt = false;
+    }
     Instruction instruction;
     uint64_t cycle;
     bool first_attempt;
@@ -77,6 +92,12 @@ public:
     ~Cache();
 
     /**
+     * @brief Prints the gathered statistics for a given run
+     * 
+     */
+    void printStats (uint64_t cycle);
+
+    /**
      * @brief               Prints all relevant cache parameters to stdout
      */
     void printInfo();
@@ -97,7 +118,7 @@ public:
      * @param config                Structure containing all the config info needed
      * @return true                 if cache config is valid
      */
-    bool isCacheConfigValid(Config config);
+    static bool isCacheConfigValid(Config config);
 
     /**
      * @brief                       Simulate a clock cycle in the cache structure(s)
@@ -109,8 +130,24 @@ public:
      */
     uint64_t processCache (uint64_t cycle, int16_t *completed_requests);
 
+    Cache *getLowerCache();
+
+    Cache *getTopLevelCache();
+
     uint8_t getCacheLevel() {
         return cache_level;
+    }
+
+    Config getConfig() {
+        return config;
+    }
+
+    Stats getStats() {
+        return stats;
+    }
+
+    uint64_t getThreadID() {
+        return thread_id;
     }
 
 protected:
@@ -214,15 +251,4 @@ class MainMemory: public Cache {
 public:
     MainMemory(Cache *upper_cache, uint64_t thread_id);
     ~MainMemory();
-};
-
-struct TestParams {
-    uint8_t  num_cache_levels;
-    uint64_t min_block_size;
-    uint64_t max_block_size;
-    uint64_t min_cache_size;
-    uint64_t max_cache_size;
-    uint8_t  min_blocks_per_set;
-    uint8_t  max_blocks_per_set;
-    int32_t  max_num_threads;
 };

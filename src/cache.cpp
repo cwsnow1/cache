@@ -49,7 +49,7 @@ struct RequestManager {
 };
 
 
-bool cache__is_cache_config_valid (Config config) {
+bool Cache::isCacheConfigValid (Config config) {
     assert((config.cache_size % config.block_size == 0) && "Block size must be a factor of cache size!");
     uint64_t num_blocks = config.cache_size / config.block_size;
     return num_blocks >= config.associativity;
@@ -71,7 +71,7 @@ Cache::Cache (Cache *upper_cache, uint8_t cache_level, Config *cache_configs, ui
     assert((tmp == 1) && "Block size must be a power of 2!");
     assert((config.cache_size % config.block_size == 0) && "Block size must be a factor of cache size!");
     uint64_t num_blocks = config.cache_size / config.block_size;
-    assert(num_blocks < cache_config.associativity);
+    assert(num_blocks >= cache_config.associativity);
     config.associativity = cache_config.associativity;
     assert(num_blocks % config.associativity == 0 && "Number of blocks must divide evenly with associativity");
     num_sets = num_blocks / config.associativity;
@@ -89,7 +89,7 @@ Cache::Cache (Cache *upper_cache, uint8_t cache_level, Config *cache_configs, ui
         }
     }
     request_manager = new RequestManager(this);
-    if (lower_cache = NULL) {
+    if (lower_cache == NULL) {
         lower_cache = new MainMemory(this, thread_id);
     }
 }
@@ -110,7 +110,7 @@ MainMemory::MainMemory (Cache *upper_cache, uint64_t thread_id) {
 
 Cache::~Cache () {
     if (sets) {
-        for (int i = 0; i < num_sets; i++) {
+        for (uint64_t i = 0; i < num_sets; i++) {
             if (sets[i].ways) {
                 delete sets[i].ways;
                 delete sets[i].lru_list;
@@ -126,6 +126,41 @@ Cache::~Cache () {
     }
 }
 
+void Cache::printStats (uint64_t cycle) {
+    if (cache_level == 0) {
+        printf("=========================\n");
+    } else {
+        printf("-------------------------\n");
+    }
+    printf("CACHE LEVEL %d\n", cache_level);
+    printf("size=%luB, block_size=%luB, associativity=%lu\n", config.cache_size, config.block_size, config.associativity);
+    float num_reads =  (float) (stats.read_hits  + stats.read_misses);
+    float num_writes = (float) (stats.write_hits + stats.write_misses);
+    float read_miss_rate =  (float) stats.read_misses  / num_reads;
+    float write_miss_rate = (float) stats.write_misses / num_writes;
+    float total_miss_rate = (float) (stats.read_misses + stats.write_misses) / (num_writes + num_reads);
+    printf("Number of reads:    %08d\n", (int) num_reads);
+    printf("Read miss rate:     %7.3f%%\n", 100.f * read_miss_rate);
+    printf("Number of writes:   %08d\n", (int) num_writes);
+    printf("Write miss rate:    %7.3f%%\n", 100.0f * write_miss_rate);
+    printf("Total miss rate:    %7.3f%%\n", 100.0f * total_miss_rate);
+    if (lower_cache->cache_level == MAIN_MEMORY) {
+        printf("-------------------------\n");
+        printf("Main memory reads:  %08lu\n", stats.read_misses + stats.write_misses);
+        printf("Main memory writes: %08lu\n\n", stats.writebacks);
+        printf("Total number of cycles: %010lu\n", cycle);
+        Cache *top_level_cache = getTopLevelCache();
+        Stats top_level_stats = top_level_cache->getStats();
+        float num_reads =  (float) (top_level_stats.read_hits  + top_level_stats.read_misses);
+        float num_writes = (float) (top_level_stats.write_hits + top_level_stats.write_misses);
+        float cpi = (float) cycle / (num_reads + num_writes);
+        printf("CPI: %.4f\n", cpi);
+        printf("=========================\n\n");
+    } else {
+        lower_cache->printStats(cycle);
+    }
+}
+
 void Cache::printInfo () {
     if (config.cache_size) {
         printf("== CACHE LEVEL %u ==\n", cache_level);
@@ -135,6 +170,16 @@ void Cache::printInfo () {
             lower_cache->printInfo();
         }
     }
+}
+
+Cache *Cache::getLowerCache() {
+    return lower_cache;
+}
+
+Cache *Cache::getTopLevelCache() {
+    Cache *higher_cache = this->upper_cache;
+    for (; higher_cache != NULL; higher_cache = higher_cache->upper_cache);
+    return higher_cache;
 }
 
 inline uint64_t Cache::addrToBlockAddr (uint64_t addr) {
@@ -184,10 +229,7 @@ int16_t Cache::evictBlock (uint64_t set_index, uint64_t block_addr, uint64_t cyc
         return lru_block_index;
     }
     uint64_t old_block_addr = sets[set_index].ways[lru_block_index].block_addr;
-    Instruction lower_cache_access = {
-        .ptr = old_block_addr << block_size_bits,
-        .rw  = READ,
-    };
+    Instruction lower_cache_access = Instruction(old_block_addr << block_size_bits, READ);
     if (sets[set_index].ways[lru_block_index].dirty) {
         lower_cache_access.rw = WRITE;
         ++stats.writebacks;
@@ -202,7 +244,7 @@ int16_t Cache::evictBlock (uint64_t set_index, uint64_t block_addr, uint64_t cyc
 }
 
 bool Cache::findBlockInSet (uint64_t set_index, uint64_t block_addr, uint8_t *block_index) {
-    for (int i = 0; i < config.associativity; i++) {
+    for (uint64_t i = 0; i < config.associativity; i++) {
         if (sets[set_index].ways[i].valid && (sets[set_index].ways[i].block_addr == block_addr)) {
             *block_index = i;
             updateLRUList(set_index, i);
@@ -221,10 +263,7 @@ int16_t Cache::requestBlock (uint64_t set_index, uint64_t block_addr, uint64_t c
     uint64_t values[MAX_NUM_SIM_TRACE_VALUES] = {set_index, block_index};
     sim_trace__print(SIM_TRACE__EVICT, thread_id, values);
 #endif
-    Instruction read_request_to_lower_cache = {
-        .ptr = block_addr << block_size_bits,
-        .rw  = READ,
-    };
+    Instruction read_request_to_lower_cache = Instruction(block_addr << block_size_bits, READ);
     if (lower_cache->addAccessRequest(read_request_to_lower_cache, cycle) == -1) {
         DEBUG_TRACE("Cache[%hhu] could not make request to lower cache in request_block, returning\n", cache_level);
         return -1;
@@ -248,8 +287,7 @@ bool Cache::handleAccess (Request request, uint64_t cycle) {
         DEBUG_TRACE("%lu/%lu cycles for this operation in cache_level=%hhu\n", cycle - request.cycle, access_time_in_cycles[cache_level], cache_level);
         return false;
     }
-    if (config.cache_size == 0) {
-        // This is the main memory "cache"
+    if (cache_level == MAIN_MEMORY) {
         return true;
     }
     Instruction access = request.instruction;
