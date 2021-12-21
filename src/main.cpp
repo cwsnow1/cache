@@ -71,7 +71,7 @@ void * sim_cache (void *L1_cache) {
     cycle_counter[thread_id] = 0;
     bitfield64_t oustanding_requests = 0;
     int16_t completed_requests[MAX_NUM_REQUESTS] = { 0 };
-    static_assert(MAX_NUM_REQUESTS <= 64 && "Too many requests to store requests in this bitfield");
+    static_assert(MAX_NUM_REQUESTS <= 64, "Too many requests to store requests in this bitfield");
     uint64_t i = 0;
     do {
 #ifdef CONSOLE_PRINT

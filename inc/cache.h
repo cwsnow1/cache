@@ -1,10 +1,8 @@
 #include "list.h"
-
-#define ADDR_BITS                   (48)
-#define MAX_TRACE_FILENAME_LENGTH   (100)
-
-#define MAX_NUM_REQUESTS            (8)
 #define CONSOLE_PRINT
+
+constexpr uint64_t ADDR_BITS = 48;
+constexpr uint64_t MAX_NUM_REQUESTS = 8;
 
 struct RequestManager;
 
