@@ -178,7 +178,7 @@ Cache *Cache::getLowerCache() {
 
 Cache *Cache::getTopLevelCache() {
     Cache *higher_cache = this->upper_cache;
-    for (; higher_cache != NULL; higher_cache = higher_cache->upper_cache);
+    for (; higher_cache->upper_cache != NULL; higher_cache = higher_cache->upper_cache);
     return higher_cache;
 }
 
