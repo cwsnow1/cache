@@ -15,6 +15,9 @@
 #include "test_params.h"
 
 #define MAX(x, y)   (x > y ? x : y)
+typedef uint64_t bitfield64_t;
+#define set_bit(bitfield, index)    (bitfield) |= (1 << (index))
+#define reset_bit(bitfield, index)  (bitfield) &= ~(1 << (index))
 
 // Common across all threads
 Instruction *accesses;
@@ -66,18 +69,29 @@ void * sim_cache (void *L1_cache) {
     assert(this_cache->getCacheLevel() == 0);
     uint64_t thread_id = this_cache->getThreadID();
     cycle_counter[thread_id] = 0;
-    for (uint64_t i = 0; i < num_accesses; cycle_counter[thread_id]++) {
+    bitfield64_t oustanding_requests = 0;
+    int16_t completed_requests[MAX_NUM_REQUESTS] = { 0 };
+    static_assert(MAX_NUM_REQUESTS <= 64 && "Too many requests to store requests in this bitfield");
+    uint64_t i = 0;
+    do {
 #ifdef CONSOLE_PRINT
         printf("====================\nTICK %010lu\n====================\n", cycle_counter[thread_id]);
         //char c;
         //assert(scanf("%c", &c));
 #endif
-        int16_t request_index = this_cache->addAccessRequest(accesses[i], cycle_counter[thread_id]);
-        if (request_index != -1) {
-            ++i;
+        if (i < num_accesses) {
+            int16_t request_index = this_cache->addAccessRequest(accesses[i], cycle_counter[thread_id]);
+            if (request_index != -1) {
+                ++i;
+                set_bit(oustanding_requests, request_index);
+            }
         }
-        this_cache->processCache(cycle_counter[thread_id], NULL);
-    }
+        uint64_t num_completed_requests = this_cache->processCache(cycle_counter[thread_id], completed_requests);
+        for (uint64_t j = 0; j < num_completed_requests; j++) {
+            reset_bit(oustanding_requests, completed_requests[j]);
+        }
+        cycle_counter[thread_id]++;
+    } while (oustanding_requests || i < num_accesses);
     pthread_mutex_lock(&lock);
     configs_to_test--;
     threads_outstanding--;
