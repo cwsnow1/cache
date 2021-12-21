@@ -99,14 +99,14 @@ void io_utils__load_test_parameters (void) {
         assert(fseek(params_f, 0, SEEK_SET) == 0);
     }
     // File exists, read it in
-    fscanf(params_f, "NUM_CACHE_LEVELS=%hhu\n",    &g_test_params.num_cache_levels);
-    fscanf(params_f, "MIN_BLOCK_SIZE=%lu\n",       &g_test_params.min_block_size);
-    fscanf(params_f, "MAX_BLOCK_SIZE=%lu\n",       &g_test_params.max_block_size);
-    fscanf(params_f, "MIN_CACHE_SIZE=%lu\n",       &g_test_params.min_cache_size);
-    fscanf(params_f, "MAX_CACHE_SIZE=%lu\n",       &g_test_params.max_cache_size);
-    fscanf(params_f, "MIN_ASSOCIATIVITY=%hhu\n",   &g_test_params.min_blocks_per_set);
-    fscanf(params_f, "MAX_ASSOCIATIVITY=%hhu\n",   &g_test_params.max_blocks_per_set);
-    fscanf(params_f, "MAX_NUM_THREADS=%d\n",       &g_test_params.max_num_threads);
+    assert(fscanf(params_f, "NUM_CACHE_LEVELS=%hhu\n",    &g_test_params.num_cache_levels));
+    assert(fscanf(params_f, "MIN_BLOCK_SIZE=%lu\n",       &g_test_params.min_block_size));
+    assert(fscanf(params_f, "MAX_BLOCK_SIZE=%lu\n",       &g_test_params.max_block_size));
+    assert(fscanf(params_f, "MIN_CACHE_SIZE=%lu\n",       &g_test_params.min_cache_size));
+    assert(fscanf(params_f, "MAX_CACHE_SIZE=%lu\n",       &g_test_params.max_cache_size));
+    assert(fscanf(params_f, "MIN_ASSOCIATIVITY=%hhu\n",   &g_test_params.min_blocks_per_set));
+    assert(fscanf(params_f, "MAX_ASSOCIATIVITY=%hhu\n",   &g_test_params.max_blocks_per_set));
+    assert(fscanf(params_f, "MAX_NUM_THREADS=%d\n",       &g_test_params.max_num_threads));
     fclose(params_f);
     verify_test_params();
 }
