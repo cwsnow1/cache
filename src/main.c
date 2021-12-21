@@ -14,6 +14,9 @@
 #include "sim_trace.h"
 
 #define MAX(x, y)   (x > y ? x : y)
+typedef uint64_t bitfield64_t;
+#define set_bit(bitfield, index)    (bitfield) |= (1 << (index))
+#define reset_bit(bitfield, index)  (bitfield) &= ~(1 << (index))
 
 // Common across all threads
 instruction_t *accesses;
@@ -65,18 +68,29 @@ void * sim_cache (void *L1_cache) {
     cache_t *this_cache = (cache_t *) L1_cache;
     assert(this_cache->cache_level == 0);
     cycle_counter[this_cache->thread_id] = 0;
-    for (uint64_t i = 0; i < num_accesses; cycle_counter[this_cache->thread_id]++) {
+    bitfield64_t oustanding_requests = 0;
+    int16_t completed_requests[MAX_NUM_REQUESTS] = { 0 };
+    assert(MAX_NUM_REQUESTS <= 64 && "Too many requests to store requests in this bitfield");
+    uint64_t i = 0;
+    do {
 #ifdef CONSOLE_PRINT
         printf("====================\nTICK %010lu\n====================\n", cycle_counter[this_cache->thread_id]);
         char c;
         scanf("%c", &c);
 #endif
-        int16_t request_index = cache__add_access_request(this_cache, accesses[i], cycle_counter[this_cache->thread_id]);
-        if (request_index != -1) {
-            ++i;
+        if (i < num_accesses) {
+            int16_t request_index = cache__add_access_request(this_cache, accesses[i], cycle_counter[this_cache->thread_id]);
+            if (request_index != -1) {
+                ++i;
+                set_bit(oustanding_requests, request_index);
+            }
         }
-        cache__process_cache(this_cache, cycle_counter[this_cache->thread_id], NULL);
-    }
+        uint64_t num_completed_requests = cache__process_cache(this_cache, cycle_counter[this_cache->thread_id], completed_requests);
+        for (uint64_t j = 0; j < num_completed_requests; j++) {
+            reset_bit(oustanding_requests, completed_requests[j]);
+        }
+        cycle_counter[this_cache->thread_id]++;
+    } while (oustanding_requests || i < num_accesses);
     pthread_mutex_lock(&lock);
     configs_to_test--;
     threads_outstanding--;
