@@ -159,7 +159,7 @@ static void setup_caches (uint8_t cache_level, uint64_t min_block_size, uint64_t
 }
 
 /**
- * @brief                   Recursively alculate the total number of valid cache configs
+ * @brief                   Recursively calculate the total number of valid cache configs
  * 
  * @param num_configs       Out. Tracks the total number of valid configs
  * @param cache_level       Level of cache the function is in, 0 (L1) when called from without
