@@ -87,12 +87,13 @@ bool cache__init (cache_t *caches, uint8_t cache_level, config_t *cache_configs,
 }
 
 static void init_main_memory (cache_t *lowest_cache) {
-    lowest_cache->lower_cache = (cache_t*) malloc(sizeof(cache_t));
-    memset(lowest_cache->lower_cache, 0, sizeof(cache_t));
-    lowest_cache->lower_cache->cache_level = MAIN_MEMORY;
-    lowest_cache->lower_cache->thread_id = lowest_cache->thread_id;
-    lowest_cache->lower_cache->upper_cache = lowest_cache;
-    init_request_manager(lowest_cache->lower_cache);
+    cache_t *mm =(cache_t*) malloc(sizeof(cache_t));
+    lowest_cache->lower_cache = mm;
+    memset(mm, 0, sizeof(cache_t));
+    mm->cache_level = MAIN_MEMORY;
+    mm->thread_id = lowest_cache->thread_id;
+    mm->upper_cache = lowest_cache;
+    init_request_manager(mm);
 }
 
 static void init_request_manager (cache_t *me) {
@@ -298,8 +299,8 @@ static bool handle_access (cache_t *cache, request_t request, uint64_t cycle) {
         DEBUG_TRACE("%lu/%lu cycles for this operation in cache_level=%hhu\n", cycle - request.cycle, access_time_in_cycles[cache->cache_level], cache->cache_level);
         return false;
     }
-    if (cache->config.cache_size == 0) {
-        // This is the main memory "cache"
+    if (cache->cache_level == MAIN_MEMORY) {
+        // Main memory always hits
         return true;
     }
     instruction_t access = request.instruction;
