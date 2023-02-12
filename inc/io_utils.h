@@ -19,7 +19,7 @@
  * @brief Prints the gathered statistics for a given run
  * 
  */
-void io_utils__print_stats (cache_t *cache, uint64_t cycle);
+void io_utils__print_stats (cache_t *cache, uint64_t cycle, FILE* stream);
 
 /**
  * @brief Loads test_params.ini if extant, creates it otherwise

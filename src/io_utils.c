@@ -11,37 +11,37 @@
 extern test_params_t g_test_params;
 const char params_filename[] = "./test_params.ini";
 
-void io_utils__print_stats (cache_t *cache, uint64_t cycle) {
+void io_utils__print_stats (cache_t *cache, uint64_t cycle, FILE *stream) {
     if (cache->cache_level == 0) {
-        printf("=========================\n");
+        fprintf(stream, "=========================\n");
     } else {
-        printf("-------------------------\n");
+        fprintf(stream, "-------------------------\n");
     }
-    printf("CACHE LEVEL %d\n", cache->cache_level);
-    printf("size=%luB, block_size=%luB, associativity=%lu\n", cache->config.cache_size, cache->config.block_size, cache->config.associativity);
+    fprintf(stream, "CACHE LEVEL %d\n", cache->cache_level);
+    fprintf(stream, "size=%luB, block_size=%luB, associativity=%lu\n", cache->config.cache_size, cache->config.block_size, cache->config.associativity);
     float num_reads =  (float) (cache->stats.read_hits  + cache->stats.read_misses);
     float num_writes = (float) (cache->stats.write_hits + cache->stats.write_misses);
     float read_miss_rate =  (float) cache->stats.read_misses  / num_reads;
     float write_miss_rate = (float) cache->stats.write_misses / num_writes;
     float total_miss_rate = (float) (cache->stats.read_misses + cache->stats.write_misses) / (num_writes + num_reads);
-    printf("Number of reads:    %08d\n", (int) num_reads);
-    printf("Read miss rate:     %7.3f%%\n", 100.f * read_miss_rate);
-    printf("Number of writes:   %08d\n", (int) num_writes);
-    printf("Write miss rate:    %7.3f%%\n", 100.0f * write_miss_rate);
-    printf("Total miss rate:    %7.3f%%\n", 100.0f * total_miss_rate);
+    fprintf(stream, "Number of reads:    %08d\n", (int) num_reads);
+    fprintf(stream, "Read miss rate:     %7.3f%%\n", 100.f * read_miss_rate);
+    fprintf(stream, "Number of writes:   %08d\n", (int) num_writes);
+    fprintf(stream, "Write miss rate:    %7.3f%%\n", 100.0f * write_miss_rate);
+    fprintf(stream, "Total miss rate:    %7.3f%%\n", 100.0f * total_miss_rate);
     if (cache->cache_level == g_test_params.num_cache_levels - 1) {
-        printf("-------------------------\n");
-        printf("Main memory reads:  %08lu\n", cache->stats.read_misses + cache->stats.write_misses);
-        printf("Main memory writes: %08lu\n\n", cache->stats.writebacks);
-        printf("Total number of cycles: %010lu\n", cycle);
+        fprintf(stream, "-------------------------\n");
+        fprintf(stream, "Main memory reads:  %08lu\n", cache->stats.read_misses + cache->stats.write_misses);
+        fprintf(stream, "Main memory writes: %08lu\n\n", cache->stats.writebacks);
+        fprintf(stream, "Total number of cycles: %010lu\n", cycle);
         cache_t *top_level_cache = cache - cache->cache_level;
         float num_reads =  (float) (top_level_cache->stats.read_hits  + top_level_cache->stats.read_misses);
         float num_writes = (float) (top_level_cache->stats.write_hits + top_level_cache->stats.write_misses);
         float cpi = (float) cycle / (num_reads + num_writes);
-        printf("CPI: %.4f\n", cpi);
-        printf("=========================\n\n");
+        fprintf(stream, "CPI: %.4f\n", cpi);
+        fprintf(stream, "=========================\n\n");
     } else {
-        io_utils__print_stats(cache + 1, cycle);
+        io_utils__print_stats(cache + 1, cycle, stream);
     }
 }
 

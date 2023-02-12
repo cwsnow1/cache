@@ -39,7 +39,7 @@ test_params_t g_test_params;
  *  @brief Prints the usage of the program in case of error
  */
 static void usage (void) {
-    fprintf(stderr, "Please provide a trace file\n");
+    fprintf(stderr, "Usage: ./cache <input trace> [output statistics file]\n");
     exit(1);
 }
 
@@ -219,6 +219,14 @@ int main (int argc, char** argv) {
         fprintf(stderr, "Not enough args!\n");
         usage();
     }
+    FILE *stream = stdout;
+    if (argc > 2) {
+        stream = fopen(argv[2], "w");
+        if (stream == NULL) {
+            fprintf(stderr, "Unable to open output file %s\n", argv[2]);
+            usage();
+        }
+    }
 
     // Look for test parameters file and generate a default if not found
     io_utils__load_test_parameters();
@@ -258,8 +266,11 @@ int main (int argc, char** argv) {
     sim_trace__write_to_file_and_exit(SIM_TRACE_FILENAME);
 #endif
     for (uint64_t i = 0; i < num_configs; i++) {
-        io_utils__print_stats(g_caches[i], cycle_counter[i]);
+        io_utils__print_stats(g_caches[i], cycle_counter[i], stream);
         cache__reset(g_caches[i]);
+    }
+    if (stream != stdout) {
+        fclose(stream);
     }
     free(cycle_counter);
     free(accesses);
