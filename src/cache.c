@@ -57,6 +57,7 @@ bool cache__init (cache_t *caches, uint8_t cache_level, config_t *cache_configs,
     me->config.block_size = cache_config.block_size;
     me->block_size_bits = 0;
     me->thread_id = thread_id;
+    me->earliest_next_useful_cycle = UINT64_MAX;
     uint64_t tmp = me->config.block_size;
     for (; (tmp & 1) == 0; tmp >>= 1) {
         me->block_size_bits++;
@@ -142,8 +143,9 @@ int16_t cache__add_access_request (cache_t *cache, instruction_t access, uint64_
         uint64_t pool_index = element->pool_index;
         cache->request_manager.request_pool[pool_index].instruction = access;
         cache->request_manager.request_pool[pool_index].cycle = cycle;
+        cache->request_manager.request_pool[pool_index].cycle_to_call_back = cycle + access_time_in_cycles[cache->cache_level];
         cache->request_manager.request_pool[pool_index].first_attempt = true;
-        DEBUG_TRACE("Cache[%hhu] New request added at index %lu\n", cache->cache_level, pool_index);
+        DEBUG_TRACE("Cache[%hhu] New request added at index %lu, call back at tick %lu\n", cache->cache_level, pool_index, cache->request_manager.request_pool[pool_index].cycle_to_call_back);
         return (int16_t) pool_index;
     }
     return -1;
@@ -190,6 +192,7 @@ static void init_main_memory (cache_t *lowest_cache) {
     mm->cache_level = MAIN_MEMORY;
     mm->thread_id = lowest_cache->thread_id;
     mm->upper_cache = lowest_cache;
+    mm->earliest_next_useful_cycle = UINT64_MAX;
     init_request_manager(mm);
 }
 
@@ -366,8 +369,13 @@ static bool handle_access (cache_t *cache, request_t request, uint64_t cycle) {
     assert(cache);
     if (cycle - request.cycle < access_time_in_cycles[cache->cache_level]) {
         DEBUG_TRACE("%lu/%lu cycles for this operation in cache_level=%hhu\n", cycle - request.cycle, access_time_in_cycles[cache->cache_level], cache->cache_level);
+        if (cache->earliest_next_useful_cycle > request.cycle_to_call_back) {
+            DEBUG_TRACE("Cache[%hhu] next useful cycle set to %lu\n", cache->cache_level, request.cycle_to_call_back);
+            cache->earliest_next_useful_cycle = request.cycle_to_call_back;
+        }
         return false;
     }
+    cache->earliest_next_useful_cycle = UINT64_MAX;
     if (cache->cache_level == MAIN_MEMORY) {
         // Main memory always hits
         return true;

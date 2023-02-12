@@ -26,6 +26,7 @@ typedef struct instruction_s {
 typedef struct request_s {
     instruction_t instruction;
     uint64_t cycle;
+    uint64_t cycle_to_call_back;
     bool first_attempt;
 } request_t;
 
@@ -85,6 +86,7 @@ typedef struct cache_s {
     // Data
     set_t  *sets;
     request_manager_t request_manager;
+    uint64_t earliest_next_useful_cycle;
 
     stats_t stats;
 } cache_t;
