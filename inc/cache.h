@@ -81,6 +81,7 @@ typedef struct cache_s {
     // Cache hierarchy fields
     struct cache_s *upper_cache;
     struct cache_s *lower_cache;
+    struct cache_s *main_memory;
     uint8_t cache_level;
 
     // Cache sizing fields
@@ -167,12 +168,3 @@ int16_t cache__add_access_request(cache_t *cache, instruction_t access, uint64_t
  * @return                      Number of requests completed this tick
  */
 uint64_t cache__process_cache (cache_t *cache, uint64_t cycle, int16_t *completed_requests);
-
-/**
- * @brief           Get the main memory cache pointer
- * 
- * @param cache     Cache structure at any level of hierarchy
- * 
- * @return cache_t* Main memory cache structure
- */
-cache_t *cache__get_main_memory(cache_t *cache);

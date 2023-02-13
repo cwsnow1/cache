@@ -154,14 +154,7 @@ int16_t cache__add_access_request (cache_t *cache, instruction_t access, uint64_
 }
 
 uint64_t cache__process_cache (cache_t *cache, uint64_t cycle, int16_t *completed_requests) {
-    return internal_process_cache(cache__get_main_memory(cache), cycle, completed_requests);
-}
-
-cache_t *cache__get_main_memory(cache_t *cache) {
-    cache_t *mm = cache;
-    for (; mm->lower_cache != NULL; mm = mm->lower_cache)
-        ;
-    return mm;
+    return internal_process_cache(cache->main_memory, cycle, completed_requests);
 }
 
 // =====================================
@@ -181,6 +174,9 @@ static void init_main_memory (cache_t *lowest_cache) {
     mm->thread_id = lowest_cache->thread_id;
     mm->upper_cache = lowest_cache;
     mm->earliest_next_useful_cycle = UINT64_MAX;
+    for (cache_t *cache_i = lowest_cache; cache_i != NULL; cache_i = cache_i->upper_cache) {
+        cache_i->main_memory = mm;
+    }
     init_request_manager(mm);
 }
 
