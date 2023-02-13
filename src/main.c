@@ -89,6 +89,7 @@ void * sim_cache (void *L1_cache) {
             }
         }
         uint64_t num_completed_requests = cache__process_cache(this_cache, cycle_counter[this_cache->thread_id], completed_requests);
+        work_done |= this_cache->work_done_this_cycle;
         for (uint64_t j = 0; j < num_completed_requests; j++) {
             work_done = true;
             reset_bit(oustanding_requests, completed_requests[j]);
@@ -98,13 +99,12 @@ void * sim_cache (void *L1_cache) {
         } else {
             uint64_t earliest_next_useful_cycle = UINT64_MAX;
             for (cache_t *cache_i = this_cache; cache_i != NULL; cache_i = cache_i->lower_cache) {
-                if (cache_i->earliest_next_useful_cycle != UINT64_MAX) {
+                if (cache_i->earliest_next_useful_cycle < earliest_next_useful_cycle) {
                     earliest_next_useful_cycle = cache_i->earliest_next_useful_cycle;
-                    break;
                 }
             }
             assert(earliest_next_useful_cycle > cycle_counter[this_cache->thread_id]);
-            if (earliest_next_useful_cycle < UINT64_MAX) {
+            if (earliest_next_useful_cycle < UINT64_MAX && !this_cache->work_done_this_cycle) {
 #ifdef CONSOLE_PRINT
                 printf("Skipping to earliest next useful cycle = %lu\n", earliest_next_useful_cycle);
 #endif
@@ -238,6 +238,7 @@ int main (int argc, char** argv) {
 
     assert(accesses != NULL);
     num_accesses = file_length / FILE_LINE_LENGTH_IN_BYTES;
+    printf("num_accesses=%lu\n", num_accesses);
 
     calculate_num_valid_configs(&num_configs, 0, g_test_params.min_block_size, g_test_params.min_cache_size);
     printf("Total number of possible configs = %lu\n", num_configs);

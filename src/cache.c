@@ -153,6 +153,7 @@ int16_t cache__add_access_request (cache_t *cache, instruction_t access, uint64_
 
 uint64_t cache__process_cache (cache_t *cache, uint64_t cycle, int16_t *completed_requests) {
     uint64_t num_requests_completed = 0;
+    cache->work_done_this_cycle = false;
     for_each_in_double_list(cache->request_manager.outstanding_requests) {
         DEBUG_TRACE("Cache[%hhu] Trying request %lu, addr=0x%012lx\n", cache->cache_level, pool_index, cache->request_manager.request_pool[pool_index].instruction.ptr);
         if (handle_access(cache, cache->request_manager.request_pool[pool_index], cycle)) {
@@ -172,6 +173,7 @@ uint64_t cache__process_cache (cache_t *cache, uint64_t cycle, int16_t *complete
     DEBUG_TRACE("\n");
     if (cache->lower_cache) {
         cache__process_cache(cache->lower_cache, cycle, NULL);
+        cache->work_done_this_cycle |= cache->lower_cache->work_done_this_cycle;
     }
     return num_requests_completed;
 }
@@ -378,6 +380,7 @@ static bool handle_access (cache_t *cache, request_t request, uint64_t cycle) {
     cache->earliest_next_useful_cycle = UINT64_MAX;
     if (cache->cache_level == MAIN_MEMORY) {
         // Main memory always hits
+        cache->work_done_this_cycle = true;
         return true;
     }
     instruction_t access = request.instruction;
@@ -387,6 +390,7 @@ static bool handle_access (cache_t *cache, request_t request, uint64_t cycle) {
         DEBUG_TRACE("Cache[%hhu] set %lu is busy\n", cache->cache_level, set_index);
         return false;
     }
+    cache->work_done_this_cycle = true;
 #ifdef SIM_TRACE
     {
         char rw = access.rw == READ ? 'r' : 'w';
