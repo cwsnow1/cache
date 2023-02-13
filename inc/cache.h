@@ -4,7 +4,7 @@
 #define MAX_TRACE_FILENAME_LENGTH   (100)
 
 #define MAX_NUM_REQUESTS            (8)
-//#define CONSOLE_PRINT
+#define CONSOLE_PRINT               (0)
 
 enum cache_levels {
     L1,

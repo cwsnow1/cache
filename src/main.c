@@ -74,7 +74,7 @@ void * sim_cache (void *L1_cache) {
     uint64_t i = 0;
     bool work_done = false;
     do {
-#ifdef CONSOLE_PRINT
+#if (CONSOLE_PRINT == 1)
         printf("====================\nTICK %010lu\n====================\n", cycle_counter[this_cache->thread_id]);
         char c;
         scanf("%c", &c);
@@ -105,7 +105,7 @@ void * sim_cache (void *L1_cache) {
             }
             assert(earliest_next_useful_cycle > cycle_counter[this_cache->thread_id]);
             if (earliest_next_useful_cycle < UINT64_MAX && !this_cache->work_done_this_cycle) {
-#ifdef CONSOLE_PRINT
+#if (CONSOLE_PRINT == 1)
                 printf("Skipping to earliest next useful cycle = %lu\n", earliest_next_useful_cycle);
 #endif
                 cycle_counter[this_cache->thread_id] = earliest_next_useful_cycle;
@@ -130,7 +130,7 @@ static void create_and_run_threads (void) {
         fprintf(stderr, "Mutex lock init failed\n");
         exit(1);
     }
-#ifndef CONSOLE_PRINT
+#if (CONSOLE_PRINT == 0)
     pthread_t progress_thread;
     pthread_create(&progress_thread, NULL, track_progress, NULL);
 #endif
@@ -238,7 +238,6 @@ int main (int argc, char** argv) {
 
     assert(accesses != NULL);
     num_accesses = file_length / FILE_LINE_LENGTH_IN_BYTES;
-    printf("num_accesses=%lu\n", num_accesses);
 
     calculate_num_valid_configs(&num_configs, 0, g_test_params.min_block_size, g_test_params.min_cache_size);
     printf("Total number of possible configs = %lu\n", num_configs);

@@ -17,7 +17,7 @@ const uint64_t access_time_in_cycles[] = {
     195 // Main Memory
 };
 
-#ifdef CONSOLE_PRINT
+#if (CONSOLE_PRINT == 1)
 #define DEBUG_TRACE printf
 #else
 #define DEBUG_TRACE(...)

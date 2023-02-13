@@ -75,7 +75,7 @@ static void verify_test_params (void) {
     assert(g_test_params.min_cache_size <= g_test_params.max_cache_size);
     assert(g_test_params.min_cache_size >= g_test_params.min_block_size);
     assert(g_test_params.num_cache_levels <= MAIN_MEMORY && "Update access_time_in_cycles & enum cache_levels");
-#ifdef CONSOLE_PRINT
+#if (CONSOLE_PRINT == 1)
     if (g_test_params.max_num_threads > 1) {
         printf("WARNING: Console printing with multiple threads is not recommended. Do you wish to continue? [Y/n]\n");
         char ret = 'n';
