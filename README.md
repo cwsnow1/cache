@@ -34,5 +34,30 @@ To run the program, the command is
 ```
 $ ./cache <tracefile>
 ```
+## Console Print
+If <code>CONSOLE_PRINT</code> is defined as <code>1</code> in <code>./inc/cache.h</code>, the program will step through the simulation one clock cycle at a time with consle prints describing the processing. Example:
+```
+====================
+TICK 0000001172
+====================
+
+Cache[0] New request added at index 5, call back at tick 1175
+Cache[0] Trying request 3, addr=0x7f4749971980
+Cache[0] set 51 is busy
+Cache[0] Trying request 0, addr=0x7f47499719b8
+Cache[0] set 51 is busy
+Cache[0] Trying request 1, addr=0x7f4749944c78
+Cache[0] hit, set=24
+Cache[0] Trying request 7, addr=0x7f47499719f0
+2/3 cycles for this operation in cache_level=0
+Cache[0] next useful cycle set to 1173
+Cache[0] Trying request 6, addr=0x7f4749944c80
+1/3 cycles for this operation in cache_level=0
+Cache[0] Trying request 5, addr=0x7f4749944c88
+0/3 cycles for this operation in cache_level=0
+
+Cache[1] Trying request 13, addr=0x7f4749971980
+7/12 cycles for this operation in cache_level=1
+```
 ## Sim Trace
-If <code>SIM_TRACE</code> is defined in <code>./inc/sim_trace.h</code>, the program will produce a binary file that can be decoded by the decoder in <code>./sim_trace_decoder</code>. The text file(s) will contain a trace of the operation of the cache simulation. These files can be large, so I recommend using a log viewing program such as [glogg](https://github.com/nickbnf/glogg) or [klogg](https://klogg.filimonov.dev/).
+*Note: this feature has not been updated to the new request & clock cycle based simulation* If <code>SIM_TRACE</code> is defined in <code>./inc/sim_trace.h</code>, the program will produce a binary file that can be decoded by the decoder in <code>./sim_trace_decoder</code>. The text file(s) will contain a trace of the operation of the cache simulation. These files can be large, so I recommend using a log viewing program such as [glogg](https://github.com/nickbnf/glogg) or [klogg](https://klogg.filimonov.dev/).
