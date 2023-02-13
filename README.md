@@ -60,5 +60,5 @@ Cache[1] Trying request 13, addr=0x7f4749971980
 7/12 cycles for this operation in cache_level=1
 ```
 ## Sim Trace
-*Note: this feature has not been updated to the new request & clock cycle based simulation*
+*Note: this feature has not been updated to the new request & clock cycle based simulation*  
 If <code>SIM_TRACE</code> is defined in <code>./inc/sim_trace.h</code>, the program will produce a binary file that can be decoded by the decoder in <code>./sim_trace_decoder</code>. The text file(s) will contain a trace of the operation of the cache simulation. These files can be large, so I recommend using a log viewing program such as [glogg](https://github.com/nickbnf/glogg) or [klogg](https://klogg.filimonov.dev/).
