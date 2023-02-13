@@ -160,7 +160,7 @@ int16_t cache__add_access_request(cache_t *cache, instruction_t access, uint64_t
 /**
  * @brief                       Simulate a clock cycle in the cache structure(s)
  * 
- * @param cache                 Main memory cache structure. This function will recursively call all upper caches
+ * @param cache                 Cache structure. This function will recursively call all lower caches
  * @param cycle                 Current clock cycle
  * @param completed_requests    Out. An array of the request indices that were completed this tick. Length is the return value
  * 
