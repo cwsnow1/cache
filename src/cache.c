@@ -155,11 +155,11 @@ int16_t cache__add_access_request (cache_t *cache, instruction_t access, uint64_
 uint64_t cache__process_cache (cache_t *cache, uint64_t cycle, int16_t *completed_requests) {
     uint64_t num_requests_completed = 0;
     cache->work_done_this_cycle = false;
-    for_each_in_double_list(cache->request_manager.waiting_requests) {
-        DEBUG_TRACE("Cache[%hhu] Trying request %lu, addr=0x%012lx\n", cache->cache_level, pool_index, cache->request_manager.request_pool[pool_index].instruction.ptr);
+    for_each_in_double_list(cache->request_manager.busy_requests) {
+    //if (cache->lower_cache && cache->lower_cache->work_done_this_cycle) {
+        DEBUG_TRACE("Cache[%hhu] trying request %lu from busy requests list, addr=0x%012lx\n", cache->cache_level, pool_index, cache->request_manager.request_pool[pool_index].instruction.ptr);
         status_t status = handle_access(cache, cache->request_manager.request_pool[pool_index], cycle);
-        switch (status) {
-        case HIT:
+        if (status == HIT) {
             DEBUG_TRACE("Cache[%hhu] hit, set=%lu\n", cache->cache_level, addr_to_set_index(cache, cache->request_manager.request_pool[pool_index].instruction.ptr));
             if (cache->upper_cache) {
                 uint64_t set_index = addr_to_set_index(cache->upper_cache, cache->request_manager.request_pool[pool_index].instruction.ptr);
@@ -169,34 +169,23 @@ uint64_t cache__process_cache (cache_t *cache, uint64_t cycle, int16_t *complete
             if (cache->cache_level == L1) {
                 completed_requests[num_requests_completed++] = pool_index;
             }
-            assert(double_list__remove_element(cache->request_manager.waiting_requests, element_i));
+            assert(double_list__remove_element(cache->request_manager.busy_requests, element_i));
             assert(double_list__push_element(cache->request_manager.free_requests, element_i));
-            break;
-        case MISS:
-        case BUSY:
-            assert(double_list__remove_element(cache->request_manager.waiting_requests, element_i));
-            double_list__add_element_to_tail(cache->request_manager.busy_requests, element_i);
-            break;
-        case WAITING:
-            DEBUG_TRACE("Cache[%hhu] request %lu is still waiting, breaking out of loop\n", cache->cache_level, pool_index);
-            goto out_of_loop; // Break out of for loop
-            break;
-        default:
-            assert(0);
-            break;
         }
     }
-out_of_loop:
-    //if (cache->lower_cache && cache->lower_cache->work_done_this_cycle) {
-        if (cache->request_manager.busy_requests->head ) {
-            element_i = cache->request_manager.busy_requests->head;
+    //} else {
+    //    DEBUG_TRACE("Cache[%hhu] no work was done in lower cache, not checking busy list\n", cache->cache_level);
+    //}
+    if (cache->request_manager.waiting_requests->head ) {
+            element_i = cache->request_manager.waiting_requests->head;
             next_element = element_i->next;
             for (uint64_t pool_index = element_i->pool_index; element_i != NULL;
                 element_i = next_element, next_element = element_i ? element_i->next : NULL, pool_index = element_i ? element_i->pool_index : 0) {
-            
-                DEBUG_TRACE("Cache[%hhu] trying request %lu from busy requests list, addr=0x%012lx\n", cache->cache_level, pool_index, cache->request_manager.request_pool[pool_index].instruction.ptr);
+
+                DEBUG_TRACE("Cache[%hhu] Trying request %lu, addr=0x%012lx\n", cache->cache_level, pool_index, cache->request_manager.request_pool[pool_index].instruction.ptr);
                 status_t status = handle_access(cache, cache->request_manager.request_pool[pool_index], cycle);
-                if (status == HIT) {
+                switch (status) {
+                case HIT:
                     DEBUG_TRACE("Cache[%hhu] hit, set=%lu\n", cache->cache_level, addr_to_set_index(cache, cache->request_manager.request_pool[pool_index].instruction.ptr));
                     if (cache->upper_cache) {
                         uint64_t set_index = addr_to_set_index(cache->upper_cache, cache->request_manager.request_pool[pool_index].instruction.ptr);
@@ -206,15 +195,26 @@ out_of_loop:
                     if (cache->cache_level == L1) {
                         completed_requests[num_requests_completed++] = pool_index;
                     }
-                    assert(double_list__remove_element(cache->request_manager.busy_requests, element_i));
+                    assert(double_list__remove_element(cache->request_manager.waiting_requests, element_i));
                     assert(double_list__push_element(cache->request_manager.free_requests, element_i));
+                    break;
+                case MISS:
+                case BUSY:
+                    assert(double_list__remove_element(cache->request_manager.waiting_requests, element_i));
+                    double_list__add_element_to_tail(cache->request_manager.busy_requests, element_i);
+                    break;
+                case WAITING:
+                    DEBUG_TRACE("Cache[%hhu] request %lu is still waiting, breaking out of loop\n", cache->cache_level, pool_index);
+                    goto out_of_loop; // Break out of for loop
+                    break;
+                default:
+                    assert(0);
+                    break;
                 }
-            
             }
-        }
-    //} else {
-    //    DEBUG_TRACE("Cache[%hhu] no work was done in lower cache, not checking busy list\n", cache->cache_level);
-    //}
+    }
+out_of_loop:
+    DEBUG_TRACE("\n");
 
     if (cache->upper_cache) {
         num_requests_completed = cache__process_cache(cache->upper_cache, cycle, completed_requests);
