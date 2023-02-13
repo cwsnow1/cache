@@ -88,7 +88,7 @@ void * sim_cache (void *L1_cache) {
                 set_bit(oustanding_requests, request_index);
             }
         }
-        uint64_t num_completed_requests = cache__process_cache(this_cache, cycle_counter[this_cache->thread_id], completed_requests);
+        uint64_t num_completed_requests = cache__process_cache(cache__get_main_memory(this_cache), cycle_counter[this_cache->thread_id], completed_requests);
         work_done |= this_cache->work_done_this_cycle;
         for (uint64_t j = 0; j < num_completed_requests; j++) {
             work_done = true;

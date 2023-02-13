@@ -36,7 +36,7 @@ static void update_lru_list (cache_t * cache, uint64_t set_index, uint8_t mru_in
 static int16_t evict_block (cache_t *cache, uint64_t set_index, uint64_t block_addr, uint64_t cycle);
 static bool find_block_in_set (cache_t *cache, uint64_t set_index, uint64_t block_addr, uint8_t *block_index);
 static int16_t request_block (cache_t *cache, uint64_t set_index, uint64_t block_addr, uint64_t cycle);
-static bool handle_access (cache_t *cache, request_t request, uint64_t cycle);
+static status_t handle_access (cache_t *cache, request_t request, uint64_t cycle);
 
 // =====================================
 //          Public Functions
@@ -116,8 +116,9 @@ void cache__reset (cache_t *me) {
     if (me->request_manager.request_pool) {
         free(me->request_manager.request_pool);
     }
-    double_list__free_list(me->request_manager.outstanding_requests);
+    double_list__free_list(me->request_manager.waiting_requests);
     double_list__free_list(me->request_manager.free_requests);
+    double_list__free_list(me->request_manager.busy_requests);
     if (me->lower_cache) {
         cache__reset(me->lower_cache);
     } else {
@@ -139,7 +140,7 @@ void cache__print_info (cache_t *me) {
 int16_t cache__add_access_request (cache_t *cache, instruction_t access, uint64_t cycle) {
     double_list_element_t *element = double_list__pop_element(cache->request_manager.free_requests);
     if (element) {
-        assert(double_list__add_element_to_tail(cache->request_manager.outstanding_requests, element));
+        assert(double_list__add_element_to_tail(cache->request_manager.waiting_requests, element));
         uint64_t pool_index = element->pool_index;
         cache->request_manager.request_pool[pool_index].instruction = access;
         cache->request_manager.request_pool[pool_index].cycle = cycle;
@@ -154,28 +155,79 @@ int16_t cache__add_access_request (cache_t *cache, instruction_t access, uint64_
 uint64_t cache__process_cache (cache_t *cache, uint64_t cycle, int16_t *completed_requests) {
     uint64_t num_requests_completed = 0;
     cache->work_done_this_cycle = false;
-    for_each_in_double_list(cache->request_manager.outstanding_requests) {
+    for_each_in_double_list(cache->request_manager.waiting_requests) {
         DEBUG_TRACE("Cache[%hhu] Trying request %lu, addr=0x%012lx\n", cache->cache_level, pool_index, cache->request_manager.request_pool[pool_index].instruction.ptr);
-        if (handle_access(cache, cache->request_manager.request_pool[pool_index], cycle)) {
+        status_t status = handle_access(cache, cache->request_manager.request_pool[pool_index], cycle);
+        switch (status) {
+        case HIT:
             DEBUG_TRACE("Cache[%hhu] hit, set=%lu\n", cache->cache_level, addr_to_set_index(cache, cache->request_manager.request_pool[pool_index].instruction.ptr));
             if (cache->upper_cache) {
                 uint64_t set_index = addr_to_set_index(cache->upper_cache, cache->request_manager.request_pool[pool_index].instruction.ptr);
                 DEBUG_TRACE("Cache[%hhu] marking set %lu as no longer busy\n", (uint8_t)(cache->cache_level - 1), set_index);
                 cache->upper_cache->sets[set_index].busy = false;
             }
-            if (completed_requests) {
+            if (cache->cache_level == L1) {
                 completed_requests[num_requests_completed++] = pool_index;
             }
-            assert(double_list__remove_element(cache->request_manager.outstanding_requests, element_i));
+            assert(double_list__remove_element(cache->request_manager.waiting_requests, element_i));
             assert(double_list__push_element(cache->request_manager.free_requests, element_i));
+            break;
+        case MISS:
+        case BUSY:
+            assert(double_list__remove_element(cache->request_manager.waiting_requests, element_i));
+            double_list__add_element_to_tail(cache->request_manager.busy_requests, element_i);
+            break;
+        case WAITING:
+            DEBUG_TRACE("Cache[%hhu] request %lu is still waiting, breaking out of loop\n", cache->cache_level, pool_index);
+            goto out_of_loop; // Break out of for loop
+            break;
+        default:
+            assert(0);
+            break;
         }
     }
-    DEBUG_TRACE("\n");
-    if (cache->lower_cache) {
-        cache__process_cache(cache->lower_cache, cycle, NULL);
-        cache->work_done_this_cycle |= cache->lower_cache->work_done_this_cycle;
+out_of_loop:
+    //if (cache->lower_cache && cache->lower_cache->work_done_this_cycle) {
+        if (cache->request_manager.busy_requests->head ) {
+            element_i = cache->request_manager.busy_requests->head;
+            next_element = element_i->next;
+            for (uint64_t pool_index = element_i->pool_index; element_i != NULL;
+                element_i = next_element, next_element = element_i ? element_i->next : NULL, pool_index = element_i ? element_i->pool_index : 0) {
+            
+                DEBUG_TRACE("Cache[%hhu] trying request %lu from busy requests list, addr=0x%012lx\n", cache->cache_level, pool_index, cache->request_manager.request_pool[pool_index].instruction.ptr);
+                status_t status = handle_access(cache, cache->request_manager.request_pool[pool_index], cycle);
+                if (status == HIT) {
+                    DEBUG_TRACE("Cache[%hhu] hit, set=%lu\n", cache->cache_level, addr_to_set_index(cache, cache->request_manager.request_pool[pool_index].instruction.ptr));
+                    if (cache->upper_cache) {
+                        uint64_t set_index = addr_to_set_index(cache->upper_cache, cache->request_manager.request_pool[pool_index].instruction.ptr);
+                        DEBUG_TRACE("Cache[%hhu] marking set %lu as no longer busy\n", (uint8_t)(cache->cache_level - 1), set_index);
+                        cache->upper_cache->sets[set_index].busy = false;
+                    }
+                    if (cache->cache_level == L1) {
+                        completed_requests[num_requests_completed++] = pool_index;
+                    }
+                    assert(double_list__remove_element(cache->request_manager.busy_requests, element_i));
+                    assert(double_list__push_element(cache->request_manager.free_requests, element_i));
+                }
+            
+            }
+        }
+    //} else {
+    //    DEBUG_TRACE("Cache[%hhu] no work was done in lower cache, not checking busy list\n", cache->cache_level);
+    //}
+
+    if (cache->upper_cache) {
+        num_requests_completed = cache__process_cache(cache->upper_cache, cycle, completed_requests);
+        cache->upper_cache->work_done_this_cycle = cache->work_done_this_cycle;
     }
     return num_requests_completed;
+}
+
+cache_t *cache__get_main_memory(cache_t *cache) {
+    cache_t *mm = cache;
+    for (; mm->lower_cache != NULL; mm = mm->lower_cache)
+        ;
+    return mm;
 }
 
 // =====================================
@@ -207,7 +259,8 @@ static void init_request_manager (cache_t *me) {
     assert(me);
     me->request_manager.max_outstanding_requests = MAX_NUM_REQUESTS << me->cache_level;
     me->request_manager.request_pool = (request_t*) malloc(sizeof(request_t) * me->request_manager.max_outstanding_requests);
-    me->request_manager.outstanding_requests = double_list__init_list(me->request_manager.max_outstanding_requests);
+    me->request_manager.waiting_requests = double_list__init_list(me->request_manager.max_outstanding_requests);
+    me->request_manager.busy_requests = double_list__init_list(me->request_manager.max_outstanding_requests);
     me->request_manager.free_requests = double_list__init_list(me->request_manager.max_outstanding_requests);
     for (uint64_t i = 0; i < me->request_manager.max_outstanding_requests; i++) {
         double_list_element_t *element = (double_list_element_t*) malloc(sizeof(double_list_element_t));
@@ -367,7 +420,7 @@ static int16_t request_block (cache_t *cache, uint64_t set_index, uint64_t block
  * @param cycle     Current clock cycle
  * @return true     If the request was completed and need not be called again
  */
-static bool handle_access (cache_t *cache, request_t request, uint64_t cycle) {
+static status_t handle_access (cache_t *cache, request_t request, uint64_t cycle) {
     assert(cache);
     if (cycle - request.cycle < access_time_in_cycles[cache->cache_level]) {
         DEBUG_TRACE("%lu/%lu cycles for this operation in cache_level=%hhu\n", cycle - request.cycle, access_time_in_cycles[cache->cache_level], cache->cache_level);
@@ -375,20 +428,20 @@ static bool handle_access (cache_t *cache, request_t request, uint64_t cycle) {
             DEBUG_TRACE("Cache[%hhu] next useful cycle set to %lu\n", cache->cache_level, request.cycle_to_call_back);
             cache->earliest_next_useful_cycle = request.cycle_to_call_back;
         }
-        return false;
+        return WAITING;
     }
     cache->earliest_next_useful_cycle = UINT64_MAX;
     if (cache->cache_level == MAIN_MEMORY) {
         // Main memory always hits
         cache->work_done_this_cycle = true;
-        return true;
+        return HIT;
     }
     instruction_t access = request.instruction;
     uint64_t block_addr = addr_to_block_addr(cache, access.ptr);
     uint64_t set_index = addr_to_set_index(cache, access.ptr);
     if (cache->sets[set_index].busy) {
         DEBUG_TRACE("Cache[%hhu] set %lu is busy\n", cache->cache_level, set_index);
-        return false;
+        return BUSY;
     }
     cache->work_done_this_cycle = true;
 #ifdef SIM_TRACE
@@ -421,7 +474,7 @@ static bool handle_access (cache_t *cache, request_t request, uint64_t cycle) {
         request.first_attempt = false;
         int16_t requested_block = request_block(cache, set_index, block_addr, cycle);
         if (requested_block == -1) {
-            return hit;
+            return MISS;
         }
         block_index = (uint8_t) requested_block;
         cache->sets[set_index].busy = true;
@@ -433,5 +486,5 @@ static bool handle_access (cache_t *cache, request_t request, uint64_t cycle) {
             cache->sets[set_index].ways[block_index].dirty = true;
         }
     }
-    return hit;
+    return hit ? HIT : MISS;
 }

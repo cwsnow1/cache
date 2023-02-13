@@ -18,6 +18,13 @@ typedef enum access_e {
     WRITE
 } access_t;
 
+typedef enum status_e {
+    HIT,
+    MISS,
+    WAITING,
+    BUSY,
+} status_t;
+
 typedef struct instruction_s {
     uint64_t ptr;
     access_t rw;
@@ -32,8 +39,9 @@ typedef struct request_s {
 
 typedef struct request_manager_s {
     request_t *request_pool;
-    double_list_t *outstanding_requests;
+    double_list_t *waiting_requests;
     double_list_t *free_requests;
+    double_list_t *busy_requests;
     uint64_t max_outstanding_requests;
 } request_manager_t;
 
@@ -152,10 +160,19 @@ int16_t cache__add_access_request(cache_t *cache, instruction_t access, uint64_t
 /**
  * @brief                       Simulate a clock cycle in the cache structure(s)
  * 
- * @param cache                 Cache structure. This function will recursively call all lower caches
+ * @param cache                 Main memory cache structure. This function will recursively call all upper caches
  * @param cycle                 Current clock cycle
  * @param completed_requests    Out. An array of the request indices that were completed this tick. Length is the return value
  * 
  * @return                      Number of requests completed this tick
  */
 uint64_t cache__process_cache (cache_t *cache, uint64_t cycle, int16_t *completed_requests);
+
+/**
+ * @brief           Get the main memory cache pointer
+ * 
+ * @param cache     Cache structure at any level of hierarchy
+ * 
+ * @return cache_t* Main memory cache structure
+ */
+cache_t *cache__get_main_memory(cache_t *cache);
