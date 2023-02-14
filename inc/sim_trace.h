@@ -1,5 +1,5 @@
 #ifndef SIM_TRACE
-//#define SIM_TRACE
+#define SIM_TRACE
 #endif
 #ifdef SIM_TRACE
 
@@ -15,6 +15,7 @@ typedef enum trace_entry_id_e {
     SIM_TRACE__MISS,
     SIM_TRACE__LRU_UPDATE,
     SIM_TRACE__EVICT,
+    SIM_TRACE__REQUEST_ADDED,
 
     // Add new entries above this
     NUM_SIM_TRACE_ENTRIES,
@@ -24,6 +25,8 @@ typedef enum trace_entry_id_e {
 
 typedef struct sim_trace_entry_s {
     trace_entry_id_t trace_entry_id;
+    uint8_t cache_level;
+    uint64_t cycle;
     uint64_t values[MAX_NUM_SIM_TRACE_VALUES];
 } sim_trace_entry_t;
 
@@ -38,10 +41,10 @@ int sim_trace__init(void);
  * @brief                   "Prints" a trace entry -- really adds it to a buffer to be written later
  * 
  * @param trace_entry_id    See sim_trace.h & sim_trace_decoder.h for entry info
- * @param thread_id         Thread ID of the calling thread to keep buffers separate
+ * @param cache             Pointer to cache structure making entry, used to print context info
  * @param values            Array of length MAX_NUM_SIM_TRACE_VALUES of values to be printed. Not all values need to be initialized if not necessary
  */
-void sim_trace__print(trace_entry_id_t trace_entry_id, uint64_t thread_id, uint64_t *values);
+void sim_trace__print(trace_entry_id_t trace_entry_id, cache_t *cache, uint64_t *values);
 
 /**
  * @brief           Write all the sim trace buffers to a binary file and free all strcutures

@@ -95,6 +95,7 @@ typedef struct cache_s {
     // Data
     set_t  *sets;
     request_manager_t request_manager;
+    uint64_t cycle;
 
     // Data for simulator performance
     uint64_t earliest_next_useful_cycle;

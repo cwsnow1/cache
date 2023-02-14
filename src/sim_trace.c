@@ -5,8 +5,8 @@
 #include <string.h>
 #include <stdbool.h>
 
-#include "sim_trace.h"
 #include "cache.h"
+#include "sim_trace.h"
 #ifdef SIM_TRACE
 
 static uint32_t *thread_indices;
@@ -41,8 +41,13 @@ int sim_trace__init(void) {
     return 0;
 }
 
-void sim_trace__print(trace_entry_id_t trace_entry_id, uint64_t thread_id, uint64_t *values) {
+void sim_trace__print(trace_entry_id_t trace_entry_id, cache_t *cache, uint64_t *values) {
+    uint64_t thread_id = cache->thread_id;
+    uint64_t cycle = cache->cycle;
+    uint8_t cache_level = cache->cache_level;
     sim_trace_buffer[thread_id][thread_indices[thread_id]].trace_entry_id = trace_entry_id;
+    sim_trace_buffer[thread_id][thread_indices[thread_id]].cache_level = cache_level;
+    sim_trace_buffer[thread_id][thread_indices[thread_id]].cycle = cycle;
     memcpy(&sim_trace_buffer[thread_id][thread_indices[thread_id]].values[0], values, sizeof(uint64_t) * MAX_NUM_SIM_TRACE_VALUES);
     // Roll over when buffer is filled
     if (++thread_indices[thread_id] == SIM_TRACE_BUFFER_SIZE_IN_ENTRIES) {
@@ -95,9 +100,9 @@ void sim_trace__write_to_file_and_exit(const char *filename) {
     config_t *configs = (config_t*) malloc(sizeof(config_t) * g_test_params.num_cache_levels);
     for (uint16_t i = 0; i < num_threads; i++) {
         for (uint8_t j = 0; j < g_test_params.num_cache_levels; j++) {
-            configs[j].cache_size = g_caches[i][j].cache_size;
-            configs[j].block_size = g_caches[i][j].block_size;
-            configs[j].associativity = g_caches[i][j].associativity;
+            configs[j].cache_size = g_caches[i][j].config.cache_size;
+            configs[j].block_size = g_caches[i][j].config.block_size;
+            configs[j].associativity = g_caches[i][j].config.associativity;
         }
         assert(fwrite(configs, sizeof(config_t), g_test_params.num_cache_levels, f) == g_test_params.num_cache_levels);
     }

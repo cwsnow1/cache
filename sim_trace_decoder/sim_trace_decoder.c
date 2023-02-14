@@ -9,9 +9,9 @@
 #define SIM_TRACE
 #endif
 
+#include "cache.h"
 #include "sim_trace.h"
 #include "sim_trace_decoder.h"
-#include "cache.h"
 
 static uint32_t num_entries;
 static uint16_t num_threads;
@@ -90,24 +90,26 @@ int main (int argc, char* argv[]) {
         f_out = fopen(output_filename_buffer, "w");
         assert(f_out);
         for (uint32_t buffer_index = oldest_indices[thread_id]; buffer_index < num_entries; buffer_index++) {
-            int num_args = sim_trace_entry_num_arguments[buffers[thread_id][buffer_index].trace_entry_id];
+            sim_trace_entry_t buffer = buffers[thread_id][buffer_index];
+            fprintf(f_out, "%012lu\t%u\t", buffer.cycle, buffer.cache_level);
+            int num_args = sim_trace_entry_num_arguments[buffer.trace_entry_id];
             switch (num_args)
             {
             case 1:
-                fprintf(f_out, sim_trace_entry_definitions[buffers[thread_id][buffer_index].trace_entry_id], buffers[thread_id][buffer_index].values[0]);
+                fprintf(f_out, sim_trace_entry_definitions[buffer.trace_entry_id], buffer.values[0]);
                 break;
             case 2:
-                fprintf(f_out, sim_trace_entry_definitions[buffers[thread_id][buffer_index].trace_entry_id],
-                    buffers[thread_id][buffer_index].values[0], buffers[thread_id][buffer_index].values[1]);
+                fprintf(f_out, sim_trace_entry_definitions[buffer.trace_entry_id],
+                    buffer.values[0], buffer.values[1]);
                 break;
             case 3:
-                fprintf(f_out, sim_trace_entry_definitions[buffers[thread_id][buffer_index].trace_entry_id],
-                    buffers[thread_id][buffer_index].values[0], buffers[thread_id][buffer_index].values[1], buffers[thread_id][buffer_index].values[2]);
+                fprintf(f_out, sim_trace_entry_definitions[buffer.trace_entry_id],
+                    buffer.values[0], buffer.values[1], buffer.values[2]);
                 break;
             case 4:
-                fprintf(f_out, sim_trace_entry_definitions[buffers[thread_id][buffer_index].trace_entry_id],
-                    buffers[thread_id][buffer_index].values[0], buffers[thread_id][buffer_index].values[1],
-                    buffers[thread_id][buffer_index].values[2], buffers[thread_id][buffer_index].values[3]);
+                fprintf(f_out, sim_trace_entry_definitions[buffer.trace_entry_id],
+                    buffer.values[0], buffer.values[1],
+                    buffer.values[2], buffer.values[3]);
                 break;            
             default:
                 fprintf(stderr, "MAX_NUM_SIM_TRACE_VALUES is too low\n");
