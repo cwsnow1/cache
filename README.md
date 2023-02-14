@@ -60,4 +60,21 @@ Cache[1] Trying request 13, addr=0x7f4749971980
 7/12 cycles for this operation in cache_level=1
 ```
 ## Sim Trace
-If <code>SIM_TRACE</code> is defined in <code>./inc/sim_trace.h</code>, the program will produce a binary file that can be decoded by the decoder in <code>./sim_trace_decoder</code>. The text file(s) will contain a trace of the operation of the cache simulation. These files can be large, so I recommend using a log viewing program such as [glogg](https://github.com/nickbnf/glogg) or [klogg](https://klogg.filimonov.dev/).
+If <code>SIM_TRACE</code> is defined in <code>./inc/sim_trace.h</code>, the program will produce a binary file that can be decoded by the decoder in <code>./sim_trace_decoder</code>. The text file(s) will contain a trace of the operation of the cache simulation. These files can be large, so I recommend using a log viewing program such as [glogg](https://github.com/nickbnf/glogg) or [klogg](https://klogg.filimonov.dev/).  
+Example excerpt of a sim trace:
+```
+Cycle           Cache level     Message
+=============================================================
+000018569992    0               ACCESS_BEGIN:  pool_index=09, r, block_address=0x00fe8e690eb2, set_index=0x00000032
+000018569992    0               LRU_UPDATE:    set_index=0x00000032, MRU: block_index=0x01, LRU: block_index=0x00
+000018569992    0               ACCESS_BEGIN:  pool_index=08, r, block_address=0x00fe8e690eb2, set_index=0x00000032
+000018569992    0               LRU_UPDATE:    set_index=0x00000032, MRU: block_index=0x01, LRU: block_index=0x00
+000018569992    0               ACCESS_BEGIN:  pool_index=03, r, block_address=0x00fe8e690eb3, set_index=0x00000033
+000018569992    0               MISS:          pool_index=03, requesting block in set_index=0x00000033
+000018569992    0               EVICT:         set_index=0x00000033, block_index=0x00
+000018569992    1               REQUEST_ADDED: pool_index=00, addr=0x7f4734875980, access_time=12
+000018569992    0               ACCESS_BEGIN:  pool_index=01, w, block_address=0x00ac680a75d3, set_index=0x00000013
+000018569992    0               MISS:          pool_index=01, requesting block in set_index=0x00000013
+000018569992    1               REQUEST_ADDED: pool_index=29, addr=0x5634053ac980, access_time=12
+000018569992    0               EVICT:         set_index=0x00000013, block_index=0x01
+```

@@ -89,12 +89,17 @@ int main (int argc, char* argv[]) {
         sprintf(output_filename_begin, ".txt");
         f_out = fopen(output_filename_buffer, "w");
         assert(f_out);
+        fprintf(f_out, "Cycle\t\tCache level\tMessage\n");
+        fprintf(f_out, "=============================================================\n");
         for (uint32_t buffer_index = oldest_indices[thread_id]; buffer_index < num_entries; buffer_index++) {
             sim_trace_entry_t buffer = buffers[thread_id][buffer_index];
-            fprintf(f_out, "%012lu\t%u\t", buffer.cycle, buffer.cache_level);
+            fprintf(f_out, "%012lu\t%u\t\t", buffer.cycle, buffer.cache_level);
             int num_args = sim_trace_entry_num_arguments[buffer.trace_entry_id];
             switch (num_args)
             {
+            case 0:
+                fprintf(f_out, "%s", sim_trace_entry_definitions[buffer.trace_entry_id]);
+                break;
             case 1:
                 fprintf(f_out, sim_trace_entry_definitions[buffer.trace_entry_id], buffer.values[0]);
                 break;

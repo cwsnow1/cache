@@ -1,10 +1,10 @@
 #ifndef SIM_TRACE
-#define SIM_TRACE
+//#define SIM_TRACE
 #endif
 #ifdef SIM_TRACE
 
 #define MAX_NUM_SIM_TRACE_VALUES            (4)
-#define SIM_TRACE_BUFFER_SIZE_IN_BYTES      (1048576U) // 1MiB, per thread
+#define SIM_TRACE_BUFFER_SIZE_IN_BYTES      (16777216) // 16MiB, per thread
 #define SIM_TRACE_BUFFER_SIZE_IN_ENTRIES    (SIM_TRACE_BUFFER_SIZE_IN_BYTES / sizeof(sim_trace_entry_t))
 #define SIM_TRACE_WARNING_THRESHOLD         (128)
 
@@ -16,19 +16,21 @@ typedef enum trace_entry_id_e {
     SIM_TRACE__LRU_UPDATE,
     SIM_TRACE__EVICT,
     SIM_TRACE__REQUEST_ADDED,
+    SIM_TRACE__REQUEST_FAILED,
+    SIM_TRACE__EVICT_FAILED,
 
     // Add new entries above this
     NUM_SIM_TRACE_ENTRIES,
     SIM_TRACE__INVALID,
-} trace_entry_id_t;
+} __attribute__ ((__packed__)) trace_entry_id_t;
 
 
 typedef struct sim_trace_entry_s {
-    trace_entry_id_t trace_entry_id;
-    uint8_t cache_level;
     uint64_t cycle;
     uint64_t values[MAX_NUM_SIM_TRACE_VALUES];
-} sim_trace_entry_t;
+    trace_entry_id_t trace_entry_id;
+    uint8_t cache_level;
+} __attribute__ ((__packed__)) sim_trace_entry_t;
 
 /**
  * @brief  Initializes the buffer and tracking info for sim traces

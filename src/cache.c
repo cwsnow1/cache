@@ -36,7 +36,7 @@ static          void        update_lru_list         (cache_t *cache, uint64_t se
 static          int16_t     evict_block             (cache_t *cache, uint64_t set_index, uint64_t block_addr);
 static          bool        find_block_in_set       (cache_t *cache, uint64_t set_index, uint64_t block_addr, uint8_t *block_index);
 static          int16_t     request_block           (cache_t *cache, uint64_t set_index, uint64_t block_addr);
-static          status_t    handle_access           (cache_t *cache, request_t request);
+static          status_t    handle_access           (cache_t *cache, request_t *request);
 static          uint64_t    internal_process_cache  (cache_t *cache, uint64_t cycle, int16_t *completed_requests);
 
 // =====================================
@@ -287,6 +287,9 @@ static int16_t evict_block (cache_t *cache, uint64_t set_index, uint64_t block_a
         cache->sets[set_index].ways[lru_block_index].dirty = false;
     }
     if (cache__add_access_request(cache->lower_cache, lower_cache_access, cache->cycle) == -1) {
+#ifdef SIM_TRACE
+        sim_trace__print(SIM_TRACE__EVICT_FAILED, cache, NULL);
+#endif
         DEBUG_TRACE("Cache[%hhu] could not make request to lower cache in evict_block, returning\n", cache->cache_level);
         return -1;
     }
@@ -336,6 +339,9 @@ static int16_t request_block (cache_t *cache, uint64_t set_index, uint64_t block
         .rw  = READ,
     };
     if (cache__add_access_request(cache->lower_cache, read_request_to_lower_cache, cache->cycle) == -1) {
+#ifdef SIM_TRACE
+        sim_trace__print(SIM_TRACE__REQUEST_FAILED, cache, NULL);
+#endif
         DEBUG_TRACE("Cache[%hhu] could not make request to lower cache in request_block, returning\n", cache->cache_level);
         return -1;
     }
@@ -352,13 +358,13 @@ static int16_t request_block (cache_t *cache, uint64_t set_index, uint64_t block
  * @param request   Request structure to attempt
  * @return true     If the request was completed and need not be called again
  */
-static status_t handle_access (cache_t *cache, request_t request) {
+static status_t handle_access (cache_t *cache, request_t *request) {
     assert(cache);
-    if (cache->cycle < request.cycle_to_call_back) {
-        DEBUG_TRACE("%lu/%lu cycles for this operation in cache_level=%hhu\n", cache->cycle - request.cycle, access_time_in_cycles[cache->cache_level], cache->cache_level);
-        if (cache->earliest_next_useful_cycle > request.cycle_to_call_back) {
-            DEBUG_TRACE("Cache[%hhu] next useful cycle set to %lu\n", cache->cache_level, request.cycle_to_call_back);
-            cache->earliest_next_useful_cycle = request.cycle_to_call_back;
+    if (cache->cycle < request->cycle_to_call_back) {
+        DEBUG_TRACE("%lu/%lu cycles for this operation in cache_level=%hhu\n", cache->cycle - request->cycle, access_time_in_cycles[cache->cache_level], cache->cache_level);
+        if (cache->earliest_next_useful_cycle > request->cycle_to_call_back) {
+            DEBUG_TRACE("Cache[%hhu] next useful cycle set to %lu\n", cache->cache_level, request->cycle_to_call_back);
+            cache->earliest_next_useful_cycle = request->cycle_to_call_back;
         }
         return WAITING;
     }
@@ -368,7 +374,7 @@ static status_t handle_access (cache_t *cache, request_t request) {
         cache->work_done_this_cycle = true;
         return HIT;
     }
-    instruction_t access = request.instruction;
+    instruction_t access = request->instruction;
     uint64_t block_addr = addr_to_block_addr(cache, access.ptr);
     uint64_t set_index = addr_to_set_index(cache, access.ptr);
     if (cache->sets[set_index].busy) {
@@ -379,7 +385,8 @@ static status_t handle_access (cache_t *cache, request_t request) {
 #ifdef SIM_TRACE
     {
         char rw = access.rw == READ ? 'r' : 'w';
-        uint64_t values[MAX_NUM_SIM_TRACE_VALUES] = {(uint64_t) rw, block_addr, set_index};
+        uint64_t pool_index = request - cache->request_manager.request_pool;
+        uint64_t values[MAX_NUM_SIM_TRACE_VALUES] = {pool_index, (uint64_t) rw, block_addr, set_index};
         sim_trace__print(SIM_TRACE__ACCESS_BEGIN, cache, values);
     }
 #endif
@@ -387,11 +394,11 @@ static status_t handle_access (cache_t *cache, request_t request) {
     bool hit = find_block_in_set(cache, set_index, block_addr, &block_index);
     if (hit) {
         if (access.rw == READ) {
-            if (request.first_attempt) {
+            if (request->first_attempt) {
                 ++cache->stats.read_hits;
             }
         } else {
-            if (request.first_attempt) {
+            if (request->first_attempt) {
                 ++cache->stats.write_hits;
             }
             cache->sets[set_index].ways[block_index].dirty = true;
@@ -399,11 +406,12 @@ static status_t handle_access (cache_t *cache, request_t request) {
     } else {
 #ifdef SIM_TRACE
         {
-            uint64_t values[MAX_NUM_SIM_TRACE_VALUES] = {set_index};
+            uint64_t pool_index = request - cache->request_manager.request_pool;
+            uint64_t values[MAX_NUM_SIM_TRACE_VALUES] = {pool_index, set_index};
             sim_trace__print(SIM_TRACE__MISS, cache, values);
         }
 #endif
-        request.first_attempt = false;
+        request->first_attempt = false;
         int16_t requested_block = request_block(cache, set_index, block_addr);
         if (requested_block == -1) {
             return MISS;
@@ -437,7 +445,7 @@ static uint64_t internal_process_cache (cache_t *cache, uint64_t cycle, int16_t 
     if (cache->lower_cache && cache->lower_cache->work_done_this_cycle) {
         for_each_in_double_list(cache->request_manager.busy_requests) {
             DEBUG_TRACE("Cache[%hhu] trying request %lu from busy requests list, addr=0x%012lx\n", cache->cache_level, pool_index, cache->request_manager.request_pool[pool_index].instruction.ptr);
-            status_t status = handle_access(cache, cache->request_manager.request_pool[pool_index]);
+            status_t status = handle_access(cache, &cache->request_manager.request_pool[pool_index]);
             if (status == HIT) {
                 DEBUG_TRACE("Cache[%hhu] hit, set=%lu\n", cache->cache_level, addr_to_set_index(cache, cache->request_manager.request_pool[pool_index].instruction.ptr));
                 if (cache->upper_cache) {
@@ -459,7 +467,7 @@ static uint64_t internal_process_cache (cache_t *cache, uint64_t cycle, int16_t 
     }
     for_each_in_double_list(cache->request_manager.waiting_requests) {
         DEBUG_TRACE("Cache[%hhu] trying request %lu from waiting list, addr=0x%012lx\n", cache->cache_level, pool_index, cache->request_manager.request_pool[pool_index].instruction.ptr);
-        status_t status = handle_access(cache, cache->request_manager.request_pool[pool_index]);
+        status_t status = handle_access(cache, &cache->request_manager.request_pool[pool_index]);
         switch (status) {
         case HIT:
             DEBUG_TRACE("Cache[%hhu] hit, set=%lu\n", cache->cache_level, addr_to_set_index(cache, cache->request_manager.request_pool[pool_index].instruction.ptr));
