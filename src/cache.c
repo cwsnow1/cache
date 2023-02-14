@@ -27,17 +27,17 @@ const uint64_t access_time_in_cycles[] = {
 // Private Function Forward Declarations
 // =====================================
 
-static void init_main_memory (cache_t *lowest_cache);
-static void init_request_manager (cache_t *me);
-static inline uint64_t addr_to_block_addr (cache_t *cache, uint64_t addr);
-static inline uint64_t block_addr_to_set_index (cache_t *cache, uint64_t block_addr);
-static inline uint64_t addr_to_set_index (cache_t *cache, uint64_t addr);
-static void update_lru_list (cache_t * cache, uint64_t set_index, uint8_t mru_index);
-static int16_t evict_block (cache_t *cache, uint64_t set_index, uint64_t block_addr, uint64_t cycle);
-static bool find_block_in_set (cache_t *cache, uint64_t set_index, uint64_t block_addr, uint8_t *block_index);
-static int16_t request_block (cache_t *cache, uint64_t set_index, uint64_t block_addr, uint64_t cycle);
-static status_t handle_access (cache_t *cache, request_t request, uint64_t cycle);
-static uint64_t internal_process_cache (cache_t *cache, uint64_t cycle, int16_t *completed_requests);
+static          void        init_main_memory        (cache_t *lowest_cache);
+static          void        init_request_manager    (cache_t *cache);
+static inline   uint64_t    addr_to_block_addr      (cache_t *cache, uint64_t addr);
+static inline   uint64_t    block_addr_to_set_index (cache_t *cache, uint64_t block_addr);
+static inline   uint64_t    addr_to_set_index       (cache_t *cache, uint64_t addr);
+static          void        update_lru_list         (cache_t *cache, uint64_t set_index, uint8_t mru_index);
+static          int16_t     evict_block             (cache_t *cache, uint64_t set_index, uint64_t block_addr, uint64_t cycle);
+static          bool        find_block_in_set       (cache_t *cache, uint64_t set_index, uint64_t block_addr, uint8_t *block_index);
+static          int16_t     request_block           (cache_t *cache, uint64_t set_index, uint64_t block_addr, uint64_t cycle);
+static          status_t    handle_access           (cache_t *cache, request_t request, uint64_t cycle);
+static          uint64_t    internal_process_cache  (cache_t *cache, uint64_t cycle, int16_t *completed_requests);
 
 // =====================================
 //          Public Functions
@@ -185,17 +185,17 @@ static void init_main_memory (cache_t *lowest_cache) {
  * 
  * @param me The parent cache structure
  */
-static void init_request_manager (cache_t *me) {
-    assert(me);
-    me->request_manager.max_outstanding_requests = MAX_NUM_REQUESTS << me->cache_level;
-    me->request_manager.request_pool = (request_t*) malloc(sizeof(request_t) * me->request_manager.max_outstanding_requests);
-    me->request_manager.waiting_requests = double_list__init_list(me->request_manager.max_outstanding_requests);
-    me->request_manager.busy_requests = double_list__init_list(me->request_manager.max_outstanding_requests);
-    me->request_manager.free_requests = double_list__init_list(me->request_manager.max_outstanding_requests);
-    for (uint64_t i = 0; i < me->request_manager.max_outstanding_requests; i++) {
+static void init_request_manager (cache_t *cache) {
+    assert(cache);
+    cache->request_manager.max_outstanding_requests = MAX_NUM_REQUESTS << cache->cache_level;
+    cache->request_manager.request_pool = (request_t*) malloc(sizeof(request_t) * cache->request_manager.max_outstanding_requests);
+    cache->request_manager.waiting_requests = double_list__init_list(cache->request_manager.max_outstanding_requests);
+    cache->request_manager.busy_requests = double_list__init_list(cache->request_manager.max_outstanding_requests);
+    cache->request_manager.free_requests = double_list__init_list(cache->request_manager.max_outstanding_requests);
+    for (uint64_t i = 0; i < cache->request_manager.max_outstanding_requests; i++) {
         double_list_element_t *element = (double_list_element_t*) malloc(sizeof(double_list_element_t));
         element->pool_index = i;
-        double_list__push_element(me->request_manager.free_requests, element);
+        double_list__push_element(cache->request_manager.free_requests, element);
     }
 }
 
