@@ -45,6 +45,21 @@ void io_utils__print_stats (cache_t *cache, uint64_t cycle, FILE *stream) {
     }
 }
 
+void io_utils__print_config (cache_t *cache, FILE *stream) {
+    if (cache->cache_level == 0) {
+        fprintf(stream, "=========================\n");
+    } else {
+        fprintf(stream, "-------------------------\n");
+    }
+    fprintf(stream, "CACHE LEVEL %d\n", cache->cache_level);
+    fprintf(stream, "size=%luB, block_size=%luB, associativity=%lu\n", cache->config.cache_size, cache->config.block_size, cache->config.associativity);
+    if (cache->cache_level != g_test_params.num_cache_levels - 1) {
+        io_utils__print_config(cache + 1, stream);
+    } else {
+        fprintf(stream, "=========================\n\n");
+    }
+}
+
 /**
  * @brief Verifies the global test parameters struct is valid
  * 

@@ -265,10 +265,23 @@ int main (int argc, char** argv) {
 #ifdef SIM_TRACE
     sim_trace__write_to_file_and_exit(SIM_TRACE_FILENAME);
 #endif
+    float min_cpi = __FLT_MAX__;
+    uint64_t min_i = 0;
     for (uint64_t i = 0; i < num_configs; i++) {
         io_utils__print_stats(g_caches[i], cycle_counter[i], stream);
-        cache__reset(g_caches[i]);
+        float num_reads =  (float) (g_caches[i][0].stats.read_hits  + g_caches[i][0].stats.read_misses);
+        float num_writes = (float) (g_caches[i][0].stats.write_hits + g_caches[i][0].stats.write_misses);
+        float cpi = (float) cycle_counter[i] / (num_reads + num_writes);
+        if (cpi < min_cpi) {
+            min_cpi = cpi;
+            min_i = i;
+        } else {
+            cache__reset(g_caches[i]);
+        }
     }
+    fprintf(stream, "The config with the lowest CPI of %.4f:\n", min_cpi);
+    io_utils__print_config(g_caches[min_i], stream);
+    cache__reset(g_caches[min_i]);
     if (stream != stdout) {
         fclose(stream);
     }

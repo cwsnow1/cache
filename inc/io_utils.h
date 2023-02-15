@@ -22,6 +22,14 @@
 void io_utils__print_stats (cache_t *cache, uint64_t cycle, FILE* stream);
 
 /**
+ * @brief Prints a message that the config of the cache structure(s) given
+ * 
+ * @param cache         The pointer to the top-level cache structure
+ * @param stream        The output stream
+ */
+void io_utils__print_config (cache_t *cache, FILE* stream);
+
+/**
  * @brief Loads test_params.ini if extant, creates it otherwise
  * 
  */
