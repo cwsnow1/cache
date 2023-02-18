@@ -71,12 +71,12 @@ typedef struct config_s {
     uint64_t cache_size;
     uint64_t block_size;
     uint64_t associativity;
-    uint8_t num_cache_levels;
 } config_t;
 
 typedef struct cache_s {
     // Multi-threading fields
     uint64_t thread_id;
+    uint64_t config_index;
 
     // Cache hierarchy fields
     struct cache_s *upper_cache;
@@ -128,11 +128,20 @@ bool cache__is_cache_config_valid(config_t config);
  * 
  * @param caches                Array of cache structure pointers, length is number of cache levels
  * @param cache_level           Level of cache, 0 is L1, 1 is L2, etc.
+ * @param num_cache_levels      Number of cache levels
  * @param configs               Array of structure containing all the config info needed per cache level
- * @param thread_id             Used to index into this thread's global data structures
+ * @param config_index          Used to index into this config's global data structures
  * @return true                 if cache config is valid
  */
-bool cache__init(cache_t *caches, uint8_t cache_level, config_t *configs, uint64_t thread_id);
+bool cache__init(cache_t *caches, uint8_t cache_level, uint8_t num_cache_levels, config_t *configs, uint64_t config_index);
+
+/**
+ * @brief           Sets the thread index/ID of the cache instances
+ * 
+ * @param cache     Pointer to top level cache structure
+ * @param thread_id Thread ID to be set
+ */
+void cache__set_thread_id (cache_t *cache, uint64_t thread_id);
 
 /**
  * @brief               Resets all caches at and below the level provided. Frees memory, resets parameters, etc.

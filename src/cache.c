@@ -43,7 +43,7 @@ static          uint64_t    internal_process_cache  (cache_t *cache, uint64_t cy
 //          Public Functions
 // =====================================
 
-bool cache__init (cache_t *caches, uint8_t cache_level, config_t *cache_configs, uint64_t thread_id) {
+bool cache__init (cache_t *caches, uint8_t cache_level, uint8_t num_cache_levels, config_t *cache_configs, uint64_t config_index) {
     assert(caches);
     cache_t *me = &caches[cache_level];
     config_t cache_config = cache_configs[cache_level];
@@ -52,12 +52,12 @@ bool cache__init (cache_t *caches, uint8_t cache_level, config_t *cache_configs,
     } else {
         me->upper_cache = NULL;
     }
-    me->lower_cache = (cache_level == cache_configs[cache_level].num_cache_levels - 1) ? NULL : &caches[cache_level + 1];
+    me->lower_cache = (cache_level == num_cache_levels - 1) ? NULL : &caches[cache_level + 1];
     me->cache_level = cache_level;
     me->config.cache_size = cache_config.cache_size;
     me->config.block_size = cache_config.block_size;
     me->block_size_bits = 0;
-    me->thread_id = thread_id;
+    me->config_index = config_index;
     me->earliest_next_useful_cycle = UINT64_MAX;
     uint64_t tmp = me->config.block_size;
     for (; (tmp & 1) == 0; tmp >>= 1) {
@@ -90,12 +90,18 @@ bool cache__init (cache_t *caches, uint8_t cache_level, config_t *cache_configs,
     }
     init_request_manager(me);
     if (me->lower_cache) {
-        bool ret = cache__init(caches, cache_level + 1, cache_configs, thread_id);
+        bool ret = cache__init(caches, cache_level + 1, num_cache_levels, cache_configs, config_index);
         assert(ret);
     } else {
         init_main_memory(me);
     }
     return true;
+}
+
+void cache__set_thread_id (cache_t *cache, uint64_t thread_id) {
+    for (cache_t *cache_i = cache; cache_i != NULL; cache_i = cache_i->lower_cache) {
+        cache_i->thread_id = thread_id;
+    }
 }
 
 bool cache__is_cache_config_valid (config_t config) {
@@ -176,7 +182,7 @@ static void init_main_memory (cache_t *lowest_cache) {
     lowest_cache->lower_cache = mm;
     memset(mm, 0, sizeof(cache_t));
     mm->cache_level = MAIN_MEMORY;
-    mm->thread_id = lowest_cache->thread_id;
+    mm->config_index = lowest_cache->config_index;
     mm->upper_cache = lowest_cache;
     mm->earliest_next_useful_cycle = UINT64_MAX;
     for (cache_t *cache_i = lowest_cache; cache_i != NULL; cache_i = cache_i->upper_cache) {

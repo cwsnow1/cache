@@ -1,5 +1,5 @@
 #ifndef SIM_TRACE
-//#define SIM_TRACE
+#define SIM_TRACE
 #endif
 #ifdef SIM_TRACE
 
@@ -7,6 +7,7 @@
 #define SIM_TRACE_BUFFER_SIZE_IN_BYTES      (16777216) // 16MiB, per thread
 #define SIM_TRACE_BUFFER_SIZE_IN_ENTRIES    (SIM_TRACE_BUFFER_SIZE_IN_BYTES / sizeof(sim_trace_entry_t))
 #define SIM_TRACE_WARNING_THRESHOLD         (128)
+#define MEMORY_USAGE_LIMIT                  ((uint64_t)UINT32_MAX + 1ULL) // 4 GiB
 
 #define SIM_TRACE_FILENAME "sim_trace.bin"
 
@@ -22,7 +23,9 @@ typedef enum trace_entry_id_e {
     // Add new entries above this
     NUM_SIM_TRACE_ENTRIES,
     SIM_TRACE__INVALID,
-} __attribute__ ((__packed__)) trace_entry_id_t;
+} trace_entry_id_t;
+
+
 
 
 typedef struct sim_trace_entry_s {
@@ -30,14 +33,16 @@ typedef struct sim_trace_entry_s {
     uint64_t values[MAX_NUM_SIM_TRACE_VALUES];
     trace_entry_id_t trace_entry_id;
     uint8_t cache_level;
-} __attribute__ ((__packed__)) sim_trace_entry_t;
+} sim_trace_entry_t;
 
 /**
  * @brief  Initializes the buffer and tracking info for sim traces
  * 
- * @return 0 if successful, -1 if the user cancels
+ * @param filename  The name of the file to be written
+ * 
+ * @return          File pointer to sim trace file opened
  */
-int sim_trace__init(void);
+FILE * sim_trace__init(const char *filename);
 
 /**
  * @brief                   "Prints" a trace entry -- really adds it to a buffer to be written later
@@ -49,10 +54,18 @@ int sim_trace__init(void);
 void sim_trace__print(trace_entry_id_t trace_entry_id, cache_t *cache, uint64_t *values);
 
 /**
- * @brief           Write all the sim trace buffers to a binary file and free all strcutures
+ * @brief       Writes the sim trace buffer for a thread after it completes (NOT THREAD-SAFE!)
  * 
- * @param filename  The name of the file to be written
+ * @param cache Pointer to top level cache structure
+ * @param f     File pointer to write to
  */
-void sim_trace__write_to_file_and_exit(const char *filename);
+void sim_trace__write_thread_buffer(cache_t *cache, FILE *f);
+
+/**
+ * @brief   Closes file and frees memory used for sim trace
+ * 
+ * @param f Output file to close
+ */
+void sim_trace__reset(FILE *f);
 
 #endif // SIM_TRACE
