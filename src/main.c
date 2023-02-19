@@ -162,6 +162,9 @@ static void create_and_run_threads (void) {
     for (uint64_t i = 0; i < num_configs; i++) {
         pthread_join(threads[i], NULL);
     }
+#if (CONSOLE_PRINT == 0)
+    pthread_join(progress_thread, NULL);
+#endif
     assert(threads_outstanding == 0);
 }
 
@@ -293,6 +296,8 @@ int main (int argc, char** argv) {
         float num_writes = (float) (g_caches[i][0].stats.write_hits + g_caches[i][0].stats.write_misses);
         float cpi = (float) cycle_counter[i] / (num_reads + num_writes);
         if (cpi < min_cpi) {
+             // Previous "minimum" CPI cache wasn't reset, do so now
+            cache__reset(g_caches[min_i]);
             min_cpi = cpi;
             min_i = i;
         } else {
@@ -307,9 +312,6 @@ int main (int argc, char** argv) {
     }
     free(cycle_counter);
     free(accesses);
-    for (uint64_t i = 0; i < num_configs; i++) {
-        free(g_caches[i]);
-    }
     free(g_caches);
     free(threads);
     t = time(NULL) - t;
