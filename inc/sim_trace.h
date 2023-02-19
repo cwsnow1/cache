@@ -1,4 +1,4 @@
-#define SIM_TRACE (1)
+#define SIM_TRACE (0)
 
 #if (SIM_TRACE == 1)
 
