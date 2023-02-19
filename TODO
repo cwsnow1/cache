@@ -1,0 +1,3 @@
+Prefetching blocks - configurable at each cache level
+Allocate cache memory when thread runs and free what can be after it finishes rather than doing it all at init and shut down
+More sim trace memory optimizations
