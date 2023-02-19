@@ -22,5 +22,8 @@ sim_trace_*.txt
 decoder
 sim_traces/*.zip
 
+# csv
+*.csv
+
 # vscode
 .vscode/

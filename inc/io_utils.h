@@ -21,6 +21,7 @@
  */
 void io_utils__print_stats (cache_t *cache, uint64_t cycle, FILE* stream);
 
+void io_utils__print_stats_csv (cache_t *cache, uint64_t cycle, FILE* stream);
 /**
  * @brief Prints a message that the config of the cache structure(s) given
  * 

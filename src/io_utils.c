@@ -3,6 +3,7 @@
 #include <stdbool.h>
 #include <stdlib.h>
 #include <assert.h>
+#include <string.h>
 
 #include "default_test_params.h"
 #include "cache.h"
@@ -42,6 +43,29 @@ void io_utils__print_stats (cache_t *cache, uint64_t cycle, FILE *stream) {
         fprintf(stream, "=========================\n\n");
     } else {
         io_utils__print_stats(cache + 1, cycle, stream);
+    }
+}
+
+void io_utils__print_stats_csv (cache_t *cache, uint64_t cycle, FILE *stream) {
+    if (stream == NULL) {
+        return;
+    }
+    fprintf(stream, "%d,%lu,%lu,%lu,", cache->cache_level, cache->config.cache_size, cache->config.block_size, cache->config.associativity);
+    float num_reads =  (float) (cache->stats.read_hits  + cache->stats.read_misses);
+    float num_writes = (float) (cache->stats.write_hits + cache->stats.write_misses);
+    float read_miss_rate =  (float) cache->stats.read_misses  / num_reads;
+    float write_miss_rate = (float) cache->stats.write_misses / num_writes;
+    float total_miss_rate = (float) (cache->stats.read_misses + cache->stats.write_misses) / (num_writes + num_reads);
+    fprintf(stream, "%08d,%7.3f%%,%08d,%7.3f%%,%7.3f%%,", (int) num_reads, 100.f * read_miss_rate, (int) num_writes, 100.0f * write_miss_rate, 100.0f * total_miss_rate);
+    if (cache->cache_level == g_test_params.num_cache_levels - 1) {
+        fprintf(stream, "%08lu,%08lu,%010lu,", cache->stats.read_misses + cache->stats.write_misses, cache->stats.writebacks, cycle);
+        cache_t *top_level_cache = cache - cache->cache_level;
+        float num_reads =  (float) (top_level_cache->stats.read_hits  + top_level_cache->stats.read_misses);
+        float num_writes = (float) (top_level_cache->stats.write_hits + top_level_cache->stats.write_misses);
+        float cpi = (float) cycle / (num_reads + num_writes);
+        fprintf(stream, "%.4f\n", cpi);
+    } else {
+        io_utils__print_stats_csv(cache + 1, cycle, stream);
     }
 }
 

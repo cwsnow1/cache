@@ -237,12 +237,18 @@ int main (int argc, char** argv) {
         usage();
     }
     FILE *stream = stdout;
+    FILE *output_csv = NULL;
     if (argc > 2) {
         stream = fopen(argv[2], "w");
         if (stream == NULL) {
             fprintf(stderr, "Unable to open output file %s\n", argv[2]);
             usage();
         }
+        char output_csv_filename[100];
+        char *output_csv_filename_ptr = output_csv_filename + strlen(argv[2]);
+        strcpy(output_csv_filename, argv[2]);
+        sprintf(output_csv_filename_ptr, ".csv");
+        output_csv = fopen(output_csv_filename, "w");
     }
 
     // Look for test parameters file and generate a default if not found
@@ -290,19 +296,31 @@ int main (int argc, char** argv) {
     create_and_run_threads();
     float min_cpi = (float) cycle_counter[0];
     uint64_t min_i = 0;
+    if (output_csv) {
+        for (int i = 0; i < g_test_params.num_cache_levels; i++) {
+            fprintf(output_csv, "Cache level, Cache size, Block size, Associativity, Num reads, Read miss rate, Num writes, Write miss rate, Total miss rate,");
+        }
+        fprintf(output_csv, "Main memory reads, Main memory writes, Total number of cycles, CPI\n");
+    }
     for (uint64_t i = 0; i < num_configs; i++) {
         io_utils__print_stats(g_caches[i], cycle_counter[i], stream);
+        io_utils__print_stats_csv(g_caches[i], cycle_counter[i], output_csv);
         float num_reads =  (float) (g_caches[i][0].stats.read_hits  + g_caches[i][0].stats.read_misses);
         float num_writes = (float) (g_caches[i][0].stats.write_hits + g_caches[i][0].stats.write_misses);
         float cpi = (float) cycle_counter[i] / (num_reads + num_writes);
         if (cpi < min_cpi) {
-             // Previous "minimum" CPI cache wasn't reset, do so now
-            cache__reset(g_caches[min_i]);
+            if (i != 0) {
+                // Previous "minimum" CPI cache wasn't reset, do so now
+                cache__reset(g_caches[min_i]);
+            }
             min_cpi = cpi;
             min_i = i;
         } else {
             cache__reset(g_caches[i]);
         }
+    }
+    if (output_csv) {
+        fclose(output_csv);
     }
     fprintf(stream, "The config with the lowest CPI of %.4f:\n", min_cpi);
     io_utils__print_config(g_caches[min_i], stream);
@@ -312,6 +330,9 @@ int main (int argc, char** argv) {
     }
     free(cycle_counter);
     free(accesses);
+    for (uint64_t i = 0; i < num_configs; i++) {
+        free(g_caches[i]);
+    }
     free(g_caches);
     free(threads);
     t = time(NULL) - t;

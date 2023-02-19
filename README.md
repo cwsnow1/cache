@@ -32,8 +32,9 @@ For a -O3 build, a clean -O3 build, and a -g build, respectively. Since it build
 
 To run the program, the command is
 ```
-$ ./cache <tracefile>
+$ ./cache <tracefile> [output file]
 ```
+If an output file is specified, the statistics of each config simluated will be output to that file rather than to the console and a csv with the same stats will be generated.
 ## Console Print
 If <code>CONSOLE_PRINT</code> is defined as <code>1</code> in <code>./inc/cache.h</code>, the program will step through the simulation one clock cycle at a time with consle prints describing the processing. Example:
 ```

@@ -141,8 +141,9 @@ void cache__free_memory (cache_t *me) {
 void cache__reset (cache_t *me) {
     if (me->lower_cache) {
         cache__reset(me->lower_cache);
+    } else {
+        free(me);
     }
-    free(me);
 }
 
 void cache__print_info (cache_t *me) {
