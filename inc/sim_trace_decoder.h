@@ -1,3 +1,4 @@
+const sync_pattern_t sync_pattern = 0xFFFFFFFF;
 
 // Update both these tables when adding a new entry
 const char* sim_trace_entry_definitions[NUM_SIM_TRACE_ENTRIES] = {

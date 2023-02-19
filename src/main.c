@@ -35,7 +35,7 @@ static pthread_mutex_t lock;
 
 test_params_t g_test_params;
 
-#ifdef SIM_TRACE
+#if (SIM_TRACE == 1)
 FILE *sim_trace_f;
 #endif
 
@@ -122,7 +122,7 @@ void * sim_cache (void *L1_cache) {
     pthread_mutex_lock(&lock);
     configs_to_test--;
     threads_outstanding--;
-#ifdef SIM_TRACE
+#if (SIM_TRACE == 1)
     sim_trace__write_thread_buffer(this_cache, sim_trace_f);
 #endif
     pthread_mutex_unlock(&lock);
@@ -257,7 +257,7 @@ int main (int argc, char** argv) {
         g_test_params.max_num_threads = num_configs;
     }
     configs_to_test = num_configs;
-#ifdef SIM_TRACE
+#if (SIM_TRACE == 1)
     uint64_t sim_buffer_memory_size = g_test_params.max_num_threads * (uint64_t) SIM_TRACE_BUFFER_SIZE_IN_BYTES;
     if (sim_buffer_memory_size > MEMORY_USAGE_LIMIT) {
         const int32_t new_max_num_threads = MEMORY_USAGE_LIMIT / (uint64_t)SIM_TRACE_BUFFER_SIZE_IN_BYTES;
@@ -312,7 +312,7 @@ int main (int argc, char** argv) {
     free(threads);
     t = time(NULL) - t;
     printf("Program took %ld seconds\n", t);
-#ifdef SIM_TRACE
+#if (SIM_TRACE == 1)
     sim_trace__reset(sim_trace_f);
     printf("Wrote sim trace output to %s\n", SIM_TRACE_FILENAME);
 #endif

@@ -154,10 +154,7 @@ int16_t cache__add_access_request (cache_t *cache, instruction_t access, uint64_
         cache->request_manager.request_pool[pool_index].cycle_to_call_back = cycle + access_time_in_cycles[cache->cache_level];
         cache->request_manager.request_pool[pool_index].first_attempt = true;
         DEBUG_TRACE("Cache[%hhu] New request added at index %lu, call back at tick %lu\n", cache->cache_level, pool_index, cache->request_manager.request_pool[pool_index].cycle_to_call_back);
-#ifdef SIM_TRACE
-        uint64_t values[MAX_NUM_SIM_TRACE_VALUES] = {pool_index, access.ptr, access_time_in_cycles[cache->cache_level]};
-        sim_trace__print(SIM_TRACE__REQUEST_ADDED, cache, values);
-#endif
+        sim_trace__print(SIM_TRACE__REQUEST_ADDED, cache, pool_index, access.ptr, access_time_in_cycles[cache->cache_level]);
 
         return (int16_t) pool_index;
     }
@@ -251,6 +248,9 @@ static inline uint64_t addr_to_set_index (cache_t *cache, uint64_t addr) {
  * @param mru_index     Block index that is now the most recently used
  */
 static void update_lru_list (cache_t * cache, uint64_t set_index, uint8_t mru_index) {
+    if (cache->config.associativity == 1) {
+        return;
+    }
     uint8_t *lru_list = cache->sets[set_index].lru_list;
     uint8_t prev_val = mru_index;
     // find MRU index in the lru_list
@@ -262,10 +262,7 @@ static void update_lru_list (cache_t * cache, uint64_t set_index, uint8_t mru_in
         }
         prev_val = tmp;
     }
-#ifdef SIM_TRACE
-    uint64_t values[MAX_NUM_SIM_TRACE_VALUES] = {set_index, lru_list[0], lru_list[cache->config.associativity - 1]};
-    sim_trace__print(SIM_TRACE__LRU_UPDATE, cache, values);
-#endif
+    sim_trace__print(SIM_TRACE__LRU_UPDATE, cache, set_index, lru_list[0], lru_list[cache->config.associativity - 1]);
 }
 
 /**
@@ -293,9 +290,7 @@ static int16_t evict_block (cache_t *cache, uint64_t set_index, uint64_t block_a
         cache->sets[set_index].ways[lru_block_index].dirty = false;
     }
     if (cache__add_access_request(cache->lower_cache, lower_cache_access, cache->cycle) == -1) {
-#ifdef SIM_TRACE
-        sim_trace__print(SIM_TRACE__EVICT_FAILED, cache, NULL);
-#endif
+        sim_trace__print(SIM_TRACE__EVICT_FAILED, cache);
         DEBUG_TRACE("Cache[%hhu] could not make request to lower cache in evict_block, returning\n", cache->cache_level);
         return -1;
     }
@@ -336,18 +331,13 @@ static int16_t request_block (cache_t *cache, uint64_t set_index, uint64_t block
     if (block_index == -1) {
         return -1;
     }
-#ifdef SIM_TRACE
-    uint64_t values[MAX_NUM_SIM_TRACE_VALUES] = {set_index, block_index};
-    sim_trace__print(SIM_TRACE__EVICT, cache, values);
-#endif
+    sim_trace__print(SIM_TRACE__EVICT, cache, set_index, block_index);
     instruction_t read_request_to_lower_cache = {
         .ptr = block_addr << cache->block_size_bits,
         .rw  = READ,
     };
     if (cache__add_access_request(cache->lower_cache, read_request_to_lower_cache, cache->cycle) == -1) {
-#ifdef SIM_TRACE
         sim_trace__print(SIM_TRACE__REQUEST_FAILED, cache, NULL);
-#endif
         DEBUG_TRACE("Cache[%hhu] could not make request to lower cache in request_block, returning\n", cache->cache_level);
         return -1;
     }
@@ -388,14 +378,8 @@ static status_t handle_access (cache_t *cache, request_t *request) {
         return BUSY;
     }
     cache->work_done_this_cycle = true;
-#ifdef SIM_TRACE
-    {
-        char rw = access.rw == READ ? 'r' : 'w';
-        uint64_t pool_index = request - cache->request_manager.request_pool;
-        uint64_t values[MAX_NUM_SIM_TRACE_VALUES] = {pool_index, (uint64_t) rw, block_addr, set_index};
-        sim_trace__print(SIM_TRACE__ACCESS_BEGIN, cache, values);
-    }
-#endif
+    sim_trace__print(SIM_TRACE__ACCESS_BEGIN, cache,
+        request - cache->request_manager.request_pool, access.rw == READ ? (uint64_t)'r' : (uint64_t)'w', block_addr, set_index);
     uint8_t block_index;
     bool hit = find_block_in_set(cache, set_index, block_addr, &block_index);
     if (hit) {
@@ -410,13 +394,7 @@ static status_t handle_access (cache_t *cache, request_t *request) {
             cache->sets[set_index].ways[block_index].dirty = true;
         }
     } else {
-#ifdef SIM_TRACE
-        {
-            uint64_t pool_index = request - cache->request_manager.request_pool;
-            uint64_t values[MAX_NUM_SIM_TRACE_VALUES] = {pool_index, set_index};
-            sim_trace__print(SIM_TRACE__MISS, cache, values);
-        }
-#endif
+        sim_trace__print(SIM_TRACE__MISS, cache, request - cache->request_manager.request_pool, set_index);
         request->first_attempt = false;
         int16_t requested_block = request_block(cache, set_index, block_addr);
         if (requested_block == -1) {
