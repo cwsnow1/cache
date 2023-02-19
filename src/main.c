@@ -70,7 +70,8 @@ void * track_progress(void * empty) {
  */
 void * sim_cache (void *L1_cache) {
     cache_t *this_cache = (cache_t *) L1_cache;
-    assert(this_cache->cache_level == 0);
+    assert(this_cache->cache_level == L1);
+    cache__allocate_memory(this_cache);
     uint64_t config_index = this_cache->config_index;
     cycle_counter[config_index] = 0;
     bitfield64_t oustanding_requests = 0;
@@ -126,6 +127,7 @@ void * sim_cache (void *L1_cache) {
     sim_trace__write_thread_buffer(this_cache, sim_trace_f);
 #endif
     pthread_mutex_unlock(&lock);
+    cache__free_memory(this_cache);
     pthread_exit(NULL);
 }
 

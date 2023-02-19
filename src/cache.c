@@ -43,11 +43,11 @@ static          uint64_t    internal_process_cache  (cache_t *cache, uint64_t cy
 //          Public Functions
 // =====================================
 
-bool cache__init (cache_t *caches, uint8_t cache_level, uint8_t num_cache_levels, config_t *cache_configs, uint64_t config_index) {
+bool cache__init (cache_t *caches, cache_level_t cache_level, uint8_t num_cache_levels, config_t *cache_configs, uint64_t config_index) {
     assert(caches);
     cache_t *me = &caches[cache_level];
     config_t cache_config = cache_configs[cache_level];
-    if (cache_level != 0) {
+    if (cache_level != L1) {
         me->upper_cache = &caches[cache_level - 1];
     } else {
         me->upper_cache = NULL;
@@ -78,17 +78,6 @@ bool cache__init (cache_t *caches, uint8_t cache_level, uint8_t num_cache_levels
         ;
     assert(tmp == 1 && "Number of sets must be a power of 2");
     me->block_addr_to_set_index_mask = me->num_sets - 1;
-    me->sets = (set_t*) malloc(sizeof(set_t) * me->num_sets);
-    memset(me->sets, 0, sizeof(set_t) * me->num_sets);
-    for (int i = 0; i < me->num_sets; i++) {
-        me->sets[i].ways = (block_t*) malloc(sizeof(block_t) * me->config.associativity);
-        me->sets[i].lru_list = (uint8_t*) malloc(sizeof(uint8_t) * me->config.associativity);
-        memset(me->sets[i].ways, 0, sizeof(block_t) * me->config.associativity);
-        for (int j = 0; j < me->config.associativity; j++) {
-            me->sets[i].lru_list[j] = (uint8_t) j;
-        }
-    }
-    init_request_manager(me);
     if (me->lower_cache) {
         bool ret = cache__init(caches, cache_level + 1, num_cache_levels, cache_configs, config_index);
         assert(ret);
@@ -96,6 +85,24 @@ bool cache__init (cache_t *caches, uint8_t cache_level, uint8_t num_cache_levels
         init_main_memory(me);
     }
     return true;
+}
+
+void cache__allocate_memory (cache_t *cache) {
+    cache_t *me = cache;
+    if (me->cache_level != MAIN_MEMORY) {
+        me->sets = (set_t*) malloc(sizeof(set_t) * me->num_sets);
+        memset(me->sets, 0, sizeof(set_t) * me->num_sets);
+        for (int i = 0; i < me->num_sets; i++) {
+            me->sets[i].ways = (block_t*) malloc(sizeof(block_t) * me->config.associativity);
+            me->sets[i].lru_list = (uint8_t*) malloc(sizeof(uint8_t) * me->config.associativity);
+            memset(me->sets[i].ways, 0, sizeof(block_t) * me->config.associativity);
+            for (int j = 0; j < me->config.associativity; j++) {
+                me->sets[i].lru_list[j] = (uint8_t) j;
+            }
+        }
+        cache__allocate_memory(me->lower_cache);
+    }
+    init_request_manager(me);
 }
 
 void cache__set_thread_id (cache_t *cache, uint64_t thread_id) {
@@ -110,7 +117,7 @@ bool cache__is_cache_config_valid (config_t config) {
     return num_blocks >= config.associativity;
 }
 
-void cache__reset (cache_t *me) {
+void cache__free_memory (cache_t *me) {
     if (me->sets) {
         for (int i = 0; i < me->num_sets; i++) {
             if (me->sets[i].ways) {
@@ -127,10 +134,15 @@ void cache__reset (cache_t *me) {
     double_list__free_list(me->request_manager.free_requests);
     double_list__free_list(me->request_manager.busy_requests);
     if (me->lower_cache) {
-        cache__reset(me->lower_cache);
-    } else {
-        free(me);
+        cache__free_memory(me->lower_cache);
     }
+}
+
+void cache__reset (cache_t *me) {
+    if (me->lower_cache) {
+        cache__reset(me->lower_cache);
+    }
+    free(me);
 }
 
 void cache__print_info (cache_t *me) {
@@ -185,7 +197,6 @@ static void init_main_memory (cache_t *lowest_cache) {
     for (cache_t *cache_i = lowest_cache; cache_i != NULL; cache_i = cache_i->upper_cache) {
         cache_i->main_memory = mm;
     }
-    init_request_manager(mm);
 }
 
 /**

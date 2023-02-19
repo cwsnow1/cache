@@ -6,12 +6,12 @@
 #define MAX_NUM_REQUESTS            (8)
 #define CONSOLE_PRINT               (0)
 
-enum cache_levels {
+typedef enum cache_levels {
     L1,
     L2,
     L3,
     MAIN_MEMORY
-};
+} __attribute__ ((packed)) cache_level_t;
 
 typedef enum access_e {
     READ,
@@ -82,7 +82,7 @@ typedef struct cache_s {
     struct cache_s *upper_cache;
     struct cache_s *lower_cache;
     struct cache_s *main_memory;
-    uint8_t cache_level;
+    cache_level_t cache_level;
 
     // Cache sizing fields
     config_t config;
@@ -127,13 +127,20 @@ bool cache__is_cache_config_valid(config_t config);
  * @brief                       Tries to initialize a cache structure
  * 
  * @param caches                Array of cache structure pointers, length is number of cache levels
- * @param cache_level           Level of cache, 0 is L1, 1 is L2, etc.
+ * @param cache_level           Level of cache
  * @param num_cache_levels      Number of cache levels
  * @param configs               Array of structure containing all the config info needed per cache level
  * @param config_index          Used to index into this config's global data structures
  * @return true                 if cache config is valid
  */
-bool cache__init(cache_t *caches, uint8_t cache_level, uint8_t num_cache_levels, config_t *configs, uint64_t config_index);
+bool cache__init(cache_t *caches, cache_level_t cache_level, uint8_t num_cache_levels, config_t *configs, uint64_t config_index);
+
+/**
+ * @brief       Allocates memory needed for cache struture, recursively calls lower caches
+ * 
+ * @param cache Pointer to top level cache structure
+ */
+void cache__allocate_memory (cache_t *cache);
 
 /**
  * @brief           Sets the thread index/ID of the cache instances
@@ -144,18 +151,25 @@ bool cache__init(cache_t *caches, uint8_t cache_level, uint8_t num_cache_levels,
 void cache__set_thread_id (cache_t *cache, uint64_t thread_id);
 
 /**
- * @brief               Resets all caches at and below the level provided. Frees memory, resets parameters, etc.
+ * @brief       Frees all memory allocated by cache structures, recursively calls all lower caches
+ * 
+ * @param cache Pointer to top level cache
+ */
+void cache__free_memory (cache_t *cache);
+
+/**
+ * @brief               Resets all caches at and below the level provided.
  * 
  * @param cache         Pointer to the top level cache, ideally
  */
-void cache__reset(cache_t* cache);
+void cache__reset (cache_t* cache);
 
 /**
  * @brief               Prints all relevant cache parameters to stdout
  * 
  * @param me            Cache structure
  */
-void cache__print_info(cache_t *me);
+void cache__print_info (cache_t *me);
 
 /**
  * @brief Simulates a read or write to an address

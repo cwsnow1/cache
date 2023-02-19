@@ -21,7 +21,7 @@ typedef uint32_t sync_pattern_t;
 typedef struct sim_trace_entry_s {
     uint64_t cycle;
     trace_entry_id_t trace_entry_id;
-    uint8_t cache_level;
+    cache_level_t cache_level;
 } __attribute__ ((packed)) sim_trace_entry_t;
 
 
