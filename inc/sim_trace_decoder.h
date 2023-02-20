@@ -1,3 +1,6 @@
+#pragma once
+#include "sim_trace.h"
+
 const sync_pattern_t sync_pattern = 0xFFFFFFFF;
 
 // Update both these tables when adding a new entry

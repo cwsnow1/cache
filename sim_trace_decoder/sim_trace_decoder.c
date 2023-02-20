@@ -46,11 +46,11 @@ static FILE *read_in_file_header (const char *filename) {
     assert(f);
 
     // uint32_t, buffer size in bytes
-    fread(&buffer_size, sizeof(uint32_t), 1, f);
+    assert(fread(&buffer_size, sizeof(uint32_t), 1, f));
     assert(buffer_size);
 
     // uint16_t, number of configs
-    fread(&num_configs, sizeof(uint16_t), 1, f);
+    assert(fread(&num_configs, sizeof(uint16_t), 1, f));
     assert(num_configs);
 
     // uint8_t num_cache_levels

@@ -8,7 +8,7 @@ x64/
 test_params.ini
 
 # trace files
-*.txt
+*.trace
 
 # programs that generate traces
 *.bin

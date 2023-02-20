@@ -1,0 +1,3 @@
+add_subdirectory(fake_trace_generator)
+add_subdirectory(matrix_multiplication)
+add_subdirectory(qsort)

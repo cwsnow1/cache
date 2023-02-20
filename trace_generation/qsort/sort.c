@@ -19,16 +19,7 @@ void randomize(size_t *array, long int size) {
 }
 
 int main(int argc, char** argv) {
-/*    
-    if (argc < 2) {
-        usage();
-    }
-    char* ptr = NULL;
-    long int size = strtol(argv[1], &ptr, 10);
-    if (ptr == NULL) {
-        usage();
-    }
-*/
+
     static size_t array[SIZE];
     randomize(array, SIZE);
     printf("Peeking at the first 10 elements:\n");
@@ -42,6 +33,6 @@ int main(int argc, char** argv) {
     for (int i = 0; i < 10; i++) {
         printf("%d: %ld\n", i, array[i]);
     }
-    //free(array);
+
     return 0;
 }

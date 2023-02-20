@@ -8,6 +8,7 @@
 
 #include "cache.h"
 #include "sim_trace.h"
+#include "debug.h"
 #if (SIM_TRACE == 1)
 
 #include "sim_trace_decoder.h"

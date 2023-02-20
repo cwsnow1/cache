@@ -1,3 +1,5 @@
+#pragma once
+
 /**
  * Trace file format is as follows:
  * 0xdeadbeefdead: W 0xbeefdeadbeef\n

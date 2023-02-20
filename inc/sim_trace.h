@@ -1,4 +1,8 @@
-#define SIM_TRACE (0)
+#pragma once
+
+#ifndef SIM_TRACE
+#define SIM_TRACE (1)
+#endif
 
 #if (SIM_TRACE == 1)
 
