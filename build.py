@@ -40,4 +40,5 @@ if __name__ == "__main__":
             print("Invalid build type specified, defaulting to Debug")
         defines.append("-DCMAKE_C_BUILD_TYPE=Debug")
     os.system('cmake -S . -B ' + build_dir + ' ' + ''.join(str(x) for x in defines))
+    os.system('cd ' + build_dir + ' && make')
 

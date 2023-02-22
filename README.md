@@ -41,7 +41,7 @@ $ ./cache <tracefile> [output file]
 ```
 If an output file is specified, the statistics of each config simluated will be output to that file rather than to the console and a csv with the same stats will be generated.
 ## Console Print
-If <code>CONSOLE_PRINT</code> is defined as <code>1</code> in <code>./inc/cache.h</code>, the program will step through the simulation one clock cycle at a time with consle prints describing the processing. Example:
+If <code>--console-print</code> is passed to <code>build.py</code>, the program will step through the simulation one clock cycle at a time with consle prints describing the processing. Example:
 ```
 ====================
 TICK 0000001172
@@ -65,8 +65,9 @@ Cache[0] Trying request 5, addr=0x7f4749944c88
 Cache[1] Trying request 13, addr=0x7f4749971980
 7/12 cycles for this operation in cache_level=1
 ```
+This mode is not recommended if multiple sim threads are running. Change <code>./build/test_params.ini:8</code> to <code>MAX_NUM_THREADS=1</code> to run with a single thread.
 ## Sim Trace
-If <code>SIM_TRACE</code> is defined as <code>1</code> in <code>./inc/sim_trace.h</code>, the program will produce a binary file that can be decoded by the decoder in <code>./sim_trace_decoder</code>. The text file(s) will contain a trace of the operation of the cache simulation. These files can be large, so I recommend using a log viewing program such as [glogg](https://github.com/nickbnf/glogg) or [klogg](https://klogg.filimonov.dev/).  
+If <code>--sim-trace</code> is passed to <code>build.py</code>, the program will produce a binary file that can be decoded by the decoder in <code>./build/sim_trace_decoder</code>. The text file(s) will contain a trace of the operation of the cache simulation. These files can be large, so I recommend using a log viewing program such as [glogg](https://github.com/nickbnf/glogg) or [klogg](https://klogg.filimonov.dev/).  
 Example excerpt of a sim trace:
 ```
 Cycle           Cache level     Message
