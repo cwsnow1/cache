@@ -48,6 +48,6 @@ make
 if ./cache ../ls-l.trace
 then
         echo "Setup was successful. ls-l.trace was written to $WD"
-        echo "cache was simulated ont this trace and printed results"
+        echo "cache was simulated on this trace and printed results"
         echo "$WD/build was created and executables can be found there"
 fi
