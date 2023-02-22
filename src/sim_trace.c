@@ -40,15 +40,16 @@ FILE * sim_trace__init(const char *filename) {
         fprintf(stderr, "Error in opening sim trace file\n");
         exit(1);
     }
-    size_t ret = 0;
+    CODE_FOR_ASSERT(size_t ret = 0);
     // uint32_t number of bytes in each sim_trace
     const uint32_t sim_trace_buffer_size_in_bytes =  SIM_TRACE_BUFFER_SIZE_IN_BYTES;
-    ret = fwrite(&sim_trace_buffer_size_in_bytes, sizeof(uint32_t), 1, f);
+    CODE_FOR_ASSERT(ret =) fwrite(&sim_trace_buffer_size_in_bytes, sizeof(uint32_t), 1, f);
     assert(ret == 1);
     // uint16_t number of configs
-    ret = fwrite(&num_configs, sizeof(uint16_t), 1, f);
+    CODE_FOR_ASSERT(ret =) fwrite(&num_configs, sizeof(uint16_t), 1, f);
     assert(ret == 1);
-    assert(fwrite(&g_test_params.num_cache_levels, sizeof(uint8_t), 1, f) == 1);
+    CODE_FOR_ASSERT(ret =) fwrite(&g_test_params.num_cache_levels, sizeof(uint8_t), 1, f);
+    assert(ret == 1);
 
     assert(SIM_TRACE_BUFFER_SIZE_IN_BYTES <= UINT32_MAX);
     buffer_append_points = (uint8_t**) malloc(sizeof(uint8_t*) * g_test_params.max_num_threads);
@@ -110,11 +111,11 @@ void sim_trace__print(trace_entry_id_t trace_entry_id, cache_t *cache, ...) {
  */
 
 void sim_trace__write_thread_buffer(cache_t *cache, FILE *f) {
-    size_t ret = 0;
+    CODE_FOR_ASSERT(size_t ret = 0);
     uint64_t thread_id = cache->thread_id;
 
     uint32_t buffer_append_point_offset = (uint32_t)(buffer_append_points[thread_id] - sim_trace_buffer[thread_id]);
-    ret = fwrite(&buffer_append_point_offset, sizeof(uint32_t), 1, f);
+    CODE_FOR_ASSERT(ret =) fwrite(&buffer_append_point_offset, sizeof(uint32_t), 1, f);
     assert(ret == 1);
     // configs of each cache
     config_t *configs = (config_t*) malloc(sizeof(config_t) * g_test_params.num_cache_levels);
@@ -124,9 +125,10 @@ void sim_trace__write_thread_buffer(cache_t *cache, FILE *f) {
         configs[i].block_size = cache_i->config.block_size;
         configs[i].associativity = cache_i->config.associativity;
     }
-    assert(fwrite(configs, sizeof(config_t), g_test_params.num_cache_levels, f) == g_test_params.num_cache_levels);
+    CODE_FOR_ASSERT(ret =) fwrite(configs, sizeof(config_t), g_test_params.num_cache_levels, f);
+    assert(ret == g_test_params.num_cache_levels);
     free(configs);
-    ret = fwrite(sim_trace_buffer[thread_id], sizeof(uint8_t), SIM_TRACE_BUFFER_SIZE_IN_BYTES, f);
+    CODE_FOR_ASSERT(ret =) fwrite(sim_trace_buffer[thread_id], sizeof(uint8_t), SIM_TRACE_BUFFER_SIZE_IN_BYTES, f);
     assert(ret == SIM_TRACE_BUFFER_SIZE_IN_BYTES);
 
     // Reset this thread's buffer for next config to use

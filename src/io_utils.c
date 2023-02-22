@@ -8,6 +8,7 @@
 #include "default_test_params.h"
 #include "cache.h"
 #include "io_utils.h"
+#include "debug.h"
 
 extern test_params_t g_test_params;
 const char params_filename[] = "./test_params.ini";
@@ -109,11 +110,11 @@ static void verify_test_params (void) {
 
     // Check that values make sense. May help in understanding why a parameter config
     // will be found to have 0 possible cache configs
-    assert(g_test_params.num_cache_levels <= MAX_NUM_CACHE_LEVELS);
-    assert(g_test_params.min_block_size <= g_test_params.max_block_size);
-    assert(g_test_params.min_cache_size <= g_test_params.max_cache_size);
-    assert(g_test_params.min_cache_size >= g_test_params.min_block_size);
-    assert(g_test_params.num_cache_levels <= MAIN_MEMORY && "Update access_time_in_cycles & enum cache_levels");
+    assert_release(g_test_params.num_cache_levels <= MAX_NUM_CACHE_LEVELS);
+    assert_release(g_test_params.min_block_size <= g_test_params.max_block_size);
+    assert_release(g_test_params.min_cache_size <= g_test_params.max_cache_size);
+    assert_release(g_test_params.min_cache_size >= g_test_params.min_block_size);
+    assert_release(g_test_params.num_cache_levels <= MAIN_MEMORY && "Update access_time_in_cycles & enum cache_levels");
 #if (CONSOLE_PRINT == 1)
     if (g_test_params.max_num_threads > 1) {
         printf("WARNING: Console printing with multiple threads is not recommended. Do you wish to continue? [Y/n]\n");
@@ -148,14 +149,14 @@ void io_utils__load_test_parameters (void) {
         assert(fseek(params_f, 0, SEEK_SET) == 0);
     }
     // File exists, read it in
-    assert(fscanf(params_f, "NUM_CACHE_LEVELS=%hhu\n",    &g_test_params.num_cache_levels));
-    assert(fscanf(params_f, "MIN_BLOCK_SIZE=%lu\n",       &g_test_params.min_block_size));
-    assert(fscanf(params_f, "MAX_BLOCK_SIZE=%lu\n",       &g_test_params.max_block_size));
-    assert(fscanf(params_f, "MIN_CACHE_SIZE=%lu\n",       &g_test_params.min_cache_size));
-    assert(fscanf(params_f, "MAX_CACHE_SIZE=%lu\n",       &g_test_params.max_cache_size));
-    assert(fscanf(params_f, "MIN_ASSOCIATIVITY=%hhu\n",   &g_test_params.min_blocks_per_set));
-    assert(fscanf(params_f, "MAX_ASSOCIATIVITY=%hhu\n",   &g_test_params.max_blocks_per_set));
-    assert(fscanf(params_f, "MAX_NUM_THREADS=%d\n",       &g_test_params.max_num_threads));
+    assert_release(fscanf(params_f, "NUM_CACHE_LEVELS=%hhu\n",    &g_test_params.num_cache_levels));
+    assert_release(fscanf(params_f, "MIN_BLOCK_SIZE=%lu\n",       &g_test_params.min_block_size));
+    assert_release(fscanf(params_f, "MAX_BLOCK_SIZE=%lu\n",       &g_test_params.max_block_size));
+    assert_release(fscanf(params_f, "MIN_CACHE_SIZE=%lu\n",       &g_test_params.min_cache_size));
+    assert_release(fscanf(params_f, "MAX_CACHE_SIZE=%lu\n",       &g_test_params.max_cache_size));
+    assert_release(fscanf(params_f, "MIN_ASSOCIATIVITY=%hhu\n",   &g_test_params.min_blocks_per_set));
+    assert_release(fscanf(params_f, "MAX_ASSOCIATIVITY=%hhu\n",   &g_test_params.max_blocks_per_set));
+    assert_release(fscanf(params_f, "MAX_NUM_THREADS=%d\n",       &g_test_params.max_num_threads));
     fclose(params_f);
     verify_test_params();
 }

@@ -8,6 +8,7 @@
 #include "list.h"
 #include "cache.h"
 #include "sim_trace.h"
+#include "debug.h"
 
 // Obviously these are approximations
 const uint64_t access_time_in_cycles[] = {
@@ -63,23 +64,23 @@ bool cache__init (cache_t *caches, cache_level_t cache_level, uint8_t num_cache_
     for (; (tmp & 1) == 0; tmp >>= 1) {
         me->block_size_bits++;
     }
-    assert((tmp == 1) && "Block size must be a power of 2!");
-    assert((me->config.cache_size % me->config.block_size == 0) && "Block size must be a factor of cache size!");
+    assert_release((tmp == 1) && "Block size must be a power of 2!");
+    assert_release((me->config.cache_size % me->config.block_size == 0) && "Block size must be a factor of cache size!");
     uint64_t num_blocks = me->config.cache_size / me->config.block_size;
     if (num_blocks < cache_config.associativity) {
         memset(me, 0, sizeof(cache_t));
         return false; // Redundant config
     }
     me->config.associativity = cache_config.associativity;
-    assert(num_blocks % me->config.associativity == 0 && "Number of blocks must divide evenly with associativity");
+    assert_release(num_blocks % me->config.associativity == 0 && "Number of blocks must divide evenly with associativity");
     me->num_sets = num_blocks / me->config.associativity;
     tmp = me->num_sets;
     for (; (tmp & 1) == 0; tmp >>= 1)
         ;
-    assert(tmp == 1 && "Number of sets must be a power of 2");
+    assert_release(tmp == 1 && "Number of sets must be a power of 2");
     me->block_addr_to_set_index_mask = me->num_sets - 1;
     if (me->lower_cache) {
-        bool ret = cache__init(caches, cache_level + 1, num_cache_levels, cache_configs, config_index);
+        CODE_FOR_ASSERT(bool ret =) cache__init(caches, cache_level + 1, num_cache_levels, cache_configs, config_index);
         assert(ret);
     } else {
         init_main_memory(me);
@@ -112,7 +113,7 @@ void cache__set_thread_id (cache_t *cache, uint64_t thread_id) {
 }
 
 bool cache__is_cache_config_valid (config_t config) {
-    assert((config.cache_size % config.block_size == 0) && "Block size must be a factor of cache size!");
+    assert_release((config.cache_size % config.block_size == 0) && "Block size must be a factor of cache size!");
     uint64_t num_blocks = config.cache_size / config.block_size;
     return num_blocks >= config.associativity;
 }
@@ -160,7 +161,8 @@ void cache__print_info (cache_t *me) {
 int16_t cache__add_access_request (cache_t *cache, instruction_t access, uint64_t cycle) {
     double_list_element_t *element = double_list__pop_element(cache->request_manager.free_requests);
     if (element) {
-        assert(double_list__add_element_to_tail(cache->request_manager.waiting_requests, element));
+        CODE_FOR_ASSERT(bool ret =) double_list__add_element_to_tail(cache->request_manager.waiting_requests, element);
+        assert(ret);
         uint64_t pool_index = element->pool_index;
         cache->request_manager.request_pool[pool_index].instruction = access;
         cache->request_manager.request_pool[pool_index].cycle = cycle;
@@ -438,6 +440,7 @@ static uint64_t internal_process_cache (cache_t *cache, uint64_t cycle, int16_t 
     uint64_t num_requests_completed = 0;
     cache->work_done_this_cycle = false;
     cache->cycle = cycle;
+    CODE_FOR_ASSERT(bool ret);
     if (cache->lower_cache && cache->lower_cache->work_done_this_cycle) {
         for_each_in_double_list(cache->request_manager.busy_requests) {
             DEBUG_TRACE("Cache[%hhu] trying request %lu from busy requests list, addr=0x%012lx\n", cache->cache_level, pool_index, cache->request_manager.request_pool[pool_index].instruction.ptr);
@@ -452,8 +455,10 @@ static uint64_t internal_process_cache (cache_t *cache, uint64_t cycle, int16_t 
                 if (cache->cache_level == L1) {
                     completed_requests[num_requests_completed++] = pool_index;
                 }
-                assert(double_list__remove_element(cache->request_manager.busy_requests, element_i));
-                assert(double_list__push_element(cache->request_manager.free_requests, element_i));
+                CODE_FOR_ASSERT(ret =) double_list__remove_element(cache->request_manager.busy_requests, element_i);
+                assert(ret);
+                CODE_FOR_ASSERT(ret =) double_list__push_element(cache->request_manager.free_requests, element_i);
+                assert(ret);
             }
         }
     } else {
@@ -475,12 +480,15 @@ static uint64_t internal_process_cache (cache_t *cache, uint64_t cycle, int16_t 
             if (cache->cache_level == L1) {
                 completed_requests[num_requests_completed++] = pool_index;
             }
-            assert(double_list__remove_element(cache->request_manager.waiting_requests, element_i));
-            assert(double_list__push_element(cache->request_manager.free_requests, element_i));
+            CODE_FOR_ASSERT(ret =) double_list__remove_element(cache->request_manager.waiting_requests, element_i);
+            assert(ret);
+            CODE_FOR_ASSERT(ret =) double_list__push_element(cache->request_manager.free_requests, element_i);
+            assert(ret);
             break;
         case MISS:
         case BUSY:
-            assert(double_list__remove_element(cache->request_manager.waiting_requests, element_i));
+            CODE_FOR_ASSERT(ret =) double_list__remove_element(cache->request_manager.waiting_requests, element_i);
+            assert(ret);
             double_list__add_element_to_tail(cache->request_manager.busy_requests, element_i);
             break;
         case WAITING:
@@ -488,7 +496,7 @@ static uint64_t internal_process_cache (cache_t *cache, uint64_t cycle, int16_t 
             goto out_of_loop; // Break out of for loop
             break;
         default:
-            assert(0);
+            assert_release(0);
             break;
         }
     }

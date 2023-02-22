@@ -12,6 +12,7 @@
 #include "default_test_params.h"
 #include "io_utils.h"
 #include "sim_trace.h"
+#include "debug.h"
 
 #define MAX(x, y)   (x > y ? x : y)
 typedef uint64_t bitfield64_t;
@@ -189,7 +190,8 @@ static void setup_caches (uint8_t cache_level, uint64_t min_block_size, uint64_t
                     if (cache_level < g_test_params.num_cache_levels - 1) {
                         setup_caches(cache_level + 1, block_size, cache_size * 2);
                     } else {
-                        assert(cache__init(&g_caches[thread_num][0], 0, g_test_params.num_cache_levels, configs, thread_num));
+                        CODE_FOR_ASSERT(bool ret =) cache__init(&g_caches[thread_num][0], 0, g_test_params.num_cache_levels, configs, thread_num);
+                        assert(ret);
                         thread_num++;
                     }
                 }

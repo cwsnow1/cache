@@ -1,5 +1,8 @@
 #include <stdio.h>
 #include <stdint.h>
+#ifdef NDEBUG
+#undef NDEBUG
+#endif
 #include <assert.h>
 #include <stdlib.h>
 #include <stdbool.h>
