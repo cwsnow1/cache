@@ -169,7 +169,7 @@ int16_t cache__add_access_request (cache_t *cache, instruction_t access, uint64_
         cache->request_manager.request_pool[pool_index].cycle_to_call_back = cycle + access_time_in_cycles[cache->cache_level];
         cache->request_manager.request_pool[pool_index].first_attempt = true;
         DEBUG_TRACE("Cache[%hhu] New request added at index %lu, call back at tick %lu\n", cache->cache_level, pool_index, cache->request_manager.request_pool[pool_index].cycle_to_call_back);
-        sim_trace__print(SIM_TRACE__REQUEST_ADDED, cache, pool_index, access.ptr, access_time_in_cycles[cache->cache_level]);
+        sim_trace__print(SIM_TRACE__REQUEST_ADDED, cache, pool_index, (access.ptr >> 32), access.ptr & UINT32_MAX, access_time_in_cycles[cache->cache_level]);
 
         return (int16_t) pool_index;
     }
@@ -276,7 +276,7 @@ static void update_lru_list (cache_t * cache, uint64_t set_index, uint8_t mru_in
         }
         prev_val = tmp;
     }
-    sim_trace__print(SIM_TRACE__LRU_UPDATE, cache, set_index, lru_list[0], lru_list[cache->config.associativity - 1]);
+    sim_trace__print(SIM_TRACE__LRU_UPDATE, cache, (uint32_t) set_index, lru_list[0], lru_list[cache->config.associativity - 1]);
 }
 
 /**
@@ -393,7 +393,7 @@ static status_t handle_access (cache_t *cache, request_t *request) {
     }
     cache->work_done_this_cycle = true;
     sim_trace__print(SIM_TRACE__ACCESS_BEGIN, cache,
-        request - cache->request_manager.request_pool, access.rw == READ ? (uint64_t)'r' : (uint64_t)'w', block_addr, set_index);
+        request - cache->request_manager.request_pool, access.rw == READ ? (uint64_t)'r' : (uint64_t)'w', block_addr>>32, block_addr & UINT32_MAX, set_index);
     uint8_t block_index;
     bool hit = find_block_in_set(cache, set_index, block_addr, &block_index);
     if (hit) {

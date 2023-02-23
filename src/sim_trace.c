@@ -15,7 +15,8 @@
 
 static uint8_t **buffer_append_points;
 static uint8_t **sim_trace_buffer;
-static uint16_t *entry_counters;
+static uint64_t *entry_counters;
+static uint64_t *previous_cycle_counter;
 extern uint64_t num_configs;
 extern test_params_t g_test_params;
 extern cache_t **g_caches;
@@ -55,8 +56,10 @@ FILE * sim_trace__init(const char *filename) {
     assert(SIM_TRACE_BUFFER_SIZE_IN_BYTES <= UINT32_MAX);
     buffer_append_points = (uint8_t**) malloc(sizeof(uint8_t*) * g_test_params.max_num_threads);
     sim_trace_buffer = (uint8_t**) malloc(sizeof(uint8_t*) * g_test_params.max_num_threads);
-    entry_counters = (uint16_t*) malloc(sizeof(uint16_t) * g_test_params.max_num_threads);
-    memset(entry_counters, 0, sizeof(uint16_t) * g_test_params.max_num_threads);
+    entry_counters = (uint64_t*) malloc(sizeof(uint64_t) * g_test_params.max_num_threads);
+    memset(entry_counters, 0, sizeof(uint64_t) * g_test_params.max_num_threads);
+    previous_cycle_counter = (uint64_t*) malloc(sizeof(uint64_t) * g_test_params.max_num_threads);
+    memset(previous_cycle_counter, 0, sizeof(uint64_t) * g_test_params.max_num_threads);
     for (uint64_t i = 0; i < g_test_params.max_num_threads; i++) {
         sim_trace_buffer[i] = (uint8_t*) malloc(SIM_TRACE_BUFFER_SIZE_IN_BYTES);
         buffer_append_points[i] = sim_trace_buffer[i];
@@ -82,10 +85,15 @@ void sim_trace__print(trace_entry_id_t trace_entry_id, cache_t *cache, ...) {
         buffer_append_points[thread_id] += sizeof(sync_pattern_t);
         entry_counters[thread_id] = 0;
     }
+    if (cycle - previous_cycle_counter[thread_id] > UINT16_MAX) {
+        fprintf(stderr, "cycle offset overflow!\n");
+    }
+    uint16_t cycle_offset = (uint8_t)(cycle - previous_cycle_counter[thread_id]);
+    previous_cycle_counter[thread_id] = cycle;
     sim_trace_entry_t entry = {
         .trace_entry_id = trace_entry_id,
         .cache_level = cache_level,
-        .cycle = cycle,
+        .cycle_offset = cycle_offset,
     };
     *((sim_trace_entry_t*) buffer_append_points[thread_id]) = entry;
     buffer_append_points[thread_id] += sizeof(sim_trace_entry_t);
@@ -135,6 +143,7 @@ void sim_trace__write_thread_buffer(cache_t *cache, FILE *f) {
     // Reset this thread's buffer for next config to use
     buffer_append_points[thread_id] = sim_trace_buffer[thread_id];
     entry_counters[thread_id] = 0;
+    previous_cycle_counter[thread_id] = 0;
     memset(sim_trace_buffer[thread_id], SIM_TRACE__INVALID, SIM_TRACE_BUFFER_SIZE_IN_BYTES);
 }
 
@@ -142,6 +151,9 @@ void sim_trace__reset(FILE *f) {
     for (uint16_t i = 0; i < g_test_params.max_num_threads; i++) {
         free(sim_trace_buffer[i]);
     }
+    free(buffer_append_points);
+    free(entry_counters);
+    free(previous_cycle_counter);
     free(sim_trace_buffer);
     fclose(f);
 }

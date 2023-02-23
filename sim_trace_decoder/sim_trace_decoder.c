@@ -115,10 +115,10 @@ int main (int argc, char* argv[]) {
                 wrapped = true;
             }
         }
-        uint16_t entry_counter = 0;
+        uint64_t entry_counter = 0;
+        uint64_t cycle = 0;
         fprintf(f_out, "%u bytes lost before first sync pattern found\n", bytes_lost);
         buffer_ptr += sizeof(sync_pattern_t);
-        uint64_t local_cycle = 0;
         while (true) {
             if (wrapped && buffer_ptr >= buffers[thread_id] + buffer_append_point_offset) {
                 break;
@@ -136,10 +136,8 @@ int main (int argc, char* argv[]) {
             assert(entry.trace_entry_id < NUM_SIM_TRACE_ENTRIES);
             buffer_ptr += sizeof(sim_trace_entry_t);
             assert(buffer_ptr < buffers[thread_id] + buffer_size);
-
-            fprintf(f_out, "%012lu\t%u\t\t", entry.cycle, entry.cache_level);
-            assert(local_cycle <= entry.cycle);
-            local_cycle = entry.cycle;
+            cycle += entry.cycle_offset;
+            fprintf(f_out, "%012lu\t%u\t\t", cycle, entry.cache_level);
 
             int num_args = sim_trace_entry_num_arguments[entry.trace_entry_id];
             switch (num_args)
@@ -162,6 +160,11 @@ int main (int argc, char* argv[]) {
                 fprintf(f_out, sim_trace_entry_definitions[entry.trace_entry_id],
                     *((sim_trace_entry_data_t*)buffer_ptr), *((sim_trace_entry_data_t*)buffer_ptr + 1),
                     *((sim_trace_entry_data_t*)buffer_ptr + 2), *((sim_trace_entry_data_t*)buffer_ptr + 3));
+                break;
+            case 5:
+                fprintf(f_out, sim_trace_entry_definitions[entry.trace_entry_id],
+                    *((sim_trace_entry_data_t*)buffer_ptr), *((sim_trace_entry_data_t*)buffer_ptr + 1),
+                    *((sim_trace_entry_data_t*)buffer_ptr + 2), *((sim_trace_entry_data_t*)buffer_ptr + 3), *((sim_trace_entry_data_t*)buffer_ptr + 4));
                 break;
             default:
                 fprintf(stderr, "MAX_NUM_SIM_TRACE_VALUES is too low\n");

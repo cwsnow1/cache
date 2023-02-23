@@ -20,10 +20,10 @@ typedef enum trace_entry_id_e {
     SIM_TRACE__INVALID,
 } __attribute__ ((packed)) trace_entry_id_t;
 
-typedef uint64_t sim_trace_entry_data_t;
+typedef uint32_t sim_trace_entry_data_t;
 typedef uint32_t sync_pattern_t;
 typedef struct sim_trace_entry_s {
-    uint64_t cycle;
+    uint16_t cycle_offset;
     trace_entry_id_t trace_entry_id;
     cache_level_t cache_level;
 } __attribute__ ((packed)) sim_trace_entry_t;
@@ -31,9 +31,8 @@ typedef struct sim_trace_entry_s {
 
 #define MAX_NUM_SIM_TRACE_VALUES            (4)
 #define SIM_TRACE_BUFFER_SIZE_IN_BYTES      (16777216) // 16MiB, per thread
-#define SIM_TRACE_SYNC_INTERVAL             (256) // Number of entries between syncs, meaning up to this many entries could be lost at decode
+#define SIM_TRACE_SYNC_INTERVAL             (1 << 15) // Number of entries between syncs, meaning up to this many entries could be lost at decode
 #define SIM_TRACE_LAST_ENTRY_OFFSET         (SIM_TRACE_BUFFER_SIZE_IN_BYTES - (MAX_NUM_SIM_TRACE_VALUES * sizeof(sim_trace_entry_data_t)) - sizeof(sim_trace_entry_t) - sizeof(sync_pattern_t))
-#define SIM_TRACE_BUFFER_SIZE_IN_ENTRIES    (SIM_TRACE_BUFFER_SIZE_IN_BYTES / sizeof(sim_trace_entry_t))
 #define MEMORY_USAGE_LIMIT                  ((uint64_t)UINT32_MAX + 1ULL) // 4 GiB
 #define SIM_TRACE_WARNING_THRESHOLD         ((MEMORY_USAGE_LIMIT >> 1) / SIM_TRACE_BUFFER_SIZE_IN_BYTES)
 
