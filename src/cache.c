@@ -1,7 +1,6 @@
 #include <stdint.h>
 #include <assert.h>
 #include <stdlib.h>
-#include <stdio.h>
 #include <stdbool.h>
 #include <string.h>
 
@@ -143,17 +142,6 @@ void cache__reset (cache_t *me) {
         cache__reset(me->lower_cache);
     } else {
         free(me);
-    }
-}
-
-void cache__print_info (cache_t *me) {
-    if (me->config.cache_size) {
-        printf("== CACHE LEVEL %u ==\n", me->cache_level);
-        printf("cache_size = %lu, block_size = %lu, num_sets = %lu, associativity = %lu\n",
-            me->config.cache_size, me->config.block_size, me->num_sets, me->config.associativity);
-        if (me->lower_cache) {
-            cache__print_info(me->lower_cache);
-        }
     }
 }
 

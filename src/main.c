@@ -4,14 +4,12 @@
 #include <stdint.h>
 #include <string.h>
 #include <stdbool.h>
-#include <time.h>
 #include <pthread.h>
 #include <unistd.h>
 
 #include "cache.h"
 #include "default_test_params.h"
 #include "io_utils.h"
-#include "sim_trace.h"
 #include "debug.h"
 
 #define MAX(x, y)   (x > y ? x : y)

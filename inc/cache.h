@@ -163,13 +163,6 @@ void cache__free_memory (cache_t *cache);
 void cache__reset (cache_t* cache);
 
 /**
- * @brief               Prints all relevant cache parameters to stdout
- * 
- * @param me            Cache structure
- */
-void cache__print_info (cache_t *me);
-
-/**
  * @brief Simulates a read or write to an address
  * 
  * @param cache     The cache struct being written/read
