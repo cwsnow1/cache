@@ -156,7 +156,7 @@ int16_t cache__add_access_request (cache_t *cache, instruction_t access, uint64_
         cache->request_manager.request_pool[pool_index].cycle_to_call_back = cycle + access_time_in_cycles[cache->cache_level];
         cache->request_manager.request_pool[pool_index].first_attempt = true;
         DEBUG_TRACE("Cache[%hhu] New request added at index %lu, call back at tick %lu\n", cache->cache_level, pool_index, cache->request_manager.request_pool[pool_index].cycle_to_call_back);
-        sim_trace__print(SIM_TRACE__REQUEST_ADDED, cache, pool_index, (access.ptr >> 32), access.ptr & UINT32_MAX, access_time_in_cycles[cache->cache_level]);
+        sim_trace__print(SIM_TRACE__REQUEST_ADDED, cache, pool_index, access.rw == READ ? 'r' : 'w', (access.ptr >> 32), access.ptr & UINT32_MAX, access_time_in_cycles[cache->cache_level]);
 
         return (int16_t) pool_index;
     }
@@ -378,11 +378,11 @@ static status_t handle_access (cache_t *cache, request_t *request) {
         return BUSY;
     }
     cache->work_done_this_cycle = true;
-    sim_trace__print(SIM_TRACE__ACCESS_BEGIN, cache,
-        request - cache->request_manager.request_pool, access.rw == READ ? (uint64_t)'r' : (uint64_t)'w', block_addr>>32, block_addr & UINT32_MAX, set_index);
     uint8_t block_index;
     bool hit = find_block_in_set(cache, set_index, block_addr, &block_index);
     if (hit) {
+        sim_trace__print(SIM_TRACE__HIT, cache,
+            request - cache->request_manager.request_pool, block_addr>>32, block_addr & UINT32_MAX, set_index);
         if (access.rw == READ) {
             if (request->first_attempt) {
                 ++cache->stats.read_hits;

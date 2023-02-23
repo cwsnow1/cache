@@ -10,6 +10,7 @@
 #include "cache.h"
 #include "default_test_params.h"
 #include "io_utils.h"
+#include "sim_trace.h"
 #include "debug.h"
 
 #define MAX(x, y)   (x > y ? x : y)

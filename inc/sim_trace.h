@@ -1,4 +1,5 @@
 #pragma once
+#include <stdio.h>
 
 #ifndef SIM_TRACE
 #define SIM_TRACE (1)
@@ -7,7 +8,7 @@
 #if (SIM_TRACE == 1)
 
 typedef enum trace_entry_id_e {
-    SIM_TRACE__ACCESS_BEGIN,
+    SIM_TRACE__HIT,
     SIM_TRACE__MISS,
     SIM_TRACE__LRU_UPDATE,
     SIM_TRACE__EVICT,
