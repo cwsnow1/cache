@@ -18,12 +18,23 @@
 #define AFTER_RW_LENGTH_IN_BYTES            (3)
 
 /**
- * @brief Prints the gathered statistics for a given run
+ * @brief           Prints collected statistics to given stream
  * 
+ * @param cache     Cache structure whose stats to print
+ * @param cycle     Cycle, used to calculate CPI
+ * @param stream    Output stream to print to
  */
 void io_utils__print_stats (cache_t *cache, uint64_t cycle, FILE* stream);
 
+/**
+ * @brief           Prints collected statistics to given stream in the form of a comma separated values file
+ * 
+ * @param cache     Cache structure whose stats to print
+ * @param cycle     Cycle, used to calculate CPI
+ * @param stream    Output stream to print to
+ */
 void io_utils__print_stats_csv (cache_t *cache, uint64_t cycle, FILE* stream);
+
 /**
  * @brief Prints a message that the config of the cache structure(s) given
  * 

@@ -76,7 +76,6 @@ typedef struct config_s {
 typedef struct cache_s {
     // Multi-threading fields
     uint64_t thread_id;
-    uint64_t config_index;
 
     // Cache hierarchy fields
     struct cache_s *upper_cache;
@@ -130,10 +129,9 @@ bool cache__is_cache_config_valid(config_t config);
  * @param cache_level           Level of cache
  * @param num_cache_levels      Number of cache levels
  * @param configs               Array of structure containing all the config info needed per cache level
- * @param config_index          Used to index into this config's global data structures
  * @return true                 if cache config is valid
  */
-bool cache__init(cache_t *caches, cache_level_t cache_level, uint8_t num_cache_levels, config_t *configs, uint64_t config_index);
+bool cache__init (cache_t *caches, cache_level_t cache_level, uint8_t num_cache_levels, config_t *configs);
 
 /**
  * @brief       Allocates memory needed for cache struture, recursively calls lower caches

@@ -75,7 +75,7 @@ void * sim_cache (void *L1_cache) {
     cache_t *this_cache = (cache_t *) L1_cache;
     assert(this_cache->cache_level == L1);
     cache__allocate_memory(this_cache);
-    uint64_t config_index = this_cache->config_index;
+    uint64_t config_index = (this_cache - g_caches[0]) / g_test_params.num_cache_levels;
     cycle_counter[config_index] = 0;
     bitfield64_t oustanding_requests = 0;
     int16_t completed_requests[MAX_NUM_REQUESTS] = { 0 };
@@ -203,7 +203,7 @@ static void setup_caches (uint8_t cache_level, uint64_t min_block_size, uint64_t
                     if (cache_level < g_test_params.num_cache_levels - 1) {
                         setup_caches(cache_level + 1, block_size, cache_size * 2);
                     } else {
-                        CODE_FOR_ASSERT(bool ret =) cache__init(&g_caches[thread_num][0], 0, g_test_params.num_cache_levels, configs, thread_num);
+                        CODE_FOR_ASSERT(bool ret =) cache__init(&g_caches[thread_num][0], 0, g_test_params.num_cache_levels, configs);
                         assert(ret);
                         thread_num++;
                     }

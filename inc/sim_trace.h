@@ -29,7 +29,7 @@ typedef struct sim_trace_entry_s {
 } __attribute__ ((packed)) sim_trace_entry_t;
 
 
-#define MAX_NUM_SIM_TRACE_VALUES            (4)
+#define MAX_NUM_SIM_TRACE_VALUES            (5)
 #define SIM_TRACE_BUFFER_SIZE_IN_BYTES      (16777216) // 16MiB, per thread
 #define SIM_TRACE_SYNC_INTERVAL             (1 << 15) // Number of entries between syncs, meaning up to this many entries could be lost at decode
 #define SIM_TRACE_LAST_ENTRY_OFFSET         (SIM_TRACE_BUFFER_SIZE_IN_BYTES - (MAX_NUM_SIM_TRACE_VALUES * sizeof(sim_trace_entry_data_t)) - sizeof(sim_trace_entry_t) - sizeof(sync_pattern_t))
@@ -53,7 +53,7 @@ FILE * sim_trace__init(const char *filename);
  * 
  * @param trace_entry_id    See sim_trace.h & sim_trace_decoder.h for entry info
  * @param cache             Pointer to cache structure making entry, used to print context info
- * @param values            Array of length MAX_NUM_SIM_TRACE_VALUES of values to be printed. Not all values need to be initialized if not necessary
+ * @param values            Up to MAX_NUM_SIM_TRACE_VALUES values the size of sim_trace_entry_data_t
  */
 void sim_trace__print(trace_entry_id_t trace_entry_id, cache_t *cache, ...);
 

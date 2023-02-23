@@ -44,7 +44,7 @@ static          uint64_t    internal_process_cache  (cache_t *cache, uint64_t cy
 //          Public Functions
 // =====================================
 
-bool cache__init (cache_t *caches, cache_level_t cache_level, uint8_t num_cache_levels, config_t *cache_configs, uint64_t config_index) {
+bool cache__init (cache_t *caches, cache_level_t cache_level, uint8_t num_cache_levels, config_t *cache_configs) {
     assert(caches);
     cache_t *me = &caches[cache_level];
     config_t cache_config = cache_configs[cache_level];
@@ -58,7 +58,6 @@ bool cache__init (cache_t *caches, cache_level_t cache_level, uint8_t num_cache_
     me->config.cache_size = cache_config.cache_size;
     me->config.block_size = cache_config.block_size;
     me->block_size_bits = 0;
-    me->config_index = config_index;
     me->earliest_next_useful_cycle = UINT64_MAX;
     uint64_t tmp = me->config.block_size;
     for (; (tmp & 1) == 0; tmp >>= 1) {
@@ -80,7 +79,7 @@ bool cache__init (cache_t *caches, cache_level_t cache_level, uint8_t num_cache_
     assert_release(tmp == 1 && "Number of sets must be a power of 2");
     me->block_addr_to_set_index_mask = me->num_sets - 1;
     if (me->lower_cache) {
-        CODE_FOR_ASSERT(bool ret =) cache__init(caches, cache_level + 1, num_cache_levels, cache_configs, config_index);
+        CODE_FOR_ASSERT(bool ret =) cache__init(caches, cache_level + 1, num_cache_levels, cache_configs);
         assert(ret);
     } else {
         init_main_memory(me);
@@ -194,7 +193,6 @@ static void init_main_memory (cache_t *lowest_cache) {
     lowest_cache->lower_cache = mm;
     memset(mm, 0, sizeof(cache_t));
     mm->cache_level = MAIN_MEMORY;
-    mm->config_index = lowest_cache->config_index;
     mm->upper_cache = lowest_cache;
     mm->earliest_next_useful_cycle = UINT64_MAX;
     for (cache_t *cache_i = lowest_cache; cache_i != NULL; cache_i = cache_i->upper_cache) {
@@ -258,7 +256,7 @@ static inline uint64_t addr_to_set_index (cache_t *cache, uint64_t addr) {
  * @brief               Reorder the LRU list for the given set
  * 
  * @param cache         Cache structure
- * @param set_index    Set whose LRU list is to be reordered
+ * @param set_index     Set whose LRU list is to be reordered
  * @param mru_index     Block index that is now the most recently used
  */
 static void update_lru_list (cache_t * cache, uint64_t set_index, uint8_t mru_index) {
