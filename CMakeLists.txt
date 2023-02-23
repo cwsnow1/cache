@@ -14,7 +14,9 @@ if(NOT DEFINED CMAKE_BUILD_TYPE)
 endif()
 
 if(CMAKE_C_BUILD_TYPE STREQUAL "Release")
-    set(CMAKE_C_FLAGS ${CMAKE_C_FLAGS} -O3)
+    set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -O3")
+else()
+    set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -g")
 endif()
 
 if(SIM_TRACE EQUAL 1)
