@@ -1,5 +1,2 @@
 Prefetching blocks - configurable at each cache level
 More sim trace memory optimizations, combine cache level and cycle?
-Parallelize cache processing by cache level
-
-BUG: Sim trace decode fails with release build

@@ -30,8 +30,10 @@ uint64_t num_configs = 0;
 // number of outstanding threads. The only benefit is
 // memory savings & keeping the computer usable when
 // running with large numbers of configs
-volatile static int32_t threads_outstanding;
-volatile static uint64_t configs_to_test;
+static int32_t num_threads_outstanding;
+static uint64_t configs_to_test;
+static pthread_t *threads_outstanding;
+#define INVALID_THREAD_ID   (UINT64_MAX)
 static pthread_mutex_t lock;
 
 test_params_t g_test_params;
@@ -58,7 +60,7 @@ void * track_progress(void * empty) {
         float configs_done = (float) (num_configs - configs_to_test);
         float progress_percent = (configs_done / (float) num_configs) * 100.0f;
         printf("\x1b[1A");
-        printf("Running... %d threads running, %lu to go. %02.0f%% complete\n", threads_outstanding, configs_to_test, progress_percent);
+        printf("Running... %d threads running, %lu to go. %02.0f%% complete\n", num_threads_outstanding, configs_to_test, progress_percent);
         sleep(1);
     }
     pthread_exit(NULL);
@@ -122,11 +124,14 @@ void * sim_cache (void *L1_cache) {
         }
     } while (oustanding_requests || i < num_accesses);
     pthread_mutex_lock(&lock);
-    configs_to_test--;
-    threads_outstanding--;
 #if (SIM_TRACE == 1)
     sim_trace__write_thread_buffer(this_cache, sim_trace_f);
 #endif
+    configs_to_test--;
+    num_threads_outstanding--;
+    assert(threads_outstanding[this_cache->thread_id] == pthread_self());
+    // Mark thread as not in use
+    threads_outstanding[this_cache->thread_id] = INVALID_THREAD_ID;
     pthread_mutex_unlock(&lock);
     cache__free_memory(this_cache);
     pthread_exit(NULL);
@@ -146,19 +151,27 @@ static void create_and_run_threads (void) {
     pthread_create(&progress_thread, NULL, track_progress, NULL);
 #endif
     uint64_t thread_id = 0;
+
+    // internal thread_id to pthread thread_id mapping used to track which threads are active
+    threads_outstanding = (pthread_t*) malloc(sizeof(pthread_t) * g_test_params.max_num_threads);
+    memset(threads_outstanding, (int) INVALID_THREAD_ID, sizeof(pthread_t) * g_test_params.max_num_threads);
     for (uint64_t i = 0; i < num_configs; i++) {
-        while (threads_outstanding == g_test_params.max_num_threads)
+        while (num_threads_outstanding == g_test_params.max_num_threads)
             ;
         pthread_mutex_lock(&lock);
-        threads_outstanding++;
-        pthread_mutex_unlock(&lock);
-        cache__set_thread_id(&g_caches[i][L1], thread_id);
-        if (++thread_id == g_test_params.max_num_threads) {
-            thread_id = 0;
+        num_threads_outstanding++;
+        // Search for a thread_id that is not in use
+        for (thread_id = 0; thread_id < g_test_params.max_num_threads; thread_id++) {
+            if (threads_outstanding[thread_id] == INVALID_THREAD_ID) {
+                break;
+            }
         }
+        cache__set_thread_id(&g_caches[i][L1], thread_id);
         if (pthread_create(&threads[i], NULL, sim_cache, (void*) &g_caches[i][L1])) {
             fprintf(stderr, "Error in creating thread %lu\n", i);
         }
+        threads_outstanding[thread_id] = threads[i];
+        pthread_mutex_unlock(&lock);
     }
     for (uint64_t i = 0; i < num_configs; i++) {
         pthread_join(threads[i], NULL);
@@ -166,7 +179,7 @@ static void create_and_run_threads (void) {
 #if (CONSOLE_PRINT == 0)
     pthread_join(progress_thread, NULL);
 #endif
-    assert(threads_outstanding == 0);
+    assert(num_threads_outstanding == 0);
 }
 
 /**
