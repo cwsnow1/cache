@@ -29,7 +29,7 @@ uint64_t num_configs = 0;
 // number of outstanding threads. The only benefit is
 // memory savings & keeping the computer usable when
 // running with large numbers of configs
-static int32_t num_threads_outstanding;
+volatile static int32_t num_threads_outstanding;
 static uint64_t configs_to_test;
 static pthread_t *threads_outstanding;
 #define INVALID_THREAD_ID   (UINT64_MAX)
@@ -74,7 +74,7 @@ void * sim_cache (void *L1_cache) {
     cache_t *this_cache = (cache_t *) L1_cache;
     assert(this_cache->cache_level == L1);
     cache__allocate_memory(this_cache);
-    uint64_t config_index = (this_cache - g_caches[0]) / g_test_params.num_cache_levels;
+    uint64_t config_index = this_cache->config_index;
     cycle_counter[config_index] = 0;
     bitfield64_t oustanding_requests = 0;
     int16_t completed_requests[MAX_NUM_REQUESTS] = { 0 };
@@ -175,6 +175,7 @@ static void create_and_run_threads (void) {
     for (uint64_t i = 0; i < num_configs; i++) {
         pthread_join(threads[i], NULL);
     }
+    free(threads_outstanding);
 #if (CONSOLE_PRINT == 0)
     pthread_join(progress_thread, NULL);
 #endif
@@ -202,7 +203,7 @@ static void setup_caches (uint8_t cache_level, uint64_t min_block_size, uint64_t
                     if (cache_level < g_test_params.num_cache_levels - 1) {
                         setup_caches(cache_level + 1, block_size, cache_size * 2);
                     } else {
-                        CODE_FOR_ASSERT(bool ret =) cache__init(&g_caches[thread_num][0], 0, g_test_params.num_cache_levels, configs);
+                        CODE_FOR_ASSERT(bool ret =) cache__init(&g_caches[thread_num][0], 0, g_test_params.num_cache_levels, configs, thread_num);
                         assert(ret);
                         thread_num++;
                     }

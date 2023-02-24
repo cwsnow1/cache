@@ -43,7 +43,7 @@ static          uint64_t    internal_process_cache  (cache_t *cache, uint64_t cy
 //          Public Functions
 // =====================================
 
-bool cache__init (cache_t *caches, cache_level_t cache_level, uint8_t num_cache_levels, config_t *cache_configs) {
+bool cache__init (cache_t *caches, cache_level_t cache_level, uint8_t num_cache_levels, config_t *cache_configs, uint64_t config_index) {
     assert(caches);
     cache_t *me = &caches[cache_level];
     config_t cache_config = cache_configs[cache_level];
@@ -58,6 +58,7 @@ bool cache__init (cache_t *caches, cache_level_t cache_level, uint8_t num_cache_
     me->config.block_size = cache_config.block_size;
     me->block_size_bits = 0;
     me->earliest_next_useful_cycle = UINT64_MAX;
+    me->config_index = config_index;
     uint64_t tmp = me->config.block_size;
     for (; (tmp & 1) == 0; tmp >>= 1) {
         me->block_size_bits++;
@@ -78,7 +79,7 @@ bool cache__init (cache_t *caches, cache_level_t cache_level, uint8_t num_cache_
     assert_release(tmp == 1 && "Number of sets must be a power of 2");
     me->block_addr_to_set_index_mask = me->num_sets - 1;
     if (me->lower_cache) {
-        CODE_FOR_ASSERT(bool ret =) cache__init(caches, cache_level + 1, num_cache_levels, cache_configs);
+        CODE_FOR_ASSERT(bool ret =) cache__init(caches, cache_level + 1, num_cache_levels, cache_configs, config_index);
         assert(ret);
     } else {
         init_main_memory(me);
