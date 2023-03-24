@@ -6,90 +6,94 @@
 #include <string.h>
 
 #include "default_test_params.h"
-#include "cache.h"
-#include "io_utils.h"
+#include "Cache.h"
+#include "IOUtilities.h"
 #include "debug.h"
 
 extern test_params_t g_test_params;
 const char params_filename[] = "./test_params.ini";
 
-void io_utils__print_stats (cache_t *cache, uint64_t cycle, FILE *stream) {
-    if (cache->cache_level == 0) {
+void IOUtilities::PrintStatistics (Cache *cache, uint64_t cycle, FILE *stream) {
+    Statistics stats = cache->GetStats();
+    CacheLevel cache_level = cache->GetCacheLevel();
+    Configuration config = cache->GetConfig();
+    if (cache_level == 0) {
         fprintf(stream, "=========================\n");
     } else {
         fprintf(stream, "-------------------------\n");
     }
-    fprintf(stream, "CACHE LEVEL %d\n", cache->cache_level);
-    fprintf(stream, "size=%luB, block_size=%luB, associativity=%lu\n", cache->config.cache_size, cache->config.block_size, cache->config.associativity);
-    float num_reads =  (float) (cache->stats.read_hits  + cache->stats.read_misses);
-    float num_writes = (float) (cache->stats.write_hits + cache->stats.write_misses);
-    float read_miss_rate =  (float) cache->stats.read_misses  / num_reads;
-    float write_miss_rate = (float) cache->stats.write_misses / num_writes;
-    float total_miss_rate = (float) (cache->stats.read_misses + cache->stats.write_misses) / (num_writes + num_reads);
+    fprintf(stream, "CACHE LEVEL %d\n", cache_level);
+    fprintf(stream, "size=%luB, block_size=%luB, associativity=%lu\n", config.cache_size, config.block_size, config.associativity);
+    float num_reads =  (float) (stats.read_hits  + stats.read_misses);
+    float num_writes = (float) (stats.write_hits + stats.write_misses);
+    float read_miss_rate =  (float) stats.read_misses  / num_reads;
+    float write_miss_rate = (float) stats.write_misses / num_writes;
+    float total_miss_rate = (float) (stats.read_misses + stats.write_misses) / (num_writes + num_reads);
     fprintf(stream, "Number of reads:    %08d\n", (int) num_reads);
     fprintf(stream, "Read miss rate:     %7.3f%%\n", 100.f * read_miss_rate);
     fprintf(stream, "Number of writes:   %08d\n", (int) num_writes);
     fprintf(stream, "Write miss rate:    %7.3f%%\n", 100.0f * write_miss_rate);
     fprintf(stream, "Total miss rate:    %7.3f%%\n", 100.0f * total_miss_rate);
-    if (cache->cache_level == g_test_params.num_cache_levels - 1) {
+    if (cache_level == g_test_params.num_cache_levels - 1) {
         fprintf(stream, "-------------------------\n");
-        fprintf(stream, "Main memory reads:  %08lu\n", cache->stats.read_misses + cache->stats.write_misses);
-        fprintf(stream, "Main memory writes: %08lu\n\n", cache->stats.writebacks);
+        fprintf(stream, "Main memory reads:  %08lu\n", stats.read_misses + stats.write_misses);
+        fprintf(stream, "Main memory writes: %08lu\n\n", stats.writebacks);
         fprintf(stream, "Total number of cycles: %010lu\n", cycle);
-        cache_t *top_level_cache = cache - cache->cache_level;
-        float num_reads =  (float) (top_level_cache->stats.read_hits  + top_level_cache->stats.read_misses);
-        float num_writes = (float) (top_level_cache->stats.write_hits + top_level_cache->stats.write_misses);
+        Statistics topLevelStats = cache->GetTopLevelCache()->GetStats();
+        float num_reads =  (float) (topLevelStats.read_hits  + topLevelStats.read_misses);
+        float num_writes = (float) (topLevelStats.write_hits + topLevelStats.write_misses);
         float cpi = (float) cycle / (num_reads + num_writes);
         fprintf(stream, "CPI: %.4f\n", cpi);
         fprintf(stream, "=========================\n\n");
     } else {
-        io_utils__print_stats(cache + 1, cycle, stream);
+        PrintStatistics(cache->GetLowerCache(), cycle, stream);
     }
 }
 
-void io_utils__print_stats_csv (cache_t *cache, uint64_t cycle, FILE *stream) {
+void IOUtilities::PrintStatisticsCSV (Cache *cache, uint64_t cycle, FILE *stream) {
+    Statistics stats = cache->GetStats();
+    CacheLevel cache_level = cache->GetCacheLevel();
+    Configuration config = cache->GetConfig();
     if (stream == NULL) {
         return;
     }
-    fprintf(stream, "%d,%lu,%lu,%lu,", cache->cache_level, cache->config.cache_size, cache->config.block_size, cache->config.associativity);
-    float num_reads =  (float) (cache->stats.read_hits  + cache->stats.read_misses);
-    float num_writes = (float) (cache->stats.write_hits + cache->stats.write_misses);
-    float read_miss_rate =  (float) cache->stats.read_misses  / num_reads;
-    float write_miss_rate = (float) cache->stats.write_misses / num_writes;
-    float total_miss_rate = (float) (cache->stats.read_misses + cache->stats.write_misses) / (num_writes + num_reads);
+    fprintf(stream, "%d,%lu,%lu,%lu,", cache_level, config.cache_size, config.block_size, config.associativity);
+    float num_reads =  (float) (stats.read_hits  + stats.read_misses);
+    float num_writes = (float) (stats.write_hits + stats.write_misses);
+    float read_miss_rate =  (float) stats.read_misses  / num_reads;
+    float write_miss_rate = (float) stats.write_misses / num_writes;
+    float total_miss_rate = (float) (stats.read_misses + stats.write_misses) / (num_writes + num_reads);
     fprintf(stream, "%08d,%7.3f%%,%08d,%7.3f%%,%7.3f%%,", (int) num_reads, 100.f * read_miss_rate, (int) num_writes, 100.0f * write_miss_rate, 100.0f * total_miss_rate);
-    if (cache->cache_level == g_test_params.num_cache_levels - 1) {
-        fprintf(stream, "%08lu,%08lu,%010lu,", cache->stats.read_misses + cache->stats.write_misses, cache->stats.writebacks, cycle);
-        cache_t *top_level_cache = cache - cache->cache_level;
-        float num_reads =  (float) (top_level_cache->stats.read_hits  + top_level_cache->stats.read_misses);
-        float num_writes = (float) (top_level_cache->stats.write_hits + top_level_cache->stats.write_misses);
+    if (cache_level == g_test_params.num_cache_levels - 1) {
+        fprintf(stream, "%08lu,%08lu,%010lu,", stats.read_misses + stats.write_misses, stats.writebacks, cycle);
+        Statistics topLevelStats = cache->GetTopLevelCache()->GetStats();
+        float num_reads =  (float) (topLevelStats.read_hits  + topLevelStats.read_misses);
+        float num_writes = (float) (topLevelStats.write_hits + topLevelStats.write_misses);
         float cpi = (float) cycle / (num_reads + num_writes);
         fprintf(stream, "%.4f\n", cpi);
     } else {
-        io_utils__print_stats_csv(cache + 1, cycle, stream);
+        PrintStatisticsCSV(cache->GetLowerCache(), cycle, stream);
     }
 }
 
-void io_utils__print_config (cache_t *cache, FILE *stream) {
-    if (cache->cache_level == 0) {
+void IOUtilities::PrintConfiguration (Cache *cache, FILE *stream) {
+    CacheLevel cache_level = cache->GetCacheLevel();
+    Configuration config = cache->GetConfig();
+    if (cache_level == 0) {
         fprintf(stream, "=========================\n");
     } else {
         fprintf(stream, "-------------------------\n");
     }
-    fprintf(stream, "CACHE LEVEL %d\n", cache->cache_level);
-    fprintf(stream, "size=%luB, block_size=%luB, associativity=%lu\n", cache->config.cache_size, cache->config.block_size, cache->config.associativity);
-    if (cache->cache_level != g_test_params.num_cache_levels - 1) {
-        io_utils__print_config(cache + 1, stream);
+    fprintf(stream, "CACHE LEVEL %d\n", cache_level);
+    fprintf(stream, "size=%luB, block_size=%luB, associativity=%lu\n", config.cache_size, config.block_size, config.associativity);
+    if (cache_level != g_test_params.num_cache_levels - 1) {
+        PrintConfiguration(cache->GetLowerCache(), stream);
     } else {
         fprintf(stream, "=========================\n\n");
     }
 }
 
-/**
- * @brief Verifies the global test parameters struct is valid
- * 
- */
-static void verify_test_params (void) {
+void IOUtilities::verify_test_params (void) {
     // Check that all values were read in correctly
     int line_number = 1;
     if (!g_test_params.num_cache_levels)    goto verify_fail;
@@ -114,7 +118,7 @@ static void verify_test_params (void) {
     assert_release(g_test_params.min_block_size <= g_test_params.max_block_size);
     assert_release(g_test_params.min_cache_size <= g_test_params.max_cache_size);
     assert_release(g_test_params.min_cache_size >= g_test_params.min_block_size);
-    assert_release(g_test_params.num_cache_levels <= MAIN_MEMORY && "Update access_time_in_cycles & enum cache_levels");
+    assert_release(g_test_params.num_cache_levels <= kMainMemory && "Update access_time_in_cycles & enum cache_levels");
 #if (CONSOLE_PRINT == 1)
     if (g_test_params.max_num_threads > 1) {
         printf("WARNING: Console printing with multiple threads is not recommended. Do you wish to continue? [Y/n]\n");
@@ -132,7 +136,7 @@ verify_fail:
     exit(1);
 }
 
-void io_utils__load_test_parameters (void) {
+void IOUtilities::LoadTestParameters (void) {
     FILE *params_f = fopen(params_filename, "r");
     // If file does not exist, generate a default
     if (params_f == NULL) {
@@ -146,7 +150,7 @@ void io_utils__load_test_parameters (void) {
         fprintf(params_f, "MIN_ASSOCIATIVITY=%d\n",   MIN_ASSOCIATIVITY);
         fprintf(params_f, "MAX_ASSOCIATIVITY=%d\n",   MAX_ASSOCIATIVITY);
         fprintf(params_f, "MAX_NUM_THREADS=%d\n",     MAX_NUM_THREADS);
-        assert(fseek(params_f, 0, SEEK_SET) == 0);
+        assert_release(fseek(params_f, 0, SEEK_SET) == 0);
     }
     // File exists, read it in
     assert_release(fscanf(params_f, "NUM_CACHE_LEVELS=%hhu\n",    &g_test_params.num_cache_levels));
@@ -161,10 +165,11 @@ void io_utils__load_test_parameters (void) {
     verify_test_params();
 }
 
-uint8_t * io_utils__read_in_file (const char* filename, uint64_t *length) {
+uint8_t * IOUtilities::ReadInFile (const char* filename, uint64_t *length) {
     assert(length);
 
     uint8_t *buffer = NULL;
+    size_t m;
 
     FILE* f = fopen(filename, "r");
     if (f == NULL) {
@@ -176,9 +181,9 @@ uint8_t * io_utils__read_in_file (const char* filename, uint64_t *length) {
         fprintf(stderr, "Error in file seek of %s\n", filename);
         goto error;
     }
-    long m = ftell(f);
+    m = ftell(f);
     if (m < 0) goto error;
-    buffer = (uint8_t *) malloc(m);
+    buffer = new uint8_t[m];
     if (buffer == NULL)                 goto error;
     if (fseek(f, 0, SEEK_SET))          goto error;
     if (fread(buffer, 1, m, f) != m)    goto error;
@@ -189,36 +194,29 @@ uint8_t * io_utils__read_in_file (const char* filename, uint64_t *length) {
 
 error:
     if (f) fclose(f);
-    if (buffer) free(buffer);
+    delete[] buffer;
     fprintf(stderr, "Error in reading file %s\n", filename);
     exit(1);
 }
 
-/**
- * @brief       Parses a single line of the trace file
- * 
- * @param line  Pointer within the buffer to the start of a line
- * @param addr  Out. Parsed address value
- * @param rw    Out. Access type, read or write
- */
-static void parse_line (uint8_t *line, uint64_t *addr, access_t *rw) {
+void IOUtilities::parseLine (uint8_t *line, uint64_t *address, access_t *rw) {
     line += FIRST_ADDRESS_LENGTH_IN_BYTES;
     char rw_c = *line;
     *rw = (rw_c == 'R') ? READ : WRITE;
     line += RW_LENGHT_IN_BYTES + AFTER_RW_LENGTH_IN_BYTES;
     char* end_ptr;
-    *addr = strtoll((char*) line, &end_ptr, 16);
+    *address = strtoll((char*) line, &end_ptr, 16);
     assert(*end_ptr == '\n');
 }
 
-instruction_t * io_utils__parse_buffer (uint8_t *buffer, uint64_t length) {
+Instruction * IOUtilities::ParseBuffer (uint8_t *buffer, uint64_t length) {
     assert(buffer);
-    uint8_t *buffer_start = buffer;
+    const uint8_t *buffer_start = buffer;
     uint64_t num_lines = length / FILE_LINE_LENGTH_IN_BYTES;
-    instruction_t *accesses = (instruction_t*) malloc(sizeof(instruction_t) * num_lines);
+    Instruction *accesses = new Instruction[num_lines];
     for (uint64_t i = 0; i < num_lines; i++, buffer += FILE_LINE_LENGTH_IN_BYTES) {
-        parse_line(buffer, &accesses[i].ptr, &accesses[i].rw);
+        IOUtilities::parseLine(buffer, &accesses[i].ptr, &accesses[i].rw);
     }
-    free(buffer_start);
+    delete[] buffer_start;
     return accesses;
 }
