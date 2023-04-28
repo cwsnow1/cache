@@ -70,7 +70,16 @@ public:
      * @brief                   "Prints" a trace entry -- really adds it to a buffer to be written later
      * 
      * @param trace_entry_id    See sim_trace.h & sim_trace_decoder.h for entry info
-     * @param cache             Pointer to cache structure making entry, used to print context info
+     * @param memory            Pointer to memory object making entry, used to print context info
+     * @param values            Up to MAX_NUM_SIM_TRACE_VALUES values the size of sim_trace_entry_data_t
+     */
+    void Print(trace_entry_id_t trace_entry_id, Memory *memory, ...);
+
+    /**
+     * @brief                   "Prints" a trace entry -- really adds it to a buffer to be written later
+     * 
+     * @param trace_entry_id    See sim_trace.h & sim_trace_decoder.h for entry info
+     * @param memory            Pointer to memory object making entry, used to print context info
      * @param values            Up to MAX_NUM_SIM_TRACE_VALUES values the size of sim_trace_entry_data_t
      */
     void Print(trace_entry_id_t trace_entry_id, Cache *cache, ...);

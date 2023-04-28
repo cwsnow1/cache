@@ -14,10 +14,6 @@
 #include "SimTracer.h"
 #include "debug.h"
 
-#if (SIM_TRACE == 1)
-FILE *sim_trace_f;
-#endif
-
 /**
  *  @brief Prints the usage of the program in case of error
  */

@@ -46,7 +46,7 @@ class DoubleList {
      * @brief       Removes element from head of list and returns it
      *
      * @param list  List to pop from
-     * @return      Pointer to element if there is one, NULL otherwise
+     * @return      Pointer to element if there is one, nullptr otherwise
      */
     DoubleListElement *PopElement();
 
@@ -60,10 +60,10 @@ class DoubleList {
 };
 
 #define for_each_in_double_list(list)   DoubleListElement *element_i = list->PeekHead();                        \
-                                        DoubleListElement *next_element = element_i ? element_i->next_ : NULL;  \
+                                        DoubleListElement *next_element = element_i ? element_i->next_ : nullptr;  \
                                         for (uint64_t pool_index = element_i ? element_i->pool_index_ : 0;      \
-                                        element_i != NULL;                                                      \
+                                        element_i != nullptr;                                                      \
                                         element_i = next_element,                                               \
-                                        next_element = element_i ? element_i->next_ : NULL,                     \
+                                        next_element = element_i ? element_i->next_ : nullptr,                     \
                                         pool_index = element_i ? element_i->pool_index_ : 0)
 

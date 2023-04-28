@@ -26,29 +26,29 @@ public:
     /**
      * @brief           Prints collected statistics to given stream
      *
-     * @param cache     Cache structure whose stats to print
+     * @param memory    Memory structure whose stats to print
      * @param cycle     Cycle, used to calculate CPI
      * @param stream    Output stream to print to
      */
-    static void PrintStatistics(Cache *cache, uint64_t cycle, FILE *stream);
+    static void PrintStatistics(Memory *memory, uint64_t cycle, FILE *stream);
 
     /**
      * @brief           Prints collected statistics to given stream in the form
      * of a comma separated values file
      *
-     * @param cache     Cache structure whose stats to print
+     * @param memory    Memory structure whose stats to print
      * @param cycle     Cycle, used to calculate CPI
      * @param stream    Output stream to print to
      */
-    static void PrintStatisticsCSV(Cache *cache, uint64_t cycle, FILE *stream);
+    static void PrintStatisticsCSV(Memory *memory, uint64_t cycle, FILE *stream);
 
     /**
      * @brief Prints a message that the config of the cache structure(s) given
      *
-     * @param cache         The pointer to the top-level cache structure
+     * @param memory        The pointer to the top-level cache structure
      * @param stream        The output stream
      */
-    static void PrintConfiguration(Cache *cache, FILE *stream);
+    static void PrintConfiguration(Memory *memory, FILE *stream);
 
     /**
      * @brief Loads test_params.ini if extant, creates it otherwise

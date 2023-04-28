@@ -63,7 +63,7 @@ class Simulator {
      *  @param pMinBlockSize    minimum block size this cache level will try to init
      *  @param pMinCacheSize    minimum cache size this cache level will try to init
      */
-    void SetupCaches(uint8_t pCacheLevel, uint64_t pMinBlockSize, uint64_t pMinCacheSize);
+    void SetupCaches(CacheLevel pCacheLevel, uint64_t pMinBlockSize, uint64_t pMinCacheSize);
 
     /**
      * @brief                   Recursively calculate the total number of valid cache configs

@@ -80,7 +80,7 @@ int main (int argc, char* argv[]) {
     FILE* f_in = read_in_file_header(argv[1]);
 
     // Decode & write trace files
-    FILE *f_out = NULL;
+    FILE *f_out = nullptr;
     char output_filename_buffer[OUTPUT_FILESIZE_MAX_LENGTH];
     int output_filename_length = sprintf(output_filename_buffer, "%s", argv[2]);
     assert(output_filename_length > 0);
@@ -96,7 +96,7 @@ int main (int argc, char* argv[]) {
 
         char *output_filename_begin = output_filename_buffer + output_filename_length;
         for (uint8_t j = 0; j < num_cache_levels; j++) {
-            int bytes_written = sprintf(output_filename_begin, "_%lu_%lu_%lu", configs[j].cache_size, configs[j].block_size, configs[j].associativity);
+            int bytes_written = sprintf(output_filename_begin, "_%lu_%lu_%lu", configs[j].cacheSize, configs[j].blockSize, configs[j].associativity);
             output_filename_begin += bytes_written;
         }
         sprintf(output_filename_begin, ".txt");

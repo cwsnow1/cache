@@ -10,74 +10,87 @@
 #include "IOUtilities.h"
 #include "debug.h"
 
-extern test_params_t g_test_params;
+extern test_params_t gTestParams;
 const char params_filename[] = "./test_params.ini";
 
-void IOUtilities::PrintStatistics (Cache *cache, uint64_t cycle, FILE *stream) {
-    Statistics stats = cache->GetStats();
-    CacheLevel cache_level = cache->GetCacheLevel();
+void IOUtilities::PrintStatistics (Memory *memory, uint64_t cycle, FILE *stream) {
+    Statistics stats = memory->GetStats();
+    CacheLevel cache_level = memory->GetCacheLevel();
+    if (memory->GetCacheLevel() == kMainMemory) {
+        return;
+    }
+    Cache *cache = static_cast<Cache*>(memory);
     Configuration config = cache->GetConfig();
-    if (cache_level == 0) {
+    if (cache_level == kL1) {
         fprintf(stream, "=========================\n");
     } else {
         fprintf(stream, "-------------------------\n");
     }
     fprintf(stream, "CACHE LEVEL %d\n", cache_level);
-    fprintf(stream, "size=%luB, block_size=%luB, associativity=%lu\n", config.cache_size, config.block_size, config.associativity);
-    float num_reads =  (float) (stats.read_hits  + stats.read_misses);
-    float num_writes = (float) (stats.write_hits + stats.write_misses);
-    float read_miss_rate =  (float) stats.read_misses  / num_reads;
-    float write_miss_rate = (float) stats.write_misses / num_writes;
-    float total_miss_rate = (float) (stats.read_misses + stats.write_misses) / (num_writes + num_reads);
+    fprintf(stream, "size=%luB, block_size=%luB, associativity=%lu\n", config.cacheSize, config.blockSize, config.associativity);
+    float num_reads =  (float) (stats.readHits  + stats.readMisses);
+    float num_writes = (float) (stats.writeHits + stats.writeMisses);
+    float read_miss_rate =  (float) stats.readMisses  / num_reads;
+    float write_miss_rate = (float) stats.writeMisses / num_writes;
+    float total_miss_rate = (float) (stats.readMisses + stats.writeMisses) / (num_writes + num_reads);
     fprintf(stream, "Number of reads:    %08d\n", (int) num_reads);
     fprintf(stream, "Read miss rate:     %7.3f%%\n", 100.f * read_miss_rate);
     fprintf(stream, "Number of writes:   %08d\n", (int) num_writes);
     fprintf(stream, "Write miss rate:    %7.3f%%\n", 100.0f * write_miss_rate);
     fprintf(stream, "Total miss rate:    %7.3f%%\n", 100.0f * total_miss_rate);
-    if (cache_level == g_test_params.num_cache_levels - 1) {
+    if (cache_level == gTestParams.num_cache_levels - 1) {
         fprintf(stream, "-------------------------\n");
-        fprintf(stream, "Main memory reads:  %08lu\n", stats.read_misses + stats.write_misses);
+        fprintf(stream, "Main memory reads:  %08lu\n", stats.readMisses + stats.writeMisses);
         fprintf(stream, "Main memory writes: %08lu\n\n", stats.writebacks);
         fprintf(stream, "Total number of cycles: %010lu\n", cycle);
         Statistics topLevelStats = cache->GetTopLevelCache()->GetStats();
-        float num_reads =  (float) (topLevelStats.read_hits  + topLevelStats.read_misses);
-        float num_writes = (float) (topLevelStats.write_hits + topLevelStats.write_misses);
+        float num_reads =  (float) (topLevelStats.readHits  + topLevelStats.readMisses);
+        float num_writes = (float) (topLevelStats.writeHits + topLevelStats.writeMisses);
         float cpi = (float) cycle / (num_reads + num_writes);
         fprintf(stream, "CPI: %.4f\n", cpi);
         fprintf(stream, "=========================\n\n");
     } else {
-        PrintStatistics(cache->GetLowerCache(), cycle, stream);
+        PrintStatistics(memory->GetLowerCache(), cycle, stream);
     }
 }
 
-void IOUtilities::PrintStatisticsCSV (Cache *cache, uint64_t cycle, FILE *stream) {
-    Statistics stats = cache->GetStats();
-    CacheLevel cache_level = cache->GetCacheLevel();
-    Configuration config = cache->GetConfig();
-    if (stream == NULL) {
+void IOUtilities::PrintStatisticsCSV (Memory *memory, uint64_t cycle, FILE *stream) {
+    Statistics stats = memory->GetStats();
+    CacheLevel cache_level = memory->GetCacheLevel();
+    if (memory->GetCacheLevel() == kMainMemory) {
         return;
     }
-    fprintf(stream, "%d,%lu,%lu,%lu,", cache_level, config.cache_size, config.block_size, config.associativity);
-    float num_reads =  (float) (stats.read_hits  + stats.read_misses);
-    float num_writes = (float) (stats.write_hits + stats.write_misses);
-    float read_miss_rate =  (float) stats.read_misses  / num_reads;
-    float write_miss_rate = (float) stats.write_misses / num_writes;
-    float total_miss_rate = (float) (stats.read_misses + stats.write_misses) / (num_writes + num_reads);
+    Cache *cache = static_cast<Cache*>(memory);
+    Configuration config = cache->GetConfig();
+    if (stream == nullptr) {
+        return;
+    }
+    fprintf(stream, "%d,%lu,%lu,%lu,", cache_level, config.cacheSize, config.blockSize, config.associativity);
+    float num_reads =  (float) (stats.readHits  + stats.readMisses);
+    float num_writes = (float) (stats.writeHits + stats.writeMisses);
+    float read_miss_rate =  (float) stats.readMisses  / num_reads;
+    float write_miss_rate = (float) stats.writeMisses / num_writes;
+    float total_miss_rate = (float) (stats.readMisses + stats.writeMisses) / (num_writes + num_reads);
     fprintf(stream, "%08d,%7.3f%%,%08d,%7.3f%%,%7.3f%%,", (int) num_reads, 100.f * read_miss_rate, (int) num_writes, 100.0f * write_miss_rate, 100.0f * total_miss_rate);
-    if (cache_level == g_test_params.num_cache_levels - 1) {
-        fprintf(stream, "%08lu,%08lu,%010lu,", stats.read_misses + stats.write_misses, stats.writebacks, cycle);
+    if (cache_level == gTestParams.num_cache_levels - 1) {
+        fprintf(stream, "%08lu,%08lu,%010lu,", stats.readMisses + stats.writeMisses, stats.writebacks, cycle);
         Statistics topLevelStats = cache->GetTopLevelCache()->GetStats();
-        float num_reads =  (float) (topLevelStats.read_hits  + topLevelStats.read_misses);
-        float num_writes = (float) (topLevelStats.write_hits + topLevelStats.write_misses);
+        float num_reads =  (float) (topLevelStats.readHits  + topLevelStats.readMisses);
+        float num_writes = (float) (topLevelStats.writeHits + topLevelStats.writeMisses);
         float cpi = (float) cycle / (num_reads + num_writes);
         fprintf(stream, "%.4f\n", cpi);
     } else {
-        PrintStatisticsCSV(cache->GetLowerCache(), cycle, stream);
+        PrintStatisticsCSV(memory->GetLowerCache(), cycle, stream);
     }
 }
 
-void IOUtilities::PrintConfiguration (Cache *cache, FILE *stream) {
-    CacheLevel cache_level = cache->GetCacheLevel();
+void IOUtilities::PrintConfiguration (Memory *memory, FILE *stream) {
+    CacheLevel cache_level = memory->GetCacheLevel();
+    if (cache_level == kMainMemory) {
+        fprintf(stream, "=========================\n\n");
+        return;
+    }
+    Cache *cache = static_cast<Cache*>(memory);
     Configuration config = cache->GetConfig();
     if (cache_level == 0) {
         fprintf(stream, "=========================\n");
@@ -85,42 +98,38 @@ void IOUtilities::PrintConfiguration (Cache *cache, FILE *stream) {
         fprintf(stream, "-------------------------\n");
     }
     fprintf(stream, "CACHE LEVEL %d\n", cache_level);
-    fprintf(stream, "size=%luB, block_size=%luB, associativity=%lu\n", config.cache_size, config.block_size, config.associativity);
-    if (cache_level != g_test_params.num_cache_levels - 1) {
-        PrintConfiguration(cache->GetLowerCache(), stream);
-    } else {
-        fprintf(stream, "=========================\n\n");
-    }
+    fprintf(stream, "size=%luB, block_size=%luB, associativity=%lu\n", config.cacheSize, config.blockSize, config.associativity);
+    PrintConfiguration(memory->GetLowerCache(), stream);
 }
 
 void IOUtilities::verify_test_params (void) {
     // Check that all values were read in correctly
     int line_number = 1;
-    if (!g_test_params.num_cache_levels)    goto verify_fail;
+    if (!gTestParams.num_cache_levels)    goto verify_fail;
     line_number++;
-    if (!g_test_params.min_block_size)      goto verify_fail;
+    if (!gTestParams.min_block_size)      goto verify_fail;
     line_number++;
-    if (!g_test_params.max_block_size)      goto verify_fail;
+    if (!gTestParams.max_block_size)      goto verify_fail;
     line_number++;
-    if (!g_test_params.min_cache_size)      goto verify_fail;
+    if (!gTestParams.min_cache_size)      goto verify_fail;
     line_number++;
-    if (!g_test_params.max_cache_size)      goto verify_fail;
+    if (!gTestParams.max_cache_size)      goto verify_fail;
     line_number++;
-    if (!g_test_params.min_blocks_per_set)  goto verify_fail;
+    if (!gTestParams.min_blocks_per_set)  goto verify_fail;
     line_number++;
-    if (!g_test_params.max_blocks_per_set)  goto verify_fail;
+    if (!gTestParams.max_blocks_per_set)  goto verify_fail;
     line_number++;
-    if (!g_test_params.max_num_threads)     goto verify_fail;
+    if (!gTestParams.max_num_threads)     goto verify_fail;
 
     // Check that values make sense. May help in understanding why a parameter config
     // will be found to have 0 possible cache configs
-    assert_release(g_test_params.num_cache_levels <= MAX_NUM_CACHE_LEVELS);
-    assert_release(g_test_params.min_block_size <= g_test_params.max_block_size);
-    assert_release(g_test_params.min_cache_size <= g_test_params.max_cache_size);
-    assert_release(g_test_params.min_cache_size >= g_test_params.min_block_size);
-    assert_release(g_test_params.num_cache_levels <= kMainMemory && "Update access_time_in_cycles & enum cache_levels");
+    assert_release(gTestParams.num_cache_levels <= MAX_NUM_CACHE_LEVELS);
+    assert_release(gTestParams.min_block_size <= gTestParams.max_block_size);
+    assert_release(gTestParams.min_cache_size <= gTestParams.max_cache_size);
+    assert_release(gTestParams.min_cache_size >= gTestParams.min_block_size);
+    assert_release(gTestParams.num_cache_levels <= kMainMemory && "Update kAccessTimeInCycles & enum cache_levels");
 #if (CONSOLE_PRINT == 1)
-    if (g_test_params.max_num_threads > 1) {
+    if (gTestParams.max_num_threads > 1) {
         printf("WARNING: Console printing with multiple threads is not recommended. Do you wish to continue? [Y/n]\n");
         char ret = 'n';
         scanf("%c", &ret);
@@ -153,14 +162,14 @@ void IOUtilities::LoadTestParameters (void) {
         assert_release(fseek(params_f, 0, SEEK_SET) == 0);
     }
     // File exists, read it in
-    assert_release(fscanf(params_f, "NUM_CACHE_LEVELS=%hhu\n",    &g_test_params.num_cache_levels));
-    assert_release(fscanf(params_f, "MIN_BLOCK_SIZE=%lu\n",       &g_test_params.min_block_size));
-    assert_release(fscanf(params_f, "MAX_BLOCK_SIZE=%lu\n",       &g_test_params.max_block_size));
-    assert_release(fscanf(params_f, "MIN_CACHE_SIZE=%lu\n",       &g_test_params.min_cache_size));
-    assert_release(fscanf(params_f, "MAX_CACHE_SIZE=%lu\n",       &g_test_params.max_cache_size));
-    assert_release(fscanf(params_f, "MIN_ASSOCIATIVITY=%hhu\n",   &g_test_params.min_blocks_per_set));
-    assert_release(fscanf(params_f, "MAX_ASSOCIATIVITY=%hhu\n",   &g_test_params.max_blocks_per_set));
-    assert_release(fscanf(params_f, "MAX_NUM_THREADS=%d\n",       &g_test_params.max_num_threads));
+    assert_release(fscanf(params_f, "NUM_CACHE_LEVELS=%hhu\n",    &gTestParams.num_cache_levels));
+    assert_release(fscanf(params_f, "MIN_BLOCK_SIZE=%lu\n",       &gTestParams.min_block_size));
+    assert_release(fscanf(params_f, "MAX_BLOCK_SIZE=%lu\n",       &gTestParams.max_block_size));
+    assert_release(fscanf(params_f, "MIN_CACHE_SIZE=%lu\n",       &gTestParams.min_cache_size));
+    assert_release(fscanf(params_f, "MAX_CACHE_SIZE=%lu\n",       &gTestParams.max_cache_size));
+    assert_release(fscanf(params_f, "MIN_ASSOCIATIVITY=%hhu\n",   &gTestParams.min_blocks_per_set));
+    assert_release(fscanf(params_f, "MAX_ASSOCIATIVITY=%hhu\n",   &gTestParams.max_blocks_per_set));
+    assert_release(fscanf(params_f, "MAX_NUM_THREADS=%d\n",       &gTestParams.max_num_threads));
     fclose(params_f);
     verify_test_params();
 }
