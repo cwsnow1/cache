@@ -48,21 +48,21 @@ TICK 0000001172
 ====================
 
 Cache[0] New request added at index 5, call back at tick 1175
-Cache[0] Trying request 3, addr=0x7f4749971980
+Cache[0] Trying request 3, address=0x7f4749971980
 Cache[0] set 51 is busy
-Cache[0] Trying request 0, addr=0x7f47499719b8
+Cache[0] Trying request 0, address=0x7f47499719b8
 Cache[0] set 51 is busy
-Cache[0] Trying request 1, addr=0x7f4749944c78
+Cache[0] Trying request 1, address=0x7f4749944c78
 Cache[0] hit, set=24
-Cache[0] Trying request 7, addr=0x7f47499719f0
+Cache[0] Trying request 7, address=0x7f47499719f0
 2/3 cycles for this operation in cache_level=0
 Cache[0] next useful cycle set to 1173
-Cache[0] Trying request 6, addr=0x7f4749944c80
+Cache[0] Trying request 6, address=0x7f4749944c80
 1/3 cycles for this operation in cache_level=0
-Cache[0] Trying request 5, addr=0x7f4749944c88
+Cache[0] Trying request 5, address=0x7f4749944c88
 0/3 cycles for this operation in cache_level=0
 
-Cache[1] Trying request 13, addr=0x7f4749971980
+Cache[1] Trying request 13, address=0x7f4749971980
 7/12 cycles for this operation in cache_level=1
 ```
 This mode is not recommended if multiple sim threads are running. Change <code>./build/test_params.ini:8</code> to <code>MAX_NUM_THREADS=1</code> to run with a single thread.
@@ -79,9 +79,9 @@ Cycle           Cache level     Message
 000018569992    0               ACCESS_BEGIN:  pool_index=03, r, block_address=0x00fe8e690eb3, set_index=0x00000033
 000018569992    0               MISS:          pool_index=03, requesting block in set_index=0x00000033
 000018569992    0               EVICT:         set_index=0x00000033, block_index=0x00
-000018569992    1               REQUEST_ADDED: pool_index=00, addr=0x7f4734875980, access_time=12
+000018569992    1               REQUEST_ADDED: pool_index=00, address=0x7f4734875980, access_time=12
 000018569992    0               ACCESS_BEGIN:  pool_index=01, w, block_address=0x00ac680a75d3, set_index=0x00000013
 000018569992    0               MISS:          pool_index=01, requesting block in set_index=0x00000013
-000018569992    1               REQUEST_ADDED: pool_index=29, addr=0x5634053ac980, access_time=12
+000018569992    1               REQUEST_ADDED: pool_index=29, address=0x5634053ac980, access_time=12
 000018569992    0               EVICT:         set_index=0x00000013, block_index=0x01
 ```

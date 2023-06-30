@@ -13,11 +13,11 @@
 #define SIM_TRACE (1)
 #endif
 
-#include "cache.h"
-#include "sim_trace.h"
+#include "Cache.h"
+#include "SimTracer.h"
 #include "sim_trace_decoder.h"
 
-#define MAX_NUM_THREADS (MEMORY_USAGE_LIMIT / (uint64_t)SIM_TRACE_BUFFER_SIZE_IN_BYTES)
+#define MAX_NUM_THREADS (MEMORY_USAGE_LIMIT / (uint64_t)kSimTraceBufferSizeInBytes)
 #define OUTPUT_FILESIZE_MAX_LENGTH (100)
 
 static uint32_t buffer_size;
@@ -25,7 +25,7 @@ static uint16_t num_threads;
 static uint16_t num_configs;
 static uint32_t *oldest_indices;
 static uint8_t num_cache_levels;
-static config_t *configs;
+static Configuration *configs;
 static uint8_t **buffers;
 
 /**
@@ -56,16 +56,16 @@ static FILE *read_in_file_header (const char *filename) {
     // uint8_t num_cache_levels
     assert(fread(&num_cache_levels, sizeof(uint8_t), 1, f) == 1);
 
-    configs = (config_t*) malloc(sizeof(config_t) * num_cache_levels);
+    configs = new Configuration[num_cache_levels];
     assert(num_cache_levels);
 
     num_threads = num_configs > MAX_NUM_THREADS ? MAX_NUM_THREADS : num_configs;
 
     // buffers
-    buffers = (uint8_t**) malloc(sizeof(uint8_t*) * num_threads);
+    buffers = new uint8_t*[num_threads];
     assert(buffers);
     for (uint64_t thread_id = 0; thread_id < num_threads; thread_id++) {
-        buffers[thread_id] = (uint8_t*) malloc(buffer_size);
+        buffers[thread_id] =  new uint8_t[buffer_size];
         assert(buffers[thread_id]);
     }
     return f;
@@ -80,7 +80,7 @@ int main (int argc, char* argv[]) {
     FILE* f_in = read_in_file_header(argv[1]);
 
     // Decode & write trace files
-    FILE *f_out = NULL;
+    FILE *f_out = nullptr;
     char output_filename_buffer[OUTPUT_FILESIZE_MAX_LENGTH];
     int output_filename_length = sprintf(output_filename_buffer, "%s", argv[2]);
     assert(output_filename_length > 0);
@@ -89,14 +89,14 @@ int main (int argc, char* argv[]) {
 
         uint32_t buffer_append_point_offset;
         assert(fread(&buffer_append_point_offset, sizeof(uint32_t), 1, f_in) == 1);
-        assert(fread(&configs[0], sizeof(config_t), num_cache_levels, f_in) == num_cache_levels);
+        assert(fread(&configs[0], sizeof(Configuration), num_cache_levels, f_in) == num_cache_levels);
         assert(fread(buffers[thread_id], sizeof(uint8_t), buffer_size, f_in) == buffer_size);
 
         uint8_t *last_entry_ptr = buffers[thread_id] + SIM_TRACE_LAST_ENTRY_OFFSET;
 
         char *output_filename_begin = output_filename_buffer + output_filename_length;
         for (uint8_t j = 0; j < num_cache_levels; j++) {
-            int bytes_written = sprintf(output_filename_begin, "_%lu_%lu_%lu", configs[j].cache_size, configs[j].block_size, configs[j].associativity);
+            int bytes_written = sprintf(output_filename_begin, "_%lu_%lu_%lu", configs[j].cacheSize, configs[j].blockSize, configs[j].associativity);
             output_filename_begin += bytes_written;
         }
         sprintf(output_filename_begin, ".txt");
@@ -132,9 +132,9 @@ int main (int argc, char* argv[]) {
             }
             entry_counter++;
 
-            sim_trace_entry_t entry = *((sim_trace_entry_t*) buffer_ptr);
+            SimTraceEntry entry = *((SimTraceEntry*) buffer_ptr);
             assert(entry.trace_entry_id < NUM_SIM_TRACE_ENTRIES);
-            buffer_ptr += sizeof(sim_trace_entry_t);
+            buffer_ptr += sizeof(SimTraceEntry);
             assert(buffer_ptr < buffers[thread_id] + buffer_size);
             cycle += entry.cycle_offset;
             fprintf(f_out, "%012lu\t%u\t\t", cycle, entry.cache_level);
@@ -178,11 +178,11 @@ int main (int argc, char* argv[]) {
         }
         fclose(f_out);
     }
-    free(oldest_indices);
+    delete[] oldest_indices;
     for (uint32_t thread_id = 0; thread_id; thread_id++) {
-        free(buffers[thread_id]);
+        delete[] buffers[thread_id];
     }
-    free(configs);
-    free(buffers);
+    delete[] configs;
+    delete[] buffers;
     return 0;
 }

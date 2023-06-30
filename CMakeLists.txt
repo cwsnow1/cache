@@ -6,9 +6,9 @@ project(cache)
 add_subdirectory(trace_generation)
 add_subdirectory(sim_trace_decoder)
 
-set(CMAKE_C_STANDARD 99)
-set(CMAKE_C_COMPILER clang)
-set(CMAKE_C_FLAGS "-Wall -Werror -pedantic")
+set(CMAKE_CXX_STANDARD 11)
+set(CMAKE_CXX_COMPILER g++)
+set(CMAKE_CXX_FLAGS "-Wall -Werror -pedantic")
 
 if(SIM_TRACE EQUAL 1)
     add_definitions(-DSIM_TRACE=1)
@@ -24,7 +24,7 @@ endif()
 
 include_directories(${cache_SOURCE_DIR}/inc)
 
-file(GLOB_RECURSE SRC_FILES ${cache_SOURCE_DIR}/src/*.c)
+file(GLOB_RECURSE SRC_FILES ${cache_SOURCE_DIR}/src/*.cpp)
 
 add_executable(${PROJECT_NAME} ${SRC_FILES})
 target_link_libraries(${PROJECT_NAME} pthread)
