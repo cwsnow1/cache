@@ -1,4 +1,4 @@
-# Cache Simulator in C
+# Cache Simulator in C++
 
 Reads and parse memory access trace file produced by [Intel's pin tool](https://www.intel.com/content/www/us/en/developer/articles/tool/pin-a-dynamic-binary-instrumentation-tool.html) and runs it through a cache simulation.
 
