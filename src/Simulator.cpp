@@ -12,6 +12,7 @@
 #include "SimTracer.h"
 #include "default_test_params.h"
 #include "debug.h"
+#include "RequestManager.h"
 
 #if (SIM_TRACE == 1)
 SimTracer *g_SimTracer;
@@ -130,15 +131,15 @@ void* Simulator::SimCache (void *pSimCacheContext) {
     uint64_t config_index = this_cache->config_index_;
     cycleCounter[config_index] = 0;
     bitfield64_t oustanding_requests = 0;
-    int16_t completed_requests[kMaxNumberOfRequests] = { 0 };
-    static_assert(kMaxNumberOfRequests <= 64,"Too many requests to store requests in this bitfield");
+    int16_t completed_requests[RequestManager::kMaxNumberOfRequests] = { 0 };
+    static_assert(RequestManager::kMaxNumberOfRequests <= 64,"Too many requests to store requests in this bitfield");
     uint64_t i = 0;
     bool work_done = false;
     do {
 #if (CONSOLE_PRINT == 1)
         printf("====================\nTICK %010lu\n====================\n", cycleCounter[config_index]);
         char c;
-        scanf("%c", &c);
+        assert_release(scanf("%c", &c) == 1);
 #endif
         work_done = false;
         if (i < numAccesses) {

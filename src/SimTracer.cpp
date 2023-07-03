@@ -24,7 +24,7 @@ SimTracer::SimTracer(const char *filename, uint64_t num_configs) {
         printf("bigger benefit to performance when sim tracing than when not.\n\n");
         printf("Do you wish to continue? [Y/n]\n");
         char response;
-        scanf("%c", &response);
+        assert_release(scanf("%c", &response) == 1);
         if (response != 'Y') {
             exit(0);
         }

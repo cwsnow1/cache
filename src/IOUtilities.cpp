@@ -132,7 +132,7 @@ void IOUtilities::verify_test_params (void) {
     if (gTestParams.max_num_threads > 1) {
         printf("WARNING: Console printing with multiple threads is not recommended. Do you wish to continue? [Y/n]\n");
         char ret = 'n';
-        scanf("%c", &ret);
+        assert_release(scanf("%c", &ret) == 1);
         if (ret != 'Y') {
             exit(0);
         }

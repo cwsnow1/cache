@@ -218,7 +218,7 @@ Status Cache::handleAccess (Request *request) {
     bool hit = findBlockInSet(setIndex, blockAddress, blockIndex);
     if (hit) {
         g_SimTracer->Print(SIM_TRACE__HIT, static_cast<Memory*>(this),
-            request - requestManager_->requestPool, blockAddress>>32, blockAddress & UINT32_MAX, setIndex);
+            requestManager_->GetPoolIndex(request), blockAddress>>32, blockAddress & UINT32_MAX, setIndex);
         if (access.rw == READ) {
             if (request->first_attempt) {
                 ++stats_.readHits;
@@ -230,7 +230,7 @@ Status Cache::handleAccess (Request *request) {
             sets_[setIndex].ways[blockIndex].dirty = true;
         }
     } else {
-        g_SimTracer->Print(SIM_TRACE__MISS, static_cast<Memory*>(this), request - requestManager_->requestPool, setIndex);
+        g_SimTracer->Print(SIM_TRACE__MISS, static_cast<Memory*>(this), requestManager_->GetPoolIndex(request), setIndex);
         request->first_attempt = false;
         int16_t requested_block = requestBlock(setIndex, blockAddress);
         if (requested_block == -1) {
@@ -257,58 +257,52 @@ uint64_t Cache::InternalProcessCache (uint64_t cycle, int16_t *completed_request
     uint64_t num_requests_completed = 0;
     wasWorkDoneThisCycle_ = false;
     cycle_ = cycle;
-    CODE_FOR_ASSERT(bool ret);
     if (lowerCache_->GetWasWorkDoneThisCycle()) {
-        for_each_in_double_list(requestManager_->busyRequests) {
-            DEBUG_TRACE("Cache[%hhu] trying request %lu from busy requests list, address=0x%012lx\n", cacheLevel_, pool_index, requestManager_->requestPool[pool_index].instruction.ptr);
-            Status status = handleAccess(&requestManager_->requestPool[pool_index]);
+        for_each_in_double_list(requestManager_->GetBusyRequests()) {
+            DEBUG_TRACE("Cache[%hhu] trying request %lu from busy requests list, address=0x%012lx\n", cacheLevel_, pool_index, requestManager_->GetRequestAtIndex(pool_index)->instruction.ptr);
+            Status status = handleAccess(requestManager_->GetRequestAtIndex(pool_index));
             if (status == kHit) {
-                DEBUG_TRACE("Cache[%hhu] hit, set=%lu\n", cacheLevel_, addressToSetIndex(requestManager_->requestPool[pool_index].instruction.ptr));
+                DEBUG_TRACE("Cache[%hhu] hit, set=%lu\n", cacheLevel_, addressToSetIndex(requestManager_->GetRequestAtIndex(pool_index)->instruction.ptr));
                 if (upperCache_) {
                     Cache *upperCache = static_cast<Cache*>(upperCache_);
-                    uint64_t setIndex = upperCache->addressToSetIndex(requestManager_->requestPool[pool_index].instruction.ptr);
+                    uint64_t setIndex = upperCache->addressToSetIndex(requestManager_->GetRequestAtIndex(pool_index)->instruction.ptr);
                     DEBUG_TRACE("Cache[%hhu] marking set %lu as no longer busy\n", (uint8_t)(cacheLevel_ - 1), setIndex);
                     static_cast<Cache*>(upperCache_)->ResetCacheSetBusy(setIndex);
                 }
                 if (cacheLevel_ == kL1) {
                     completed_requests[num_requests_completed++] = pool_index;
                 }
-                CODE_FOR_ASSERT(ret =) requestManager_->busyRequests->RemoveElement(element_i);
-                assert(ret);
-                CODE_FOR_ASSERT(ret =) requestManager_->freeRequests->PushElement(element_i);
-                assert(ret);
+                requestManager_->RemoveRequestFromBusyList(element_i);
+                requestManager_->PushRequestToFreeList(element_i);
             }
         }
     } else {
-        if (lowerCache_ && requestManager_->busyRequests->PeekHead()) {
+        if (lowerCache_ && requestManager_->PeekHeadOfBusyList()) {
             DEBUG_TRACE("Cache[%hhu] no work was done in lower cache, not checking busy list\n", cacheLevel_);
         }
     }
-    for_each_in_double_list(requestManager_->waitingRequests) {
-        DEBUG_TRACE("Cache[%hhu] trying request %lu from waiting list, address=0x%012lx\n", cacheLevel_, pool_index, requestManager_->requestPool[pool_index].instruction.ptr);
-        Status status = handleAccess(&requestManager_->requestPool[pool_index]);
+    for_each_in_double_list(requestManager_->GetWaitingRequests()) {
+        DEBUG_TRACE("Cache[%hhu] trying request %lu from waiting list, address=0x%012lx\n", cacheLevel_, pool_index, requestManager_->GetRequestAtIndex(pool_index)->instruction.ptr);
+        Status status = handleAccess(requestManager_->GetRequestAtIndex(pool_index));
         switch (status) {
         case kHit:
-            DEBUG_TRACE("Cache[%hhu] hit, set=%lu\n", cacheLevel_, addressToSetIndex(requestManager_->requestPool[pool_index].instruction.ptr));
+            DEBUG_TRACE("Cache[%hhu] hit, set=%lu\n", cacheLevel_, addressToSetIndex(requestManager_->GetRequestAtIndex(pool_index)->instruction.ptr));
             if (upperCache_) {
                 Cache *upperCache = static_cast<Cache*>(upperCache_);
-                uint64_t setIndex = upperCache->addressToSetIndex(requestManager_->requestPool[pool_index].instruction.ptr);
+                uint64_t setIndex = upperCache->addressToSetIndex(requestManager_->GetRequestAtIndex(pool_index)->instruction.ptr);
                 DEBUG_TRACE("Cache[%hhu] marking set %lu as no longer busy\n", (uint8_t)(cacheLevel_ - 1), setIndex);
                 upperCache->sets_[setIndex].busy = false;
             }
             if (cacheLevel_ == kL1) {
                 completed_requests[num_requests_completed++] = pool_index;
             }
-            CODE_FOR_ASSERT(ret =) requestManager_->waitingRequests->RemoveElement(element_i);
-            assert(ret);
-            CODE_FOR_ASSERT(ret =) requestManager_->freeRequests->PushElement(element_i);
-            assert(ret);
+            requestManager_->RemoveRequestFromWaitingList(element_i);
+            requestManager_->PushRequestToFreeList(element_i);
             break;
         case kMiss:
         case kBusy:
-            CODE_FOR_ASSERT(ret =) requestManager_->waitingRequests->RemoveElement(element_i);
-            assert(ret);
-            requestManager_->busyRequests->AddElementToTail(element_i);
+            requestManager_->RemoveRequestFromWaitingList(element_i);
+            requestManager_->AddRequestToBusyList(element_i);
             break;
         case kWaiting:
             DEBUG_TRACE("Cache[%hhu] request %lu is still waiting, breaking out of loop\n", cacheLevel_, pool_index);

@@ -1,8 +1,8 @@
 #pragma once
 
 #include "list.h"
-
-constexpr uint64_t kMaxNumberOfRequests = 8;
+#include "GlobalIncludes.h"
+#include "RequestManager.h"
 
 // Obviously these are approximations
 constexpr uint64_t kAccessTimeInCycles[] = {
@@ -12,33 +12,11 @@ constexpr uint64_t kAccessTimeInCycles[] = {
     195 // Main Memory
 };
 
-enum CacheLevel { kL1, kL2, kL3, kMainMemory } __attribute__((packed));
-
-typedef enum access_e { READ, WRITE } access_t;
-
 enum Status {
     kHit,
     kMiss,
     kWaiting,
     kBusy,
-};
-
-struct Instruction {
-    uint64_t ptr;
-    access_t rw;
-
-    Instruction() {}
-    Instruction(uint64_t ptr, access_t rw) {
-        this->ptr = ptr;
-        this->rw = rw;
-    }
-};
-
-struct Request {
-    Instruction instruction;
-    uint64_t cycle;
-    uint64_t cycle_to_call_back;
-    bool first_attempt;
 };
 
 struct Statistics {
@@ -47,46 +25,6 @@ struct Statistics {
     uint64_t writeMisses = 0;
     uint64_t readMisses = 0;
     uint64_t writebacks = 0;
-};
-
-
-struct RequestManager {
-    Request *requestPool;
-    DoubleList *waitingRequests;
-    DoubleList *freeRequests;
-    DoubleList *busyRequests;
-    uint64_t maxOutstandingRequests;
-
-    /**
-     * @brief Initializes the request manager and the request lists it maintains
-     * 
-     * @param pCacheLevel   The cache level of the cache whose requests this manager manages
-     *
-     */
-    RequestManager (CacheLevel pCacheLevel) {
-        maxOutstandingRequests = kMaxNumberOfRequests << pCacheLevel;
-        requestPool = new Request[maxOutstandingRequests];
-        waitingRequests = new DoubleList(maxOutstandingRequests);
-        busyRequests = new DoubleList(maxOutstandingRequests);
-        freeRequests = new DoubleList(maxOutstandingRequests);
-        for (uint64_t i = 0; i < maxOutstandingRequests; i++) {
-            DoubleListElement *element = new DoubleListElement;
-            element->pool_index_ = i;
-            freeRequests->PushElement(element);
-        }
-    }
-
-    /**
-     * @brief Destroy the Request Manager object
-     * 
-     */
-    ~RequestManager() {
-        delete[] requestPool;
-        delete waitingRequests;
-        delete freeRequests;
-        delete busyRequests;
-    }
-
 };
 
 class Memory {
