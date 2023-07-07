@@ -8,7 +8,7 @@ on:
 
 
 env:
-  UNZIP_TRACE: && unzip ls-l.zip
+  UNZIP_TRACE: "&& unzip ls-l.zip"
 
 jobs:
   build_release:
