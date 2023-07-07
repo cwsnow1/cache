@@ -92,7 +92,7 @@ jobs:
       uses: actions/upload-artifact@v3
       with:
         name: release_sim_trace
-        path: sim_trace.bin
+        path: ${{github.workspace}}/build/sim_trace.bin
 
   build_sim_trace_debug:
     # The CMake configure and build commands are platform agnostic and should work equally well on Windows or Mac.
@@ -125,7 +125,7 @@ jobs:
       uses: actions/upload-artifact@v3
       with:
         name: debug_sim_trace
-        path: sim_trace.bin
+        path: ${{github.workspace}}/build/sim_trace.bin
 
   build_console_print_release:
     # The CMake configure and build commands are platform agnostic and should work equally well on Windows or Mac.
