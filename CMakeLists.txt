@@ -29,3 +29,7 @@ file(GLOB_RECURSE SRC_FILES ${cache_SOURCE_DIR}/src/*.cpp)
 add_executable(${PROJECT_NAME} ${SRC_FILES})
 target_link_libraries(${PROJECT_NAME} pthread)
 
+include(CTest)
+
+add_test(NAME ls-l_run COMMAND cache ../ls-l.trace)
+
