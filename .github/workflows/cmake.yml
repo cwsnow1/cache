@@ -6,10 +6,6 @@ on:
   pull_request:
     branches: [ "master" ]
 
-
-env:
-  UNZIP_TRACE: "&& unzip ls-l.zip"
-
 jobs:
   build_release:
     # The CMake configure and build commands are platform agnostic and should work equally well on Windows or Mac.
@@ -23,7 +19,10 @@ jobs:
     - name: Configure CMake
       # Configure CMake in a 'build' subdirectory. `CMAKE_BUILD_TYPE` is only required if you are using a single-configuration generator such as make.
       # See https://cmake.org/cmake/help/latest/variable/CMAKE_BUILD_TYPE.html?highlight=cmake_build_type
-      run: cmake -B ${{github.workspace}}/build -DCMAKE_BUILD_TYPE=Release -DSIM_TRACE=0 ${{env.UNZIP_TRACE}}
+      run: cmake -B ${{github.workspace}}/build -DCMAKE_BUILD_TYPE=Release -DSIM_TRACE=0
+
+    - name: Unzip default trace
+      run: unzip ls-l.zip
 
     - name: Build
       # Build your program with the given configuration
@@ -47,7 +46,10 @@ jobs:
     - name: Configure CMake
       # Configure CMake in a 'build' subdirectory. `CMAKE_BUILD_TYPE` is only required if you are using a single-configuration generator such as make.
       # See https://cmake.org/cmake/help/latest/variable/CMAKE_BUILD_TYPE.html?highlight=cmake_build_type
-      run: cmake -B ${{github.workspace}}/build -DCMAKE_BUILD_TYPE=Debug -DSIM_TRACE=0 ${{env.UNZIP_TRACE}}
+      run: cmake -B ${{github.workspace}}/build -DCMAKE_BUILD_TYPE=Debug -DSIM_TRACE=0
+
+    - name: Unzip default trace
+      run: unzip ls-l.zip
 
     - name: Build
       # Build your program with the given configuration
@@ -71,7 +73,10 @@ jobs:
     - name: Configure CMake
       # Configure CMake in a 'build' subdirectory. `CMAKE_BUILD_TYPE` is only required if you are using a single-configuration generator such as make.
       # See https://cmake.org/cmake/help/latest/variable/CMAKE_BUILD_TYPE.html?highlight=cmake_build_type
-      run: cmake -B ${{github.workspace}}/build -DCMAKE_BUILD_TYPE=Release -DSIM_TRACE=1 ${{env.UNZIP_TRACE}}
+      run: cmake -B ${{github.workspace}}/build -DCMAKE_BUILD_TYPE=Release -DSIM_TRACE=1
+
+    - name: Unzip default trace
+      run: unzip ls-l.zip
 
     - name: Build
       # Build your program with the given configuration
@@ -82,6 +87,12 @@ jobs:
       # Execute tests defined by the CMake configuration.
       # See https://cmake.org/cmake/help/latest/manual/ctest.1.html for more detail
       run: make test
+
+    - name: Upload artifacts
+      uses: actions/upload-artifact@v3
+      with:
+        name: release_sim_trace
+        path: sim_trace.bin
 
   build_sim_trace_debug:
     # The CMake configure and build commands are platform agnostic and should work equally well on Windows or Mac.
@@ -95,7 +106,10 @@ jobs:
     - name: Configure CMake
       # Configure CMake in a 'build' subdirectory. `CMAKE_BUILD_TYPE` is only required if you are using a single-configuration generator such as make.
       # See https://cmake.org/cmake/help/latest/variable/CMAKE_BUILD_TYPE.html?highlight=cmake_build_type
-      run: cmake -B ${{github.workspace}}/build -DCMAKE_BUILD_TYPE=Debug -DSIM_TRACE=1 ${{env.UNZIP_TRACE}}
+      run: cmake -B ${{github.workspace}}/build -DCMAKE_BUILD_TYPE=Debug -DSIM_TRACE=1
+
+    - name: Unzip default trace
+      run: unzip ls-l.zip
 
     - name: Build
       # Build your program with the given configuration
@@ -106,6 +120,12 @@ jobs:
       # Execute tests defined by the CMake configuration.
       # See https://cmake.org/cmake/help/latest/manual/ctest.1.html for more detail
       run: make test
+
+    - name: Upload artifacts
+      uses: actions/upload-artifact@v3
+      with:
+        name: debug_sim_trace
+        path: sim_trace.bin
 
   build_console_print_release:
     # The CMake configure and build commands are platform agnostic and should work equally well on Windows or Mac.
@@ -119,17 +139,11 @@ jobs:
     - name: Configure CMake
       # Configure CMake in a 'build' subdirectory. `CMAKE_BUILD_TYPE` is only required if you are using a single-configuration generator such as make.
       # See https://cmake.org/cmake/help/latest/variable/CMAKE_BUILD_TYPE.html?highlight=cmake_build_type
-      run: cmake -B ${{github.workspace}}/build -DCMAKE_BUILD_TYPE=Release -DSIM_TRACE=0 -DCONSOLE_PRINT=1 ${{env.UNZIP_TRACE}}
+      run: cmake -B ${{github.workspace}}/build -DCMAKE_BUILD_TYPE=Release -DSIM_TRACE=0 -DCONSOLE_PRINT=1
 
     - name: Build
       # Build your program with the given configuration
       run: cmake --build ${{github.workspace}}/build --config Release
-
-    - name: Test
-      working-directory: ${{github.workspace}}/build
-      # Execute tests defined by the CMake configuration.
-      # See https://cmake.org/cmake/help/latest/manual/ctest.1.html for more detail
-      run: make
 
   build_console_print_debug:
     # The CMake configure and build commands are platform agnostic and should work equally well on Windows or Mac.
@@ -143,15 +157,66 @@ jobs:
     - name: Configure CMake
       # Configure CMake in a 'build' subdirectory. `CMAKE_BUILD_TYPE` is only required if you are using a single-configuration generator such as make.
       # See https://cmake.org/cmake/help/latest/variable/CMAKE_BUILD_TYPE.html?highlight=cmake_build_type
-      run: cmake -B ${{github.workspace}}/build -DCMAKE_BUILD_TYPE=Debug -DSIM_TRACE=0 -DCONSOLE_PRINT=1 ${{env.UNZIP_TRACE}}
+      run: cmake -B ${{github.workspace}}/build -DCMAKE_BUILD_TYPE=Debug -DSIM_TRACE=1
 
     - name: Build
       # Build your program with the given configuration
       run: cmake --build ${{github.workspace}}/build --config Debug
 
+  sim_trace_decode_debug:
+    needs: build_sim_trace_debug
+    # The CMake configure and build commands are platform agnostic and should work equally well on Windows or Mac.
+    # You can convert this to a matrix build if you need cross-platform coverage.
+    # See: https://docs.github.com/en/free-pro-team@latest/actions/learn-github-actions/managing-complex-workflows#using-a-build-matrix
+    runs-on: ubuntu-latest
+
+    steps:
+    - uses: actions/checkout@v3
+
+    - name: Configure CMake
+      # Configure CMake in a 'build' subdirectory. `CMAKE_BUILD_TYPE` is only required if you are using a single-configuration generator such as make.
+      # See https://cmake.org/cmake/help/latest/variable/CMAKE_BUILD_TYPE.html?highlight=cmake_build_type
+      run: cmake -B ${{github.workspace}}/build -DCMAKE_BUILD_TYPE=Debug -DSIM_TRACE=1
+
+    - name: Build
+      # Build your program with the given configuration
+      run: cmake --build ${{github.workspace}}/build --config Debug
+
+    - name: Download artifacts
+      uses: actions/download-artifact@v3
+      with:
+        name: debug_sim_trace
+
     - name: Test
       working-directory: ${{github.workspace}}/build
-      # Execute tests defined by the CMake configuration.
-      # See https://cmake.org/cmake/help/latest/manual/ctest.1.html for more detail
-      run: make
+      run: sim_trace_decoder/decoder ../sim_trace.bin out
+
+  sim_trace_decode_release:
+        needs: build_sim_trace_release
+        # The CMake configure and build commands are platform agnostic and should work equally well on Windows or Mac.
+        # You can convert this to a matrix build if you need cross-platform coverage.
+        # See: https://docs.github.com/en/free-pro-team@latest/actions/learn-github-actions/managing-complex-workflows#using-a-build-matrix
+        runs-on: ubuntu-latest
+    
+        steps:
+        - uses: actions/checkout@v3
+    
+        - name: Configure CMake
+          # Configure CMake in a 'build' subdirectory. `CMAKE_BUILD_TYPE` is only required if you are using a single-configuration generator such as make.
+          # See https://cmake.org/cmake/help/latest/variable/CMAKE_BUILD_TYPE.html?highlight=cmake_build_type
+          run: cmake -B ${{github.workspace}}/build -DCMAKE_BUILD_TYPE=Debug -DSIM_TRACE=1
+    
+        - name: Build
+          # Build your program with the given configuration
+          run: cmake --build ${{github.workspace}}/build --config Debug
+    
+        - name: Download artifacts
+          uses: actions/download-artifact@v3
+          with:
+            name: release_sim_trace
+    
+        - name: Test
+          working-directory: ${{github.workspace}}/build
+          run: sim_trace_decoder/decoder ../sim_trace.bin out
+
 
