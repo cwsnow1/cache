@@ -13,13 +13,13 @@
 
 #include "sim_trace_decoder.h"
 
-extern test_params_t gTestParams;
+extern TestParamaters gTestParams;
 
-SimTracer::SimTracer(const char *filename, uint64_t num_configs) {
-    if (num_configs > SIM_TRACE_WARNING_THRESHOLD) {
+SimTracer::SimTracer(const char *filename, uint64_t numberOfConfigs) {
+    if (numberOfConfigs > SIM_TRACE_WARNING_THRESHOLD) {
         printf("The number of configs is very high for simulation tracing.\n");
         printf("There is no issue with that, but it will take ~2 times as long\n");
-        printf("as normal, and will write a .bin file that will be %lu MiB\n\n", (num_configs * kSimTraceBufferSizeInBytes) >> 20);
+        printf("as normal, and will write a .bin file that will be %lu MiB\n\n", (numberOfConfigs * kSimTraceBufferSizeInBytes) >> 20);
         printf("Note: On my setup, making the number of threads unlimited has a\n");
         printf("bigger benefit to performance when sim tracing than when not.\n\n");
         printf("Do you wish to continue? [Y/n]\n");
@@ -29,77 +29,77 @@ SimTracer::SimTracer(const char *filename, uint64_t num_configs) {
             exit(0);
         }
     }
-    assert(num_configs);
+    assert(numberOfConfigs);
 
-    f_ = fopen(filename, "wb");
-    if (f_ == NULL) {
+    pFile_ = fopen(filename, "wb");
+    if (pFile_ == NULL) {
         fprintf(stderr, "Error in opening sim trace file\n");
         exit(1);
     }
     CODE_FOR_ASSERT(size_t ret = 0);
     // uint32_t number of bytes in each sim_trace
     const uint32_t sim_trace_buffer_size_in_bytes =  kSimTraceBufferSizeInBytes;
-    CODE_FOR_ASSERT(ret =) fwrite(&sim_trace_buffer_size_in_bytes, sizeof(uint32_t), 1, f_);
+    CODE_FOR_ASSERT(ret =) fwrite(&sim_trace_buffer_size_in_bytes, sizeof(uint32_t), 1, pFile_);
     assert(ret == 1);
     // uint16_t number of configs
-    CODE_FOR_ASSERT(ret =) fwrite(&num_configs, sizeof(uint16_t), 1, f_);
+    CODE_FOR_ASSERT(ret =) fwrite(&numberOfConfigs, sizeof(uint16_t), 1, pFile_);
     assert(ret == 1);
-    CODE_FOR_ASSERT(ret =) fwrite(&gTestParams.num_cache_levels, sizeof(uint8_t), 1, f_);
+    CODE_FOR_ASSERT(ret =) fwrite(&gTestParams.numberOfCacheLevels, sizeof(uint8_t), 1, pFile_);
     assert(ret == 1);
 
     assert(kSimTraceBufferSizeInBytes <= UINT32_MAX);
-    buffer_append_points_ = new uint8_t*[gTestParams.max_num_threads];
-    sim_trace_buffer_ = new uint8_t*[gTestParams.max_num_threads];
-    entry_counters_ = new uint64_t[gTestParams.max_num_threads]();
-    previous_cycle_counter_ = new uint64_t[gTestParams.max_num_threads]();
-    for (uint64_t i = 0; i < static_cast<uint64_t>(gTestParams.max_num_threads); i++) {
-        sim_trace_buffer_[i] = new uint8_t[kSimTraceBufferSizeInBytes]();
-        buffer_append_points_[i] = sim_trace_buffer_[i];
-        assert(sim_trace_buffer_[i]);
-        memset(sim_trace_buffer_[i], SIM_TRACE__INVALID, kSimTraceBufferSizeInBytes);
+    pBufferAppendPoints_ = new uint8_t*[gTestParams.maxNumberOfThreads];
+    pSimTraceBuffer_ = new uint8_t*[gTestParams.maxNumberOfThreads];
+    pEntryCounters_ = new uint64_t[gTestParams.maxNumberOfThreads]();
+    pPreviousCycleCounter_ = new uint64_t[gTestParams.maxNumberOfThreads]();
+    for (uint64_t i = 0; i < static_cast<uint64_t>(gTestParams.maxNumberOfThreads); i++) {
+        pSimTraceBuffer_[i] = new uint8_t[kSimTraceBufferSizeInBytes]();
+        pBufferAppendPoints_[i] = pSimTraceBuffer_[i];
+        assert(pSimTraceBuffer_[i]);
+        memset(pSimTraceBuffer_[i], SIM_TRACE__INVALID, kSimTraceBufferSizeInBytes);
     }
 }
 
 SimTracer::~SimTracer() {
-    for (uint16_t i = 0; i < gTestParams.max_num_threads; i++) {
-        delete[] sim_trace_buffer_[i];
+    for (uint16_t i = 0; i < gTestParams.maxNumberOfThreads; i++) {
+        delete[] pSimTraceBuffer_[i];
     }
-    delete[] buffer_append_points_;
-    delete[] entry_counters_;
-    delete[] previous_cycle_counter_;
-    delete[] sim_trace_buffer_;
-    fclose(f_);
+    delete[] pBufferAppendPoints_;
+    delete[] pEntryCounters_;
+    delete[] pPreviousCycleCounter_;
+    delete[] pSimTraceBuffer_;
+    fclose(pFile_);
 }
 
-void SimTracer::Print(trace_entry_id_t trace_entry_id, Memory *memory, ...) {
-    uint64_t thread_id = memory->thread_id_;
-    assert(thread_id < static_cast<uint64_t>(gTestParams.max_num_threads));
-    uint64_t cycle = memory->GetCycle();
-    CacheLevel cache_level = memory->GetCacheLevel();
+void SimTracer::Print(trace_entry_id_t traceEntryId, Memory *pMemory, ...) {
+    uint64_t threadId = pMemory->threadId_;
+    assert(threadId < static_cast<uint64_t>(gTestParams.maxNumberOfThreads));
+    uint64_t cycle = pMemory->GetCycle();
+    CacheLevel cacheLevel = pMemory->GetCacheLevel();
     // Roll over when buffer is filled
-    uint8_t *last_entry_ptr = sim_trace_buffer_[thread_id] + SIM_TRACE_LAST_ENTRY_OFFSET;
-    if (buffer_append_points_[thread_id] >= last_entry_ptr) {
-        buffer_append_points_[thread_id] = sim_trace_buffer_[thread_id];
+    uint8_t *pLastEntry = pSimTraceBuffer_[threadId] + SIM_TRACE_LAST_ENTRY_OFFSET;
+    if (pBufferAppendPoints_[threadId] >= pLastEntry) {
+        pBufferAppendPoints_[threadId] = pSimTraceBuffer_[threadId];
     }
     // Sync pattern if needed
-    if (++entry_counters_[thread_id] == SIM_TRACE_SYNC_INTERVAL) {
-        *((sync_pattern_t*)buffer_append_points_[thread_id]) = sync_pattern;
-        buffer_append_points_[thread_id] += sizeof(sync_pattern_t);
-        entry_counters_[thread_id] = 0;
+    if (++pEntryCounters_[threadId] == SIM_TRACE_SYNC_INTERVAL) {
+        *((sync_pattern_t*)pBufferAppendPoints_[threadId]) = kSyncPattern;
+        pBufferAppendPoints_[threadId] += sizeof(sync_pattern_t);
+        pEntryCounters_[threadId] = 0;
     }
-    if (cycle - previous_cycle_counter_[thread_id] > UINT16_MAX) {
+    if (cycle - pPreviousCycleCounter_[threadId] > UINT16_MAX) {
         fprintf(stderr, "cycle offset overflow!\n");
     }
-    uint16_t cycle_offset = (uint8_t)(cycle - previous_cycle_counter_[thread_id]);
-    previous_cycle_counter_[thread_id] = cycle;
-    SimTraceEntry entry = SimTraceEntry(cycle_offset, trace_entry_id, cache_level);
-    *((SimTraceEntry*) buffer_append_points_[thread_id]) = entry;
-    buffer_append_points_[thread_id] += sizeof(SimTraceEntry);
+    uint16_t cycleOffset = (uint8_t)(cycle - pPreviousCycleCounter_[threadId]);
+    pPreviousCycleCounter_[threadId] = cycle;
+    SimTraceEntry entry = SimTraceEntry(cycleOffset, traceEntryId, cacheLevel);
+    *((SimTraceEntry*) pBufferAppendPoints_[threadId]) = entry;
+    pBufferAppendPoints_[threadId] += sizeof(SimTraceEntry);
     va_list values;
-    va_start(values, memory);
-    for (uint8_t i = 0; i < sim_trace_entry_num_arguments[trace_entry_id]; i++) {
-        *((sim_trace_entry_data_t*)buffer_append_points_[thread_id]) = va_arg(values, sim_trace_entry_data_t);
-        buffer_append_points_[thread_id] += sizeof(sim_trace_entry_data_t);
+    va_start(values, pMemory);
+    for (uint8_t i = 0; i < kNumberOfArgumentsInSimTraceEntry[traceEntryId]; i++) {
+        *((sim_trace_entry_data_t*)pBufferAppendPoints_[threadId]) = va_arg(values, sim_trace_entry_data_t);
+        pBufferAppendPoints_[threadId] += sizeof(sim_trace_entry_data_t);
     }
     va_end(values);
 }
@@ -117,32 +117,32 @@ void SimTracer::Print(trace_entry_id_t trace_entry_id, Memory *memory, ...) {
  * buffer
  */
 
-void SimTracer::WriteThreadBuffer(Cache *cache) {
+void SimTracer::WriteThreadBuffer(Cache *pCache) {
     CODE_FOR_ASSERT(size_t ret = 0);
-    uint64_t thread_id = cache->thread_id_;
+    uint64_t threadId = pCache->threadId_;
 
-    uint32_t buffer_append_point_offset = (uint32_t)(buffer_append_points_[thread_id] - sim_trace_buffer_[thread_id]);
-    CODE_FOR_ASSERT(ret =) fwrite(&buffer_append_point_offset, sizeof(uint32_t), 1, f_);
+    uint32_t bufferAppendPointOffset = (uint32_t)(pBufferAppendPoints_[threadId] - pSimTraceBuffer_[threadId]);
+    CODE_FOR_ASSERT(ret =) fwrite(&bufferAppendPointOffset, sizeof(uint32_t), 1, pFile_);
     assert(ret == 1);
     // configs of each cache
-    Configuration *configs = new Configuration[gTestParams.num_cache_levels];
+    Configuration *pConfigs = new Configuration[gTestParams.numberOfCacheLevels];
     uint8_t i = 0;
-    for (Cache *cache_i = cache; cache_i->GetCacheLevel() != kMainMemory; cache_i = static_cast<Cache*>(cache_i->GetLowerCache()), i++) {
-        configs[i].cacheSize = cache_i->GetConfig().cacheSize;
-        configs[i].blockSize = cache_i->GetConfig().blockSize;
-        configs[i].associativity = cache_i->GetConfig().associativity;
+    for (Cache *pCacheIterator = pCache; pCacheIterator->GetCacheLevel() != kMainMemory; pCacheIterator = static_cast<Cache*>(pCacheIterator->GetLowerCache()), i++) {
+        pConfigs[i].cacheSize = pCacheIterator->GetConfig().cacheSize;
+        pConfigs[i].blockSize = pCacheIterator->GetConfig().blockSize;
+        pConfigs[i].associativity = pCacheIterator->GetConfig().associativity;
     }
-    CODE_FOR_ASSERT(ret =) fwrite(configs, sizeof(Configuration), gTestParams.num_cache_levels, f_);
-    assert(ret == gTestParams.num_cache_levels);
-    delete[] configs;
-    CODE_FOR_ASSERT(ret =) fwrite(sim_trace_buffer_[thread_id], sizeof(uint8_t), kSimTraceBufferSizeInBytes, f_);
+    CODE_FOR_ASSERT(ret =) fwrite(pConfigs, sizeof(Configuration), gTestParams.numberOfCacheLevels, pFile_);
+    assert(ret == gTestParams.numberOfCacheLevels);
+    delete[] pConfigs;
+    CODE_FOR_ASSERT(ret =) fwrite(pSimTraceBuffer_[threadId], sizeof(uint8_t), kSimTraceBufferSizeInBytes, pFile_);
     assert(ret == kSimTraceBufferSizeInBytes);
 
     // Reset this thread's buffer for next config to use
-    buffer_append_points_[thread_id] = sim_trace_buffer_[thread_id];
-    entry_counters_[thread_id] = 0;
-    previous_cycle_counter_[thread_id] = 0;
-    memset(sim_trace_buffer_[thread_id], SIM_TRACE__INVALID, kSimTraceBufferSizeInBytes);
+    pBufferAppendPoints_[threadId] = pSimTraceBuffer_[threadId];
+    pEntryCounters_[threadId] = 0;
+    pPreviousCycleCounter_[threadId] = 0;
+    memset(pSimTraceBuffer_[threadId], SIM_TRACE__INVALID, kSimTraceBufferSizeInBytes);
 }
 
 #endif

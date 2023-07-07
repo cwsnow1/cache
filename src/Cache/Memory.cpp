@@ -14,75 +14,75 @@
 #endif
 
 #if (SIM_TRACE == 1)
-extern SimTracer *g_SimTracer;
+extern SimTracer *gSimTracer;
 #else
 SimTracer dummySimTracer = SimTracer();
-SimTracer *g_SimTracer = &dummySimTracer;
+SimTracer *gSimTracer = &dummySimTracer;
 #endif
 
 Memory::Memory(Memory *pLowestCache) {
     cacheLevel_ = kMainMemory;
-    upperCache_ = pLowestCache;
+    pUpperCache_ = pLowestCache;
     earliestNextUsefulCycle_ = UINT64_MAX;
-    lowerCache_ = nullptr;
-    mainMemory_ = this;
+    pLowerCache_ = nullptr;
+    pMainMemory_ = this;
 }
 
 void Memory::AllocateMemory() {
-    requestManager_ = new RequestManager(cacheLevel_);
+    pRequestManager_ = new RequestManager(cacheLevel_);
 }
 
 void Memory::FreeMemory() {
-    delete requestManager_;
+    delete pRequestManager_;
 }
 
 int16_t Memory::AddAccessRequest (Instruction access, uint64_t cycle) {
-    DoubleListElement *element = requestManager_->PopRequestFromFreeList();
+    DoubleListElement *element = pRequestManager_->PopRequestFromFreeList();
     if (element) {
-        requestManager_->AddRequestToWaitingList(element);
-        uint64_t pool_index = element->pool_index_;
-        requestManager_->NewInstruction(pool_index, access, cycle, kAccessTimeInCycles[cacheLevel_]);
-        DEBUG_TRACE("Cache[%hhu] New request added at index %lu, call back at tick %lu\n", cacheLevel_, pool_index, requestManager_->GetRequestAtIndex(pool_index)->cycle_to_call_back);
-        g_SimTracer->Print(SIM_TRACE__REQUEST_ADDED, this, pool_index, access.rw == READ ? 'r' : 'w', (access.ptr >> 32), access.ptr & UINT32_MAX, kAccessTimeInCycles[cacheLevel_]);
+        pRequestManager_->AddRequestToWaitingList(element);
+        uint64_t poolIndex = element->poolIndex_;
+        pRequestManager_->NewInstruction(poolIndex, access, cycle, kAccessTimeInCycles[cacheLevel_]);
+        DEBUG_TRACE("Cache[%hhu] New request added at index %lu, call back at tick %lu\n", cacheLevel_, poolIndex, pRequestManager_->GetRequestAtIndex(poolIndex)->cycleToCallBack);
+        gSimTracer->Print(SIM_TRACE__REQUEST_ADDED, this, poolIndex, access.rw == READ ? 'r' : 'w', (access.ptr >> 32), access.ptr & UINT32_MAX, kAccessTimeInCycles[cacheLevel_]);
 
-        return (int16_t) pool_index;
+        return (int16_t) poolIndex;
     }
     return -1;
 }
 
-uint64_t Memory::InternalProcessCache (uint64_t cycle, int16_t *completed_requests) {
-    uint64_t num_requests_completed = 0;
-    Cache *upperCache = static_cast<Cache*>(upperCache_);
+uint64_t Memory::InternalProcessCache (uint64_t cycle, int16_t *pCompletedRequests) {
+    uint64_t numberOfRequestsCompleted = 0;
+    Cache *upperCache = static_cast<Cache*>(pUpperCache_);
     wasWorkDoneThisCycle_ = false;
     cycle_ = cycle;
-    for_each_in_double_list(requestManager_->GetWaitingRequests()) {
-        DEBUG_TRACE("Cache[%hhu] trying request %lu from waiting list, address=0x%012lx\n", cacheLevel_, pool_index, requestManager_->GetRequestAtIndex(pool_index)->instruction.ptr);
-        if (handleAccess(requestManager_->GetRequestAtIndex(pool_index)) == kWaiting) { 
-            DEBUG_TRACE("Cache[%hhu] request %lu is still waiting, breaking out of loop\n", cacheLevel_, pool_index);
+    for_each_in_double_list(pRequestManager_->GetWaitingRequests()) {
+        DEBUG_TRACE("Cache[%hhu] trying request %lu from waiting list, address=0x%012lx\n", cacheLevel_, poolIndex, pRequestManager_->GetRequestAtIndex(poolIndex)->instruction.ptr);
+        if (handleAccess(pRequestManager_->GetRequestAtIndex(poolIndex)) == kWaiting) { 
+            DEBUG_TRACE("Cache[%hhu] request %lu is still waiting, breaking out of loop\n", cacheLevel_, poolIndex);
             break;
         }
-        DEBUG_TRACE("Cache[%hhu] hit, set=%lu\n", cacheLevel_, upperCache->addressToSetIndex(requestManager_->GetRequestAtIndex(pool_index)->instruction.ptr));
+        DEBUG_TRACE("Cache[%hhu] hit, set=%lu\n", cacheLevel_, upperCache->addressToSetIndex(pRequestManager_->GetRequestAtIndex(poolIndex)->instruction.ptr));
 
-        uint64_t setIndex = upperCache->addressToSetIndex(requestManager_->GetRequestAtIndex(pool_index)->instruction.ptr);
+        uint64_t setIndex = upperCache->addressToSetIndex(pRequestManager_->GetRequestAtIndex(poolIndex)->instruction.ptr);
         DEBUG_TRACE("Cache[%hhu] marking set %lu as no longer busy\n", (uint8_t)(cacheLevel_ - 1), setIndex);
         upperCache->ResetCacheSetBusy(setIndex);
     
-        requestManager_->RemoveRequestFromWaitingList(element_i);
-        requestManager_->PushRequestToFreeList(element_i);
+        pRequestManager_->RemoveRequestFromWaitingList(elementIterator);
+        pRequestManager_->PushRequestToFreeList(elementIterator);
     }
     DEBUG_TRACE("\n");
-    num_requests_completed = upperCache->InternalProcessCache(cycle, completed_requests);
-    upperCache_->wasWorkDoneThisCycle_ = wasWorkDoneThisCycle_;
+    numberOfRequestsCompleted = upperCache->InternalProcessCache(cycle, pCompletedRequests);
+    pUpperCache_->wasWorkDoneThisCycle_ = wasWorkDoneThisCycle_;
 
-    return num_requests_completed;
+    return numberOfRequestsCompleted;
 }
 
 Status Memory::handleAccess (Request *request) {
-    if (cycle_ < request->cycle_to_call_back) {
+    if (cycle_ < request->cycleToCallBack) {
         DEBUG_TRACE("%lu/%lu cycles for this operation in cacheLevel=%hhu\n", cycle_ - request->cycle, kAccessTimeInCycles[cacheLevel_], cacheLevel_);
-        if (earliestNextUsefulCycle_ > request->cycle_to_call_back) {
-            DEBUG_TRACE("Cache[%hhu] next useful cycle set to %lu\n", cacheLevel_, request->cycle_to_call_back);
-            earliestNextUsefulCycle_ = request->cycle_to_call_back;
+        if (earliestNextUsefulCycle_ > request->cycleToCallBack) {
+            DEBUG_TRACE("Cache[%hhu] next useful cycle set to %lu\n", cacheLevel_, request->cycleToCallBack);
+            earliestNextUsefulCycle_ = request->cycleToCallBack;
         }
         return kWaiting;
     }
@@ -93,11 +93,11 @@ Status Memory::handleAccess (Request *request) {
 }
 
 uint64_t Memory::CalculateEarliestNextUsefulCycle() {
-    uint64_t earliest_next_useful_cycle = UINT64_MAX;
+    uint64_t earliestNextUsefulCycle = UINT64_MAX;
     for (Memory *cacheIterator = this; cacheIterator != nullptr; cacheIterator = cacheIterator->GetLowerCache()) {
-        if (cacheIterator->GetEarliestNextUsefulCycle() < earliest_next_useful_cycle) {
-            earliest_next_useful_cycle = cacheIterator->GetEarliestNextUsefulCycle();
+        if (cacheIterator->GetEarliestNextUsefulCycle() < earliestNextUsefulCycle) {
+            earliestNextUsefulCycle = cacheIterator->GetEarliestNextUsefulCycle();
         }
     }
-    return earliest_next_useful_cycle;
+    return earliestNextUsefulCycle;
 }

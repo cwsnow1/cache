@@ -57,7 +57,7 @@ class Memory {
      * @return Memory* memory object one level above this
      */
     Memory *GetUpperCache() {
-        return upperCache_;
+        return pUpperCache_;
     }
 
     /**
@@ -66,7 +66,7 @@ class Memory {
      * @param pUpperCache 
      */
     void SetUpperCache(Memory *pUpperCache) {
-        upperCache_ = pUpperCache;
+        pUpperCache_ = pUpperCache;
     }
 
     /**
@@ -75,7 +75,7 @@ class Memory {
      * @return Memory* memory object one level below this
      */
     Memory *GetLowerCache() {
-        return lowerCache_;
+        return pLowerCache_;
     }
 
     /**
@@ -84,7 +84,7 @@ class Memory {
      * @param pLowerCache 
      */
     void SetLowerCache(Memory *pLowerCache) {
-        lowerCache_ = pLowerCache;
+        pLowerCache_ = pLowerCache;
     }
 
     /**
@@ -115,33 +115,43 @@ class Memory {
      */
     bool GetWasWorkDoneThisCycle() { return wasWorkDoneThisCycle_; }
 
-    void SetWasWorkDoneThisCycle(bool pWasWorkDoneThisCycle) {
-        wasWorkDoneThisCycle_ = pWasWorkDoneThisCycle;
+    /**
+     * @brief                       Set whether work was done this cycle
+     * 
+     * @param wasWorkDoneThisCycle  whether a meaningful piece of work was done such that the upper cache needs to check its busy list
+     */
+    void SetWasWorkDoneThisCycle(bool wasWorkDoneThisCycle) {
+        wasWorkDoneThisCycle_ = wasWorkDoneThisCycle;
     }
 
-    uint64_t InternalProcessCache (uint64_t pCycle, int16_t *pCompletedRequests);
+    /**
+     * @brief                       Simulates a single clock cycle in a single cache level
+     * 
+     * @param cycle                 Current clock cycle
+     * @param pCompletedRequests    Out. An array of the request indices that were completed this tick. Length is the return value
+     * 
+     * @return                      Number of requests completed this tick
+     */
+    uint64_t InternalProcessCache (uint64_t cycle, int16_t *pCompletedRequests);
 
     /**
      * @brief Get the Earliest Next Useful Cycle
      *
-     * @return uint64_t the cycle wherein the next useful piece of work can be
-     * done
+     * @return uint64_t the cycle wherein the next useful piece of work can be done
      */
     uint64_t GetEarliestNextUsefulCycle() { return earliestNextUsefulCycle_; }
 
     /**
      * @brief Get the Earliest Next Useful Cycle
      *
-     * @return uint64_t the cycle wherein the next useful piece of work can be
-     * done
+     * @return uint64_t the cycle wherein the next useful piece of work can be done
      */
     uint64_t CalculateEarliestNextUsefulCycle();
 
     /**
      * @brief Simulates a read or write to an address
      *
-     * @param access    Instruction struct, comprises an address and access type
-     * (R/W)
+     * @param access    Instruction struct, comprises an address and access type (R/W)
      * @param cycle     Current clock cycle
      *
      * @return          The index of the added request, -1 if request add failed
@@ -157,8 +167,8 @@ class Memory {
 
     // Multi-threading fields
     // TODO: move these out of class
-    uint64_t thread_id_;
-    uint64_t config_index_;
+    uint64_t threadId_;
+    uint64_t configIndex_;
 
    protected:
 
@@ -172,14 +182,14 @@ class Memory {
     Status handleAccess(Request *pRequest);
 
     // Cache hierarchy fields
-    Memory *upperCache_;
-    Memory *lowerCache_;
-    Memory *mainMemory_;
+    Memory *pUpperCache_;
+    Memory *pLowerCache_;
+    Memory *pMainMemory_;
     CacheLevel cacheLevel_;
 
     uint64_t cycle_;
 
-    RequestManager* requestManager_;
+    RequestManager* pRequestManager_;
 
     // Data for simulator performance
     uint64_t earliestNextUsefulCycle_;

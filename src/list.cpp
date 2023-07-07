@@ -6,34 +6,34 @@
 #include <stdlib.h>
 
 DoubleList::DoubleList(uint64_t capacity) {
-    head_ = NULL;
-    tail_ = NULL;
+    pHead_ = nullptr;
+    pTail_ = nullptr;
     count_ = 0;
     capacity_ = capacity;
 }
 
 DoubleList::~DoubleList() {
     for_each_in_double_list(this) {
-        (void)pool_index;
-        delete element_i;
+        (void)poolIndex;
+        delete elementIterator;
     }
 }
 
-bool DoubleList::RemoveElement(DoubleListElement *element) {
+bool DoubleList::RemoveElement(DoubleListElement *pElement) {
     for_each_in_double_list(this) {
-        (void)pool_index;
-        if (element_i == element) {
-            if (element->previous_) {
-                element->previous_->next_ = element->next_;
+        (void)poolIndex;
+        if (elementIterator == pElement) {
+            if (pElement->pPrevious_) {
+                pElement->pPrevious_->pNext_ = pElement->pNext_;
             }
-            if (element->next_) {
-                element->next_->previous_ = element->previous_;
+            if (pElement->pNext_) {
+                pElement->pNext_->pPrevious_ = pElement->pPrevious_;
             }
-            if (head_ == element) {
-                head_ = element->next_;
+            if (pHead_ == pElement) {
+                pHead_ = pElement->pNext_;
             }
-            if (tail_ == element) {
-                tail_ = element->previous_;
+            if (pTail_ == pElement) {
+                pTail_ = pElement->pPrevious_;
             }
             count_--;
             return true;
@@ -42,43 +42,43 @@ bool DoubleList::RemoveElement(DoubleListElement *element) {
     return false;
 }
 
-bool DoubleList::AddElementToTail(DoubleListElement *element) {
+bool DoubleList::AddElementToTail(DoubleListElement *pElement) {
     if (count_ == capacity_) {
         return false;
     }
-    element->next_ = NULL;
-    element->previous_ = tail_;
-    if (tail_) {
-        tail_->next_ = element;
+    pElement->pNext_ = NULL;
+    pElement->pPrevious_ = pTail_;
+    if (pTail_) {
+        pTail_->pNext_ = pElement;
     } else {
-        head_ = element;
+        pHead_ = pElement;
     }
-    tail_ = element;
+    pTail_ = pElement;
     count_++;
     return true;
 }
 
-bool DoubleList::PushElement(DoubleListElement *element) {
+bool DoubleList::PushElement(DoubleListElement *pElement) {
     if (count_ == capacity_) {
         return false;
     }
-    element->previous_ = NULL;
-    element->next_ = head_;
-    if (head_) {
-        head_->previous_ = element;
+    pElement->pPrevious_ = NULL;
+    pElement->pNext_ = pHead_;
+    if (pHead_) {
+        pHead_->pPrevious_ = pElement;
     }
-    head_ = element;
+    pHead_ = pElement;
     count_++;
     return true;
 }
 
 DoubleListElement *DoubleList::PopElement() {
-    DoubleListElement *head = head_;
+    DoubleListElement *head = pHead_;
     if (head) {
-        if (head->next_) {
-            head->next_->previous_ = NULL;
+        if (head->pNext_) {
+            head->pNext_->pPrevious_ = NULL;
         }
-        head_ = head->next_;
+        pHead_ = head->pNext_;
         count_--;
     }
     return head;
