@@ -28,14 +28,14 @@ void IOUtilities::PrintStatistics (Memory *memory, uint64_t cycle, FILE *stream)
     }
     fprintf(stream, "CACHE LEVEL %d\n", cache_level);
     fprintf(stream, "size=%luB, block_size=%luB, associativity=%lu\n", config.cacheSize, config.blockSize, config.associativity);
-    float num_reads =  (float) (stats.readHits  + stats.readMisses);
-    float num_writes = (float) (stats.writeHits + stats.writeMisses);
-    float read_miss_rate =  (float) stats.readMisses  / num_reads;
-    float write_miss_rate = (float) stats.writeMisses / num_writes;
-    float total_miss_rate = (float) (stats.readMisses + stats.writeMisses) / (num_writes + num_reads);
-    fprintf(stream, "Number of reads:    %08d\n", (int) num_reads);
+    uint64_t numberOfReads =  stats.readHits  + stats.readMisses;
+    uint64_t numberOfWrites = stats.writeHits + stats.writeMisses;
+    float read_miss_rate =  static_cast<float> (stats.readMisses)  / numberOfReads;
+    float write_miss_rate = static_cast<float> (stats.writeMisses) / numberOfWrites;
+    float total_miss_rate = static_cast<float> (stats.readMisses + stats.writeMisses) / (numberOfWrites + numberOfReads);
+    fprintf(stream, "Number of reads:    %08lu\n", stats.readHits  + stats.readMisses);
     fprintf(stream, "Read miss rate:     %7.3f%%\n", 100.f * read_miss_rate);
-    fprintf(stream, "Number of writes:   %08d\n", (int) num_writes);
+    fprintf(stream, "Number of writes:   %08lu\n", stats.writeHits + stats.writeMisses);
     fprintf(stream, "Write miss rate:    %7.3f%%\n", 100.0f * write_miss_rate);
     fprintf(stream, "Total miss rate:    %7.3f%%\n", 100.0f * total_miss_rate);
     if (cache_level == gTestParams.numberOfCacheLevels - 1) {
@@ -44,9 +44,9 @@ void IOUtilities::PrintStatistics (Memory *memory, uint64_t cycle, FILE *stream)
         fprintf(stream, "Main memory writes: %08lu\n\n", stats.writebacks);
         fprintf(stream, "Total number of cycles: %010lu\n", cycle);
         Statistics topLevelStats = cache->GetTopLevelCache()->GetStats();
-        float num_reads =  (float) (topLevelStats.readHits  + topLevelStats.readMisses);
-        float num_writes = (float) (topLevelStats.writeHits + topLevelStats.writeMisses);
-        float cpi = (float) cycle / (num_reads + num_writes);
+        uint64_t numberOfTopLevelReads =  topLevelStats.readHits  + topLevelStats.readMisses;
+        uint64_t numberOfTopLevelWrites = topLevelStats.writeHits + topLevelStats.writeMisses;
+        float cpi = static_cast<float>(cycle) / (numberOfTopLevelReads + numberOfTopLevelWrites);
         fprintf(stream, "CPI: %.4f\n", cpi);
         fprintf(stream, "=========================\n\n");
     } else {
@@ -66,18 +66,18 @@ void IOUtilities::PrintStatisticsCSV (Memory *memory, uint64_t cycle, FILE *stre
         return;
     }
     fprintf(stream, "%d,%lu,%lu,%lu,", cache_level, config.cacheSize, config.blockSize, config.associativity);
-    float num_reads =  (float) (stats.readHits  + stats.readMisses);
-    float num_writes = (float) (stats.writeHits + stats.writeMisses);
-    float read_miss_rate =  (float) stats.readMisses  / num_reads;
-    float write_miss_rate = (float) stats.writeMisses / num_writes;
-    float total_miss_rate = (float) (stats.readMisses + stats.writeMisses) / (num_writes + num_reads);
-    fprintf(stream, "%08d,%7.3f%%,%08d,%7.3f%%,%7.3f%%,", (int) num_reads, 100.f * read_miss_rate, (int) num_writes, 100.0f * write_miss_rate, 100.0f * total_miss_rate);
+    uint64_t numberOfReads =  stats.readHits  + stats.readMisses;
+    uint64_t numberOfWrites = stats.writeHits + stats.writeMisses;
+    float read_miss_rate =  static_cast<float> (stats.readMisses)  / numberOfReads;
+    float write_miss_rate = static_cast<float> (stats.writeMisses) / numberOfWrites;
+    float total_miss_rate = static_cast<float> (stats.readMisses + stats.writeMisses) / (numberOfReads + numberOfWrites);
+    fprintf(stream, "%08lu,%7.3f%%,%08lu,%7.3f%%,%7.3f%%,", numberOfWrites, 100.f * read_miss_rate, numberOfWrites, 100.0f * write_miss_rate, 100.0f * total_miss_rate);
     if (cache_level == gTestParams.numberOfCacheLevels - 1) {
         fprintf(stream, "%08lu,%08lu,%010lu,", stats.readMisses + stats.writeMisses, stats.writebacks, cycle);
         Statistics topLevelStats = cache->GetTopLevelCache()->GetStats();
-        float num_reads =  (float) (topLevelStats.readHits  + topLevelStats.readMisses);
-        float num_writes = (float) (topLevelStats.writeHits + topLevelStats.writeMisses);
-        float cpi = (float) cycle / (num_reads + num_writes);
+        uint64_t numberOfTopLevelReads =  topLevelStats.readHits  + topLevelStats.readMisses;
+        uint64_t numberOfTopLevelWrites = topLevelStats.writeHits + topLevelStats.writeMisses;
+        float cpi = static_cast<float> (cycle) / (numberOfTopLevelReads + numberOfTopLevelWrites);
         fprintf(stream, "%.4f\n", cpi);
     } else {
         PrintStatisticsCSV(memory->GetLowerCache(), cycle, stream);
@@ -178,7 +178,7 @@ uint8_t * IOUtilities::ReadInFile (const char* filename, uint64_t *length) {
     assert(length);
 
     uint8_t *buffer = NULL;
-    size_t m;
+    uint64_t m;
 
     FILE* f = fopen(filename, "r");
     if (f == NULL) {
@@ -198,7 +198,7 @@ uint8_t * IOUtilities::ReadInFile (const char* filename, uint64_t *length) {
     if (fread(buffer, 1, m, f) != m)    goto error;
     fclose(f);
 
-    *length = (uint64_t) m;
+    *length = m;
     return buffer;
 
 error:
@@ -214,7 +214,7 @@ void IOUtilities::parseLine (uint8_t *line, uint64_t *address, access_t *rw) {
     *rw = (rw_c == 'R') ? READ : WRITE;
     line += RW_LENGHT_IN_BYTES + AFTER_RW_LENGTH_IN_BYTES;
     char* end_ptr;
-    *address = strtoll((char*) line, &end_ptr, 16);
+    *address = strtoll(reinterpret_cast<char*> (line), &end_ptr, 16);
     assert(*end_ptr == '\n');
 }
 

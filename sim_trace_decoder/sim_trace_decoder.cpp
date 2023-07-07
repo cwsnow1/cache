@@ -17,7 +17,7 @@
 #include "SimTracer.h"
 #include "sim_trace_decoder.h"
 
-constexpr uint64_t kMaxNumberOfThreads = (MEMORY_USAGE_LIMIT / (uint64_t)kSimTraceBufferSizeInBytes);
+constexpr uint64_t kMaxNumberOfThreads = (MEMORY_USAGE_LIMIT / kSimTraceBufferSizeInBytes);
 constexpr int kOutputFilesizeMaxLength = 100;
 
 static uint32_t bufferSize;
@@ -64,9 +64,9 @@ static FILE *readInFileHeader (const char *filename) {
     // buffers
     pBuffers = new uint8_t*[numberOfThreads];
     assert(pBuffers);
-    for (uint64_t thread_id = 0; thread_id < numberOfThreads; thread_id++) {
-        pBuffers[thread_id] =  new uint8_t[bufferSize];
-        assert(pBuffers[thread_id]);
+    for (uint64_t threadId = 0; threadId < numberOfThreads; threadId++) {
+        pBuffers[threadId] =  new uint8_t[bufferSize];
+        assert(pBuffers[threadId]);
     }
     return pFile;
 }
@@ -109,7 +109,7 @@ int main (int argc, char* argv[]) {
         bool wrapped = false;
         // Find sync pattern
         uint16_t bytesLost = 0;
-        for (; *((sync_pattern_t*)pBuffer) != kSyncPattern; pBuffer++, bytesLost++) {
+        for (; *(reinterpret_cast<sync_pattern_t*>(pBuffer)) != kSyncPattern; pBuffer++, bytesLost++) {
             if (pBuffer >= pLastEntry) {
                 pBuffer = pBuffers[threadId];
                 wrapped = true;
@@ -126,13 +126,13 @@ int main (int argc, char* argv[]) {
 
             // Skip sync pattern
             if (entryCounter == SIM_TRACE_SYNC_INTERVAL) {
-                assert(*((sync_pattern_t*) pBuffer) == kSyncPattern);
+                assert(*(reinterpret_cast<sync_pattern_t*>(pBuffer)) == kSyncPattern);
                 pBuffer += sizeof(sync_pattern_t);
                 entryCounter = 0;
             }
             entryCounter++;
 
-            SimTraceEntry entry = *((SimTraceEntry*) pBuffer);
+            SimTraceEntry entry = *(reinterpret_cast<SimTraceEntry*> (pBuffer));
             assert(entry.trace_entry_id < kNumberOfSimTraceEntries);
             pBuffer += sizeof(SimTraceEntry);
             assert(pBuffer < pBuffers[threadId] + bufferSize);
@@ -146,25 +146,25 @@ int main (int argc, char* argv[]) {
                 fprintf(pOutputFile, "%s", simTraceEntryDefinitions[entry.trace_entry_id]);
                 break;
             case 1:
-                fprintf(pOutputFile, simTraceEntryDefinitions[entry.trace_entry_id], *((sim_trace_entry_data_t*)pBuffer));
+                fprintf(pOutputFile, simTraceEntryDefinitions[entry.trace_entry_id], *(reinterpret_cast<sim_trace_entry_data_t*>(pBuffer)));
                 break;
             case 2:
                 fprintf(pOutputFile, simTraceEntryDefinitions[entry.trace_entry_id],
-                    *((sim_trace_entry_data_t*)pBuffer), *((sim_trace_entry_data_t*)pBuffer + 1));
+                    *(reinterpret_cast<sim_trace_entry_data_t*>(pBuffer)), *(reinterpret_cast<sim_trace_entry_data_t*>(pBuffer) + 1));
                 break;
             case 3:
                 fprintf(pOutputFile, simTraceEntryDefinitions[entry.trace_entry_id],
-                    *((sim_trace_entry_data_t*)pBuffer), *((sim_trace_entry_data_t*)pBuffer + 1), *((sim_trace_entry_data_t*)pBuffer + 2));
+                    *(reinterpret_cast<sim_trace_entry_data_t*>(pBuffer)), *(reinterpret_cast<sim_trace_entry_data_t*>(pBuffer) + 1), *(reinterpret_cast<sim_trace_entry_data_t*>(pBuffer) + 2));
                 break;
             case 4:
                 fprintf(pOutputFile, simTraceEntryDefinitions[entry.trace_entry_id],
-                    *((sim_trace_entry_data_t*)pBuffer), *((sim_trace_entry_data_t*)pBuffer + 1),
-                    *((sim_trace_entry_data_t*)pBuffer + 2), *((sim_trace_entry_data_t*)pBuffer + 3));
+                    *(reinterpret_cast<sim_trace_entry_data_t*>(pBuffer)), *(reinterpret_cast<sim_trace_entry_data_t*>(pBuffer) + 1),
+                    *(reinterpret_cast<sim_trace_entry_data_t*>(pBuffer) + 2), *(reinterpret_cast<sim_trace_entry_data_t*>(pBuffer) + 3));
                 break;
             case 5:
                 fprintf(pOutputFile, simTraceEntryDefinitions[entry.trace_entry_id],
-                    *((sim_trace_entry_data_t*)pBuffer), *((sim_trace_entry_data_t*)pBuffer + 1),
-                    *((sim_trace_entry_data_t*)pBuffer + 2), *((sim_trace_entry_data_t*)pBuffer + 3), *((sim_trace_entry_data_t*)pBuffer + 4));
+                    *(reinterpret_cast<sim_trace_entry_data_t*>(pBuffer)), *(reinterpret_cast<sim_trace_entry_data_t*>(pBuffer) + 1),
+                    *(reinterpret_cast<sim_trace_entry_data_t*>(pBuffer) + 2), *(reinterpret_cast<sim_trace_entry_data_t*>(pBuffer) + 3), *(reinterpret_cast<sim_trace_entry_data_t*>(pBuffer) + 4));
                 break;
             default:
                 fprintf(stderr, "MAX_NUM_SIM_TRACE_VALUES is too low\n");

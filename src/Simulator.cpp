@@ -67,17 +67,17 @@ void* Simulator::TrackProgress(void * pSimulatorPointer) {
     Simulator *pSimulator = static_cast<Simulator*>(pSimulatorPointer);
     printf("Running... %02.0f%% complete\n", 0.0f);
     while(pSimulator->configsToTest_) {
-        float configs_done = (float) (pSimulator->numConfigs_ - pSimulator->configsToTest_);
-        float progress_percent = (configs_done / (float) pSimulator->numConfigs_) * 100.0f;
+        uint64_t configsDone = pSimulator->numConfigs_ - pSimulator->configsToTest_;
+        float progressPercent = (configsDone / static_cast<float> (pSimulator->numConfigs_)) * 100.0f;
         printf("\x1b[1A");
-        printf("Running... %d threads running, %lu to go. %02.0f%% complete\n", pSimulator->numThreadsOutstanding_, pSimulator->configsToTest_, progress_percent);
+        printf("Running... %d threads running, %lu to go. %02.0f%% complete\n", pSimulator->numThreadsOutstanding_, pSimulator->configsToTest_, progressPercent);
         sleep(1);
     }
     pthread_exit(NULL);
 }
 
 void Simulator::PrintStats(FILE* pTextStream, FILE* pCSVStream) {
-    float min_cpi = (float) pCycleCounter_[0];
+    float minCpi = static_cast<float> (pCycleCounter_[0]);
     uint64_t min_i = 0;
     if (pCSVStream) {
         for (int i = 0; i < gTestParams.numberOfCacheLevels; i++) {
@@ -89,18 +89,18 @@ void Simulator::PrintStats(FILE* pTextStream, FILE* pCSVStream) {
         IOUtilities::PrintStatistics(pCaches_[i], pCycleCounter_[i], pTextStream);
         IOUtilities::PrintStatisticsCSV(pCaches_[i], pCycleCounter_[i], pCSVStream);
         Statistics stats = pCaches_[i]->GetStats();
-        float num_reads =  (float) (stats.readHits  + stats.readMisses);
-        float num_writes = (float) (stats.writeHits + stats.writeMisses);
-        float cpi = (float) pCycleCounter_[i] / (num_reads + num_writes);
-        if (cpi < min_cpi) {
-            min_cpi = cpi;
+        uint64_t numberOfReads =  stats.readHits  + stats.readMisses;
+        uint64_t numberOfWrites = stats.writeHits + stats.writeMisses;
+        float cpi = static_cast<float> (pCycleCounter_[i]) / (numberOfReads + numberOfWrites);
+        if (cpi < minCpi) {
+            minCpi = cpi;
             min_i = i;
         }
     }
     if (pCSVStream) {
         fclose(pCSVStream);
     }
-    fprintf(pTextStream, "The config with the lowest CPI of %.4f:\n", min_cpi);
+    fprintf(pTextStream, "The config with the lowest CPI of %.4f:\n", minCpi);
     IOUtilities::PrintConfiguration(pCaches_[min_i], pTextStream);
 }
 
@@ -210,7 +210,8 @@ void Simulator::CreateAndRunThreads (void) {
 
     // internal threadId to pthread threadId mapping used to track which threads are active
     pThreadsOutstanding_ = new pthread_t[gTestParams.maxNumberOfThreads];
-    memset(pThreadsOutstanding_, (int) kInvalidThreadId, sizeof(pthread_t) * gTestParams.maxNumberOfThreads);
+    // Cast of kInvalidThreadId to int is OK for memset because it is all 1
+    memset(pThreadsOutstanding_, static_cast<int> (kInvalidThreadId), sizeof(pthread_t) * gTestParams.maxNumberOfThreads);
     SimCacheContext *contexts = new SimCacheContext[numConfigs_];
     for (uint64_t i = 0; i < numConfigs_; i++) {
         while (numThreadsOutstanding_ == gTestParams.maxNumberOfThreads)

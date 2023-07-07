@@ -45,7 +45,7 @@ int16_t Memory::AddAccessRequest (Instruction access, uint64_t cycle) {
         DEBUG_TRACE("Cache[%hhu] New request added at index %lu, call back at tick %lu\n", cacheLevel_, poolIndex, pRequestManager_->GetRequestAtIndex(poolIndex)->cycleToCallBack);
         gSimTracer->Print(SIM_TRACE__REQUEST_ADDED, this, poolIndex, access.rw == READ ? 'r' : 'w', (access.ptr >> 32), access.ptr & UINT32_MAX, kAccessTimeInCycles[cacheLevel_]);
 
-        return (int16_t) poolIndex;
+        return static_cast<int16_t> (poolIndex);
     }
     return -1;
 }
