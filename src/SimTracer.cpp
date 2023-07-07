@@ -83,22 +83,23 @@ void SimTracer::Print(trace_entry_id_t traceEntryId, Memory *pMemory, ...) {
     }
     // Sync pattern if needed
     if (++pEntryCounters_[threadId] == SIM_TRACE_SYNC_INTERVAL) {
-        *((sync_pattern_t*)pBufferAppendPoints_[threadId]) = kSyncPattern;
+        *(reinterpret_cast<sync_pattern_t*> (pBufferAppendPoints_[threadId])) = kSyncPattern;
         pBufferAppendPoints_[threadId] += sizeof(sync_pattern_t);
         pEntryCounters_[threadId] = 0;
     }
     if (cycle - pPreviousCycleCounter_[threadId] > UINT16_MAX) {
         fprintf(stderr, "cycle offset overflow!\n");
     }
-    uint16_t cycleOffset = (uint8_t)(cycle - pPreviousCycleCounter_[threadId]);
+    // Cast is OK because of check above
+    uint16_t cycleOffset = static_cast<uint16_t> (cycle - pPreviousCycleCounter_[threadId]);
     pPreviousCycleCounter_[threadId] = cycle;
     SimTraceEntry entry = SimTraceEntry(cycleOffset, traceEntryId, cacheLevel);
-    *((SimTraceEntry*) pBufferAppendPoints_[threadId]) = entry;
+    *(reinterpret_cast<SimTraceEntry*> (pBufferAppendPoints_[threadId])) = entry;
     pBufferAppendPoints_[threadId] += sizeof(SimTraceEntry);
     va_list values;
     va_start(values, pMemory);
     for (uint8_t i = 0; i < kNumberOfArgumentsInSimTraceEntry[traceEntryId]; i++) {
-        *((sim_trace_entry_data_t*)pBufferAppendPoints_[threadId]) = va_arg(values, sim_trace_entry_data_t);
+        *(reinterpret_cast<sim_trace_entry_data_t*> (pBufferAppendPoints_[threadId])) = va_arg(values, sim_trace_entry_data_t);
         pBufferAppendPoints_[threadId] += sizeof(sim_trace_entry_data_t);
     }
     va_end(values);
@@ -121,7 +122,8 @@ void SimTracer::WriteThreadBuffer(Cache *pCache) {
     CODE_FOR_ASSERT(size_t ret = 0);
     uint64_t threadId = pCache->threadId_;
 
-    uint32_t bufferAppendPointOffset = (uint32_t)(pBufferAppendPoints_[threadId] - pSimTraceBuffer_[threadId]);
+    // Cast is OK because buffers will be less 4GiB
+    uint32_t bufferAppendPointOffset = static_cast<uint32_t> (pBufferAppendPoints_[threadId] - pSimTraceBuffer_[threadId]);
     CODE_FOR_ASSERT(ret =) fwrite(&bufferAppendPointOffset, sizeof(uint32_t), 1, pFile_);
     assert(ret == 1);
     // configs of each cache

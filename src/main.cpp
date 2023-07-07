@@ -46,12 +46,12 @@ int main (int argc, char** argv) {
         pCsvOutputStream = fopen(csvOutputFilename, "w");
     }
 
-    Simulator* simulator = new Simulator(argv[1]);
+    Simulator* pSimulator = new Simulator(argv[1]);
 
-    simulator->CreateAndRunThreads();
-    simulator->PrintStats(pTextOutputStream, pCsvOutputStream);
+    pSimulator->CreateAndRunThreads();
+    pSimulator->PrintStats(pTextOutputStream, pCsvOutputStream);
 
-    delete simulator;
+    delete pSimulator;
     if (pTextOutputStream != stdout) {
         fclose(pTextOutputStream);
     }

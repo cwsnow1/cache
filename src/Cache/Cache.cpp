@@ -77,8 +77,8 @@ void Cache::AllocateMemory () {
     for (uint64_t i = 0; i < numSets_; i++) {
         sets_[i].ways = new Block[config_.associativity];
         sets_[i].lruList = new uint8_t[config_.associativity];
-        for (uint64_t j = 0; j < config_.associativity; j++) {
-            sets_[i].lruList[j] = (uint8_t) j;
+        for (uint8_t j = 0; j < config_.associativity; j++) {
+            sets_[i].lruList[j] = j;
         }
     }
     pRequestManager_ = new RequestManager(cacheLevel_);
@@ -141,7 +141,7 @@ void Cache::updateLRUList (uint64_t setIndex, uint8_t mruIndex) {
         }
         previousValue = tmp;
     }
-    gSimTracer->Print(SIM_TRACE__LRU_UPDATE, static_cast<Memory*>(this), (uint32_t) setIndex, lruList[0], lruList[config_.associativity - 1]);
+    gSimTracer->Print(SIM_TRACE__LRU_UPDATE, static_cast<Memory*>(this), static_cast<uint32_t>(setIndex), lruList[0], lruList[config_.associativity - 1]);
 }
 
 int16_t Cache::evictBlock (uint64_t setIndex) {
@@ -233,10 +233,11 @@ Status Cache::handleAccess (Request *request) {
         gSimTracer->Print(SIM_TRACE__MISS, static_cast<Memory*>(this), pRequestManager_->GetPoolIndex(request), setIndex);
         request->IsFirstAttempt = false;
         int16_t requestedBlock = requestBlock(setIndex, blockAddress);
-        if (requestedBlock == -1) {
+        if (requestedBlock < 0) {
             return kMiss;
         }
-        blockIndex = (uint8_t) requestedBlock;
+        // Cast is OK after check above
+        blockIndex = static_cast<uint8_t>(requestedBlock);
         sets_[setIndex].busy = true;
         DEBUG_TRACE("Cache[%hhu] set %lu marked as busy due to miss\n", cacheLevel_, setIndex);
         if (access.rw == READ) {
