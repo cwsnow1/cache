@@ -7,57 +7,57 @@
 #include "debug.h"
 
 RequestManager::RequestManager(CacheLevel pCacheLevel) {
-    maxOutstandingRequests = RequestManager::kMaxNumberOfRequests << pCacheLevel;
-    requestPool = new Request[maxOutstandingRequests];
-    waitingRequests = new DoubleList(maxOutstandingRequests);
-    busyRequests = new DoubleList(maxOutstandingRequests);
-    freeRequests = new DoubleList(maxOutstandingRequests);
-    for (uint64_t i = 0; i < maxOutstandingRequests; i++) {
+    maxOutstandingRequests_ = RequestManager::kMaxNumberOfRequests << pCacheLevel;
+    pRequestPool_ = new Request[maxOutstandingRequests_];
+    pWaitingRequests_ = new DoubleList(maxOutstandingRequests_);
+    pBusyRequests_ = new DoubleList(maxOutstandingRequests_);
+    pFreeRequests_ = new DoubleList(maxOutstandingRequests_);
+    for (uint64_t i = 0; i < maxOutstandingRequests_; i++) {
         DoubleListElement *element = new DoubleListElement;
-        element->pool_index_ = i;
-        freeRequests->PushElement(element);
+        element->poolIndex_ = i;
+        pFreeRequests_->PushElement(element);
     }
 }
 
 RequestManager::~RequestManager() {
-    delete[] requestPool;
-    delete waitingRequests;
-    delete freeRequests;
-    delete busyRequests;
+    delete[] pRequestPool_;
+    delete pWaitingRequests_;
+    delete pFreeRequests_;
+    delete pBusyRequests_;
 }
 
 void RequestManager::AddRequestToBusyList(DoubleListElement *pElement) {
-    busyRequests->AddElementToTail(pElement);
+    pBusyRequests_->AddElementToTail(pElement);
 }
 
 void RequestManager::RemoveRequestFromBusyList(DoubleListElement *pElement) {
-    CODE_FOR_ASSERT(bool ret = ) busyRequests->RemoveElement(pElement);
+    CODE_FOR_ASSERT(bool ret = ) pBusyRequests_->RemoveElement(pElement);
     assert(ret);
 }
 
 void RequestManager::RemoveRequestFromWaitingList(DoubleListElement *pElement) {
-    CODE_FOR_ASSERT(bool ret = ) waitingRequests->RemoveElement(pElement);
+    CODE_FOR_ASSERT(bool ret = ) pWaitingRequests_->RemoveElement(pElement);
     assert(ret);
 }
 
 void RequestManager::AddRequestToWaitingList(DoubleListElement *pElement) {
-    CODE_FOR_ASSERT(bool ret = ) waitingRequests->AddElementToTail(pElement);
+    CODE_FOR_ASSERT(bool ret = ) pWaitingRequests_->AddElementToTail(pElement);
     assert(ret);
 }
 
 void RequestManager::PushRequestToFreeList(DoubleListElement *pElement) {
-    CODE_FOR_ASSERT(bool ret = ) freeRequests->PushElement(pElement);
+    CODE_FOR_ASSERT(bool ret = ) pFreeRequests_->PushElement(pElement);
     assert(ret);
 }
 
 DoubleListElement *RequestManager::PopRequestFromFreeList() {
-    return freeRequests->PopElement();
+    return pFreeRequests_->PopElement();
 }
 
-void RequestManager::NewInstruction(uint64_t pPoolIndex, Instruction pAccess, uint64_t pCycle, uint64_t pAccessTimeInCycles) {
-    Request *request = &requestPool[pPoolIndex];
-    request->instruction = pAccess;
-    request->cycle = pCycle;
-    request->cycle_to_call_back = pCycle + pAccessTimeInCycles;
-    request->first_attempt = true;
+void RequestManager::NewInstruction(uint64_t poolIndex, Instruction access, uint64_t cycle, uint64_t accessTimeInCycles) {
+    Request *pRequest = &pRequestPool_[poolIndex];
+    pRequest->instruction = access;
+    pRequest->cycle = cycle;
+    pRequest->cycleToCallBack = cycle + accessTimeInCycles;
+    pRequest->IsFirstAttempt = true;
 }

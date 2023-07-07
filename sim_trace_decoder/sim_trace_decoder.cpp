@@ -17,22 +17,22 @@
 #include "SimTracer.h"
 #include "sim_trace_decoder.h"
 
-#define MAX_NUM_THREADS (MEMORY_USAGE_LIMIT / (uint64_t)kSimTraceBufferSizeInBytes)
-#define OUTPUT_FILESIZE_MAX_LENGTH (100)
+constexpr uint64_t kMaxNumberOfThreads = (MEMORY_USAGE_LIMIT / (uint64_t)kSimTraceBufferSizeInBytes);
+constexpr int kOutputFilesizeMaxLength = 100;
 
-static uint32_t buffer_size;
-static uint16_t num_threads;
-static uint16_t num_configs;
-static uint32_t *oldest_indices;
-static uint8_t num_cache_levels;
-static Configuration *configs;
-static uint8_t **buffers;
+static uint32_t bufferSize;
+static uint16_t numberOfThreads;
+static uint16_t numberOfConfigs;
+static uint32_t *pOldestIndices;
+static uint8_t numberOfCacheLevels;
+static Configuration *pConfigs;
+static uint8_t **pBuffers;
 
 /**
  * File format is as follows:
  * uint32_t buffer size in bytes
  * uint16_t number of configs
- * uint8_t num_cache_levels
+ * uint8_t numberOfCacheLevels
  * Config entries
  * 
  * Config entry is as follows:
@@ -41,34 +41,34 @@ static uint8_t **buffers;
  * buffer
  */
 
-static FILE *read_in_file_header (const char *filename) {
-    FILE *f = fopen(filename, "rb");
-    assert(f);
+static FILE *readInFileHeader (const char *filename) {
+    FILE *pFile = fopen(filename, "rb");
+    assert(pFile);
 
     // uint32_t, buffer size in bytes
-    assert(fread(&buffer_size, sizeof(uint32_t), 1, f));
-    assert(buffer_size);
+    assert(fread(&bufferSize, sizeof(uint32_t), 1, pFile));
+    assert(bufferSize);
 
     // uint16_t, number of configs
-    assert(fread(&num_configs, sizeof(uint16_t), 1, f));
-    assert(num_configs);
+    assert(fread(&numberOfConfigs, sizeof(uint16_t), 1, pFile));
+    assert(numberOfConfigs);
 
-    // uint8_t num_cache_levels
-    assert(fread(&num_cache_levels, sizeof(uint8_t), 1, f) == 1);
+    // uint8_t numberOfCacheLevels
+    assert(fread(&numberOfCacheLevels, sizeof(uint8_t), 1, pFile) == 1);
 
-    configs = new Configuration[num_cache_levels];
-    assert(num_cache_levels);
+    pConfigs = new Configuration[numberOfCacheLevels];
+    assert(numberOfCacheLevels);
 
-    num_threads = num_configs > MAX_NUM_THREADS ? MAX_NUM_THREADS : num_configs;
+    numberOfThreads = numberOfConfigs > kMaxNumberOfThreads ? kMaxNumberOfThreads : numberOfConfigs;
 
     // buffers
-    buffers = new uint8_t*[num_threads];
-    assert(buffers);
-    for (uint64_t thread_id = 0; thread_id < num_threads; thread_id++) {
-        buffers[thread_id] =  new uint8_t[buffer_size];
-        assert(buffers[thread_id]);
+    pBuffers = new uint8_t*[numberOfThreads];
+    assert(pBuffers);
+    for (uint64_t thread_id = 0; thread_id < numberOfThreads; thread_id++) {
+        pBuffers[thread_id] =  new uint8_t[bufferSize];
+        assert(pBuffers[thread_id]);
     }
-    return f;
+    return pFile;
 }
 
 int main (int argc, char* argv[]) {
@@ -77,112 +77,112 @@ int main (int argc, char* argv[]) {
         exit(1);
     }
 
-    FILE* f_in = read_in_file_header(argv[1]);
+    FILE* pInputFile = readInFileHeader(argv[1]);
 
     // Decode & write trace files
-    FILE *f_out = nullptr;
-    char output_filename_buffer[OUTPUT_FILESIZE_MAX_LENGTH];
-    int output_filename_length = sprintf(output_filename_buffer, "%s", argv[2]);
-    assert(output_filename_length > 0);
-    uint16_t config_index = 0;
-    for (uint16_t thread_id = 0; thread_id < num_threads && config_index < num_configs; thread_id++, config_index++) {
+    FILE *pOutputFile = nullptr;
+    char outputFilenameBuffer[kOutputFilesizeMaxLength];
+    int outputFilenameLength = sprintf(outputFilenameBuffer, "%s", argv[2]);
+    assert(outputFilenameLength > 0);
+    uint16_t configIndex = 0;
+    for (uint16_t threadId = 0; threadId < numberOfThreads && configIndex < numberOfConfigs; threadId++, configIndex++) {
 
-        uint32_t buffer_append_point_offset;
-        assert(fread(&buffer_append_point_offset, sizeof(uint32_t), 1, f_in) == 1);
-        assert(fread(&configs[0], sizeof(Configuration), num_cache_levels, f_in) == num_cache_levels);
-        assert(fread(buffers[thread_id], sizeof(uint8_t), buffer_size, f_in) == buffer_size);
+        uint32_t bufferAppendPointOffset;
+        assert(fread(&bufferAppendPointOffset, sizeof(uint32_t), 1, pInputFile) == 1);
+        assert(fread(&pConfigs[0], sizeof(Configuration), numberOfCacheLevels, pInputFile) == numberOfCacheLevels);
+        assert(fread(pBuffers[threadId], sizeof(uint8_t), bufferSize, pInputFile) == bufferSize);
 
-        uint8_t *last_entry_ptr = buffers[thread_id] + SIM_TRACE_LAST_ENTRY_OFFSET;
+        uint8_t *pLastEntry = pBuffers[threadId] + SIM_TRACE_LAST_ENTRY_OFFSET;
 
-        char *output_filename_begin = output_filename_buffer + output_filename_length;
-        for (uint8_t j = 0; j < num_cache_levels; j++) {
-            int bytes_written = sprintf(output_filename_begin, "_%lu_%lu_%lu", configs[j].cacheSize, configs[j].blockSize, configs[j].associativity);
-            output_filename_begin += bytes_written;
+        char *pOutputFilenameBegin = outputFilenameBuffer + outputFilenameLength;
+        for (uint8_t j = 0; j < numberOfCacheLevels; j++) {
+            int bytesWritten = sprintf(pOutputFilenameBegin, "_%lu_%lu_%lu", pConfigs[j].cacheSize, pConfigs[j].blockSize, pConfigs[j].associativity);
+            pOutputFilenameBegin += bytesWritten;
         }
-        sprintf(output_filename_begin, ".txt");
-        f_out = fopen(output_filename_buffer, "w");
-        assert(f_out);
-        fprintf(f_out, "Cycle\t\tCache level\tMessage\n");
-        fprintf(f_out, "=============================================================\n");
+        sprintf(pOutputFilenameBegin, ".txt");
+        pOutputFile = fopen(outputFilenameBuffer, "w");
+        assert(pOutputFile);
+        fprintf(pOutputFile, "Cycle\t\tCache level\tMessage\n");
+        fprintf(pOutputFile, "=============================================================\n");
 
-        uint8_t *buffer_ptr = buffers[thread_id] + buffer_append_point_offset;
+        uint8_t *pBuffer = pBuffers[threadId] + bufferAppendPointOffset;
         bool wrapped = false;
         // Find sync pattern
-        uint16_t bytes_lost = 0;
-        for (; *((sync_pattern_t*)buffer_ptr) != sync_pattern; buffer_ptr++, bytes_lost++) {
-            if (buffer_ptr >= last_entry_ptr) {
-                buffer_ptr = buffers[thread_id];
+        uint16_t bytesLost = 0;
+        for (; *((sync_pattern_t*)pBuffer) != kSyncPattern; pBuffer++, bytesLost++) {
+            if (pBuffer >= pLastEntry) {
+                pBuffer = pBuffers[threadId];
                 wrapped = true;
             }
         }
-        uint64_t entry_counter = 0;
+        uint64_t entryCounter = 0;
         uint64_t cycle = 0;
-        fprintf(f_out, "%u bytes lost before first sync pattern found\n", bytes_lost);
-        buffer_ptr += sizeof(sync_pattern_t);
+        fprintf(pOutputFile, "%u bytes lost before first sync pattern found\n", bytesLost);
+        pBuffer += sizeof(sync_pattern_t);
         while (true) {
-            if (wrapped && buffer_ptr >= buffers[thread_id] + buffer_append_point_offset) {
+            if (wrapped && pBuffer >= pBuffers[threadId] + bufferAppendPointOffset) {
                 break;
             }
 
             // Skip sync pattern
-            if (entry_counter == SIM_TRACE_SYNC_INTERVAL) {
-                assert(*((sync_pattern_t*) buffer_ptr) == sync_pattern);
-                buffer_ptr += sizeof(sync_pattern_t);
-                entry_counter = 0;
+            if (entryCounter == SIM_TRACE_SYNC_INTERVAL) {
+                assert(*((sync_pattern_t*) pBuffer) == kSyncPattern);
+                pBuffer += sizeof(sync_pattern_t);
+                entryCounter = 0;
             }
-            entry_counter++;
+            entryCounter++;
 
-            SimTraceEntry entry = *((SimTraceEntry*) buffer_ptr);
-            assert(entry.trace_entry_id < NUM_SIM_TRACE_ENTRIES);
-            buffer_ptr += sizeof(SimTraceEntry);
-            assert(buffer_ptr < buffers[thread_id] + buffer_size);
+            SimTraceEntry entry = *((SimTraceEntry*) pBuffer);
+            assert(entry.trace_entry_id < kNumberOfSimTraceEntries);
+            pBuffer += sizeof(SimTraceEntry);
+            assert(pBuffer < pBuffers[threadId] + bufferSize);
             cycle += entry.cycle_offset;
-            fprintf(f_out, "%012lu\t%u\t\t", cycle, entry.cache_level);
+            fprintf(pOutputFile, "%012lu\t%u\t\t", cycle, entry.cache_level);
 
-            int num_args = sim_trace_entry_num_arguments[entry.trace_entry_id];
-            switch (num_args)
+            int numberOfArguments = kNumberOfArgumentsInSimTraceEntry[entry.trace_entry_id];
+            switch (numberOfArguments)
             {
             case 0:
-                fprintf(f_out, "%s", sim_trace_entry_definitions[entry.trace_entry_id]);
+                fprintf(pOutputFile, "%s", simTraceEntryDefinitions[entry.trace_entry_id]);
                 break;
             case 1:
-                fprintf(f_out, sim_trace_entry_definitions[entry.trace_entry_id], *((sim_trace_entry_data_t*)buffer_ptr));
+                fprintf(pOutputFile, simTraceEntryDefinitions[entry.trace_entry_id], *((sim_trace_entry_data_t*)pBuffer));
                 break;
             case 2:
-                fprintf(f_out, sim_trace_entry_definitions[entry.trace_entry_id],
-                    *((sim_trace_entry_data_t*)buffer_ptr), *((sim_trace_entry_data_t*)buffer_ptr + 1));
+                fprintf(pOutputFile, simTraceEntryDefinitions[entry.trace_entry_id],
+                    *((sim_trace_entry_data_t*)pBuffer), *((sim_trace_entry_data_t*)pBuffer + 1));
                 break;
             case 3:
-                fprintf(f_out, sim_trace_entry_definitions[entry.trace_entry_id],
-                    *((sim_trace_entry_data_t*)buffer_ptr), *((sim_trace_entry_data_t*)buffer_ptr + 1), *((sim_trace_entry_data_t*)buffer_ptr + 2));
+                fprintf(pOutputFile, simTraceEntryDefinitions[entry.trace_entry_id],
+                    *((sim_trace_entry_data_t*)pBuffer), *((sim_trace_entry_data_t*)pBuffer + 1), *((sim_trace_entry_data_t*)pBuffer + 2));
                 break;
             case 4:
-                fprintf(f_out, sim_trace_entry_definitions[entry.trace_entry_id],
-                    *((sim_trace_entry_data_t*)buffer_ptr), *((sim_trace_entry_data_t*)buffer_ptr + 1),
-                    *((sim_trace_entry_data_t*)buffer_ptr + 2), *((sim_trace_entry_data_t*)buffer_ptr + 3));
+                fprintf(pOutputFile, simTraceEntryDefinitions[entry.trace_entry_id],
+                    *((sim_trace_entry_data_t*)pBuffer), *((sim_trace_entry_data_t*)pBuffer + 1),
+                    *((sim_trace_entry_data_t*)pBuffer + 2), *((sim_trace_entry_data_t*)pBuffer + 3));
                 break;
             case 5:
-                fprintf(f_out, sim_trace_entry_definitions[entry.trace_entry_id],
-                    *((sim_trace_entry_data_t*)buffer_ptr), *((sim_trace_entry_data_t*)buffer_ptr + 1),
-                    *((sim_trace_entry_data_t*)buffer_ptr + 2), *((sim_trace_entry_data_t*)buffer_ptr + 3), *((sim_trace_entry_data_t*)buffer_ptr + 4));
+                fprintf(pOutputFile, simTraceEntryDefinitions[entry.trace_entry_id],
+                    *((sim_trace_entry_data_t*)pBuffer), *((sim_trace_entry_data_t*)pBuffer + 1),
+                    *((sim_trace_entry_data_t*)pBuffer + 2), *((sim_trace_entry_data_t*)pBuffer + 3), *((sim_trace_entry_data_t*)pBuffer + 4));
                 break;
             default:
                 fprintf(stderr, "MAX_NUM_SIM_TRACE_VALUES is too low\n");
                 break;
             }
-            buffer_ptr += sizeof(sim_trace_entry_data_t) * num_args;
-            if (buffer_ptr >= last_entry_ptr) {
-                buffer_ptr = buffers[thread_id];
+            pBuffer += sizeof(sim_trace_entry_data_t) * numberOfArguments;
+            if (pBuffer >= pLastEntry) {
+                pBuffer = pBuffers[threadId];
                 wrapped = true;
             }
         }
-        fclose(f_out);
+        fclose(pOutputFile);
     }
-    delete[] oldest_indices;
-    for (uint32_t thread_id = 0; thread_id; thread_id++) {
-        delete[] buffers[thread_id];
+    delete[] pOldestIndices;
+    for (uint32_t threadId = 0; threadId; threadId++) {
+        delete[] pBuffers[threadId];
     }
-    delete[] configs;
-    delete[] buffers;
+    delete[] pConfigs;
+    delete[] pBuffers;
     return 0;
 }

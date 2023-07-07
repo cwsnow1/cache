@@ -27,33 +27,33 @@ static void usage (void) {
  */
 int main (int argc, char** argv) {
     time_t t = time(NULL);
-    FILE *stream = stdout;
-    FILE *output_csv = NULL;
+    FILE *pTextOutputStream = stdout;
+    FILE *pCsvOutputStream = nullptr;
     if (argc < 2) {
         fprintf(stderr, "Not enough args!\n");
         usage();
     } else if (argc > 2) {
-        stream = fopen(argv[2], "w");
-        if (stream == NULL) {
+        pTextOutputStream = fopen(argv[2], "w");
+        if (pTextOutputStream == nullptr) {
             fprintf(stderr, "Unable to open output file %s\n", argv[2]);
             usage();
         }
-        const int max_csv_filename = 100;
-        char output_csv_filename[max_csv_filename];
-        char *output_csv_filename_ptr = output_csv_filename + strlen(argv[2]);
-        strncpy(output_csv_filename, argv[2], max_csv_filename);
-        sprintf(output_csv_filename_ptr, ".csv");
-        output_csv = fopen(output_csv_filename, "w");
+        constexpr int csvFilenameMaxLength = 100;
+        char csvOutputFilename[csvFilenameMaxLength];
+        char *pCsvOutputFilename = csvOutputFilename + strlen(argv[2]);
+        strncpy(csvOutputFilename, argv[2], csvFilenameMaxLength);
+        sprintf(pCsvOutputFilename, ".csv");
+        pCsvOutputStream = fopen(csvOutputFilename, "w");
     }
 
     Simulator* simulator = new Simulator(argv[1]);
 
     simulator->CreateAndRunThreads();
-    simulator->PrintStats(stream, output_csv);
+    simulator->PrintStats(pTextOutputStream, pCsvOutputStream);
 
     delete simulator;
-    if (stream != stdout) {
-        fclose(stream);
+    if (pTextOutputStream != stdout) {
+        fclose(pTextOutputStream);
     }
 
     t = time(NULL) - t;
