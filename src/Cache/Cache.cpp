@@ -267,7 +267,7 @@ uint64_t Cache::InternalProcessCache (uint64_t cycle, int16_t *pCompletedRequest
                 if (pUpperCache_) {
                     Cache *upperCache = static_cast<Cache*>(pUpperCache_);
                     uint64_t setIndex = upperCache->addressToSetIndex(pRequestManager_->GetRequestAtIndex(poolIndex)->instruction.ptr);
-                    DEBUG_TRACE("Cache[%hhu] marking set %lu as no longer busy\n", (uint8_t)(cacheLevel_ - 1), setIndex);
+                    DEBUG_TRACE("Cache[%hhu] marking set %lu as no longer busy\n", static_cast<uint8_t> (cacheLevel_ - 1), setIndex);
                     static_cast<Cache*>(pUpperCache_)->ResetCacheSetBusy(setIndex);
                 }
                 if (cacheLevel_ == kL1) {
@@ -291,7 +291,7 @@ uint64_t Cache::InternalProcessCache (uint64_t cycle, int16_t *pCompletedRequest
             if (pUpperCache_) {
                 Cache *upperCache = static_cast<Cache*>(pUpperCache_);
                 uint64_t setIndex = upperCache->addressToSetIndex(pRequestManager_->GetRequestAtIndex(poolIndex)->instruction.ptr);
-                DEBUG_TRACE("Cache[%hhu] marking set %lu as no longer busy\n", (uint8_t)(cacheLevel_ - 1), setIndex);
+                DEBUG_TRACE("Cache[%hhu] marking set %lu as no longer busy\n", static_cast<uint8_t> (cacheLevel_ - 1), setIndex);
                 upperCache->sets_[setIndex].busy = false;
             }
             if (cacheLevel_ == kL1) {

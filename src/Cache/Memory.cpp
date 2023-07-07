@@ -64,7 +64,7 @@ uint64_t Memory::InternalProcessCache (uint64_t cycle, int16_t *pCompletedReques
         DEBUG_TRACE("Cache[%hhu] hit, set=%lu\n", cacheLevel_, upperCache->addressToSetIndex(pRequestManager_->GetRequestAtIndex(poolIndex)->instruction.ptr));
 
         uint64_t setIndex = upperCache->addressToSetIndex(pRequestManager_->GetRequestAtIndex(poolIndex)->instruction.ptr);
-        DEBUG_TRACE("Cache[%hhu] marking set %lu as no longer busy\n", (uint8_t)(cacheLevel_ - 1), setIndex);
+        DEBUG_TRACE("Cache[%hhu] marking set %lu as no longer busy\n", static_cast<uint8_t> (cacheLevel_ - 1), setIndex);
         upperCache->ResetCacheSetBusy(setIndex);
     
         pRequestManager_->RemoveRequestFromWaitingList(elementIterator);
