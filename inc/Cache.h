@@ -48,14 +48,14 @@ class Cache : public Memory {
     /**
      * @brief                       Tries to initialize a cache structure
      *
-     * @param cache_level           Level of cache
-     * @param num_cache_levels      Number of cache levels
-     * @param configs               Array of structure containing all the config
-     * info needed per cache level
-     * @param config_index          Index in global caches structure
+     * @param pUpperCache           Pointer to cache object higher in cache hierarchy
+     * @param pCacheLevel           Level of cache
+     * @param pNumberOfCacheLevels  Number of cache levels
+     * @param pConfigs              Array of structure containing all the config info needed per cache level
+     * @param pConfigIndex          Index in global caches structure
      */
-    Cache(Cache *upper_cache, CacheLevel cache_level, uint8_t num_cache_levels,
-          Configuration *configs, uint64_t config_index);
+    Cache(Cache *pUpperCache, CacheLevel pCacheLevel, uint8_t pNumberOfCacheLevels,
+          Configuration *pConfigs, uint64_t pConfigIndex);
 
     /**
      * @brief Destroy the Cache object
@@ -64,14 +64,12 @@ class Cache : public Memory {
     ~Cache();
 
     /**
-     * @brief                       Checks whether a given cache config is
-     * valid, i.e. not redundant
+     * @brief                       Checks whether a given cache config is valid, i.e. not redundant
      *
-     * @param config                Structure containing all the config info
-     * needed
+     * @param pConfig                Structure containing all the config info needed
      * @return true                 if cache config is valid
      */
-    static bool IsCacheConfigValid(Configuration config);
+    static bool IsCacheConfigValid(Configuration pConfig);
 
     /**
      * @brief       Allocates memory needed for cache struture, recursively
@@ -88,8 +86,7 @@ class Cache : public Memory {
     void SetThreadId(uint64_t pThreadId);
 
     /**
-     * @brief       Frees all memory allocated by cache structures, recursively
-     * calls all lower caches
+     * @brief       Frees all memory allocated by cache structures, recursively calls all lower caches
      */
     void FreeMemory();
 
@@ -97,13 +94,12 @@ class Cache : public Memory {
      * @brief                       Simulate a clock cycle in the cache
      * structure(s)
      *
-     * @param cycle                 Current clock cycle
-     * @param completed_requests    Out. An array of the request indices that
-     * were completed this tick. Length is the return value
+     * @param pCycle                Current clock cycle
+     * @param pCompletedRequests    Out. An array of the request indices that were completed this tick. Length is the return value
      *
      * @return                      Number of requests completed this tick
      */
-    uint64_t ProcessCache(uint64_t cycle, int16_t *completed_requests);
+    uint64_t ProcessCache(uint64_t pCycle, int16_t *pCompletedRequests);
 
     /**
      * @brief Get the Config object
@@ -125,10 +121,20 @@ class Cache : public Memory {
         return static_cast<Cache*>(upperCache);
     }
 
+    /**
+     * @brief Set the Main Memory object
+     * 
+     * @param pMainMemory Main memory to set
+     */
     void SetMainMemory(Memory *pMainMemory) {
         mainMemory_ = pMainMemory;
     }
 
+    /**
+     * @brief 
+     * 
+     * @param pSetIndex 
+     */
     void ResetCacheSetBusy(uint64_t pSetIndex);
 
     uint64_t InternalProcessCache (uint64_t cycle, int16_t *completed_requests);
