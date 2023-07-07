@@ -17,6 +17,7 @@ DoubleList::~DoubleList() {
         (void)pool_index;
         delete element_i;
     }
+    #error "hello"
 }
 
 bool DoubleList::RemoveElement(DoubleListElement *element) {
