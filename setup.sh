@@ -1,4 +1,4 @@
-#!/usr/bin/bash
+#!/bin/bash
 
 PIN_PATH=~/pin # EDIT THIS IF NECESSARY
 
