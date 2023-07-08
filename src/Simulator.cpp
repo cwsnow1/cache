@@ -208,8 +208,8 @@ void Simulator::CreateAndRunThreads (void) {\
         exit(1);
     }
 #if (CONSOLE_PRINT == 0)
-    pthread_t progress_thread;
-    pthread_create(&progress_thread, NULL, Simulator::TrackProgress, this);
+    pthread_t progressThread;
+    pthread_create(&progressThread, NULL, Simulator::TrackProgress, this);
 #endif
     uint64_t threadId = 0;
 
@@ -217,7 +217,7 @@ void Simulator::CreateAndRunThreads (void) {\
     pThreadsOutstanding_ = new pthread_t[gTestParams.maxNumberOfThreads];
     // Cast of kInvalidThreadId to int is OK for memset because it is all 1
     memset(pThreadsOutstanding_, static_cast<int> (kInvalidThreadId), sizeof(pthread_t) * gTestParams.maxNumberOfThreads);
-    SimCacheContext *contexts = new SimCacheContext[numConfigs_];
+    SimCacheContext *pContexts = new SimCacheContext[numConfigs_];
     for (uint64_t i = 0; i < numConfigs_; i++) {
         while (numThreadsOutstanding_ == gTestParams.maxNumberOfThreads)
             ;
@@ -230,10 +230,10 @@ void Simulator::CreateAndRunThreads (void) {\
             }
         }
         pCaches_[i]->SetThreadId(threadId);
-        contexts[i].pL1Cache = pCaches_[i];
-        contexts[i].pSimulator = this;
-        contexts[i].configIndex = i;
-        if (pthread_create(&pThreads_[i], NULL, Simulator::SimCache, static_cast<void*>(&contexts[i]))) {
+        pContexts[i].pL1Cache = pCaches_[i];
+        pContexts[i].pSimulator = this;
+        pContexts[i].configIndex = i;
+        if (pthread_create(&pThreads_[i], NULL, Simulator::SimCache, static_cast<void*>(&pContexts[i]))) {
             fprintf(stderr, "Error in creating thread %" PRIu64 "\n", i);
         }
         pThreadsOutstanding_[threadId] = pThreads_[i];
@@ -243,8 +243,9 @@ void Simulator::CreateAndRunThreads (void) {\
         pthread_join(pThreads_[i], NULL);
     }
     delete[] pThreadsOutstanding_;
+    delete[] pContexts;
 #if (CONSOLE_PRINT == 0)
-    pthread_join(progress_thread, NULL);
+    pthread_join(progressThread, NULL);
 #endif
     assert(numThreadsOutstanding_ == 0);
 }
