@@ -1,6 +1,7 @@
 #include <stdint.h>
 #include <assert.h>
 #include <string.h>
+#include <inttypes.h>
 
 #include "Memory.h"
 #include "list.h"
@@ -42,7 +43,7 @@ int16_t Memory::AddAccessRequest (Instruction access, uint64_t cycle) {
         pRequestManager_->AddRequestToWaitingList(element);
         uint64_t poolIndex = element->poolIndex_;
         pRequestManager_->NewInstruction(poolIndex, access, cycle, kAccessTimeInCycles[cacheLevel_]);
-        DEBUG_TRACE("Cache[%hhu] New request added at index %lu, call back at tick %lu\n", cacheLevel_, poolIndex, pRequestManager_->GetRequestAtIndex(poolIndex)->cycleToCallBack);
+        DEBUG_TRACE("Cache[%hhu] New request added at index %" PRIu64 ", call back at tick %" PRIu64 "\n", cacheLevel_, poolIndex, pRequestManager_->GetRequestAtIndex(poolIndex)->cycleToCallBack);
         gSimTracer->Print(SIM_TRACE__REQUEST_ADDED, this, poolIndex, access.rw == READ ? 'r' : 'w', (access.ptr >> 32), access.ptr & UINT32_MAX, kAccessTimeInCycles[cacheLevel_]);
 
         return static_cast<int16_t> (poolIndex);
@@ -56,15 +57,15 @@ uint64_t Memory::InternalProcessCache (uint64_t cycle, int16_t *pCompletedReques
     wasWorkDoneThisCycle_ = false;
     cycle_ = cycle;
     for_each_in_double_list(pRequestManager_->GetWaitingRequests()) {
-        DEBUG_TRACE("Cache[%hhu] trying request %lu from waiting list, address=0x%012lx\n", cacheLevel_, poolIndex, pRequestManager_->GetRequestAtIndex(poolIndex)->instruction.ptr);
+        DEBUG_TRACE("Cache[%hhu] trying request %" PRIu64 " from waiting list, address=0x%012" PRIx64 "\n", cacheLevel_, poolIndex, pRequestManager_->GetRequestAtIndex(poolIndex)->instruction.ptr);
         if (handleAccess(pRequestManager_->GetRequestAtIndex(poolIndex)) == kWaiting) { 
-            DEBUG_TRACE("Cache[%hhu] request %lu is still waiting, breaking out of loop\n", cacheLevel_, poolIndex);
+            DEBUG_TRACE("Cache[%hhu] request %" PRIu64 " is still waiting, breaking out of loop\n", cacheLevel_, poolIndex);
             break;
         }
-        DEBUG_TRACE("Cache[%hhu] hit, set=%lu\n", cacheLevel_, upperCache->addressToSetIndex(pRequestManager_->GetRequestAtIndex(poolIndex)->instruction.ptr));
+        DEBUG_TRACE("Cache[%hhu] hit\n", cacheLevel_);
 
         uint64_t setIndex = upperCache->addressToSetIndex(pRequestManager_->GetRequestAtIndex(poolIndex)->instruction.ptr);
-        DEBUG_TRACE("Cache[%hhu] marking set %lu as no longer busy\n", static_cast<uint8_t> (cacheLevel_ - 1), setIndex);
+        DEBUG_TRACE("Cache[%hhu] marking set %" PRIu64 " as no longer busy\n", static_cast<uint8_t> (cacheLevel_ - 1), setIndex);
         upperCache->ResetCacheSetBusy(setIndex);
     
         pRequestManager_->RemoveRequestFromWaitingList(elementIterator);
@@ -79,9 +80,9 @@ uint64_t Memory::InternalProcessCache (uint64_t cycle, int16_t *pCompletedReques
 
 Status Memory::handleAccess (Request *request) {
     if (cycle_ < request->cycleToCallBack) {
-        DEBUG_TRACE("%lu/%lu cycles for this operation in cacheLevel=%hhu\n", cycle_ - request->cycle, kAccessTimeInCycles[cacheLevel_], cacheLevel_);
+        DEBUG_TRACE("%" PRIu64 "/%" PRIu64 " cycles for this operation in cacheLevel=%hhu\n", cycle_ - request->cycle, kAccessTimeInCycles[cacheLevel_], cacheLevel_);
         if (earliestNextUsefulCycle_ > request->cycleToCallBack) {
-            DEBUG_TRACE("Cache[%hhu] next useful cycle set to %lu\n", cacheLevel_, request->cycleToCallBack);
+            DEBUG_TRACE("Cache[%hhu] next useful cycle set to %" PRIu64 "\n", cacheLevel_, request->cycleToCallBack);
             earliestNextUsefulCycle_ = request->cycleToCallBack;
         }
         return kWaiting;

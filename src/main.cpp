@@ -6,6 +6,7 @@
 #include <stdbool.h>
 #include <pthread.h>
 #include <unistd.h>
+#include <inttypes.h>
 
 #include "Simulator.h"
 #include "Cache.h"
@@ -57,7 +58,7 @@ int main (int argc, char** argv) {
     }
 
     t = time(NULL) - t;
-    printf("Program took %ld seconds\n", t);
+    printf("Program took %" PRId64 " seconds\n", t);
 
     return 0;
 }
