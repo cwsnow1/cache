@@ -6,6 +6,7 @@
 #include <stdbool.h>
 #include <pthread.h>
 #include <unistd.h>
+#include <inttypes.h>
 
 #include "Simulator.h"
 #include "Cache.h"
