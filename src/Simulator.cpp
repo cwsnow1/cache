@@ -5,6 +5,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
+#include <inttypes.h>
 
 #include "Simulator.h"
 #include "IOUtilities.h"
@@ -38,7 +39,7 @@ Simulator::Simulator(const char *pInputFilename) {
     numAccesses_ = fileLength / FILE_LINE_LENGTH_IN_BYTES;
 
     CalculateNumValidConfigs(numConfigs_, 0, gTestParams.minBlockSize, gTestParams.minCacheSize);
-    printf("Total number of possible configs = %llu\n", numConfigs_);
+    printf("Total number of possible configs = %" PRIu64 "\n", numConfigs_);
     if (numConfigs_ < static_cast<uint64_t>(gTestParams.maxNumberOfThreads) || (gTestParams.maxNumberOfThreads < 0)) {
         gTestParams.maxNumberOfThreads = numConfigs_;
     }
@@ -71,7 +72,7 @@ void* Simulator::TrackProgress(void * pSimulatorPointer) {
         uint64_t configsDone = pSimulator->numConfigs_ - pSimulator->configsToTest_;
         float progressPercent = (configsDone / static_cast<float> (pSimulator->numConfigs_)) * 100.0f;
         printf("\x1b[1A");
-        printf("Running... %d threads running, %llu to go. %02.0f%% complete\n", pSimulator->numThreadsOutstanding_, pSimulator->configsToTest_, progressPercent);
+        printf("Running... %d threads running, %" PRIu64 " to go. %02.0f%% complete\n", pSimulator->numThreadsOutstanding_, pSimulator->configsToTest_, progressPercent);
         sleep(1);
     }
     pthread_exit(NULL);
@@ -139,7 +140,7 @@ void* Simulator::SimCache (void *pSimCacheContext) {
     bool work_done = false;
     do {
 #if (CONSOLE_PRINT == 1)
-        printf("====================\nTICK %010llu\n====================\n", cycleCounter[config_index]);
+        printf("====================\nTICK %010" PRIu64 "\n====================\n", cycleCounter[config_index]);
         char c;
         assert_release(scanf("%c", &c) == 1);
 #endif
@@ -165,7 +166,7 @@ void* Simulator::SimCache (void *pSimCacheContext) {
             assert(earliestNextUsefulCycle > cycleCounter[config_index]);
             if (earliestNextUsefulCycle < UINT64_MAX) {
 #if (CONSOLE_PRINT == 1)
-                printf("Skipping to earliest next useful cycle = %llu\n", earliestNextUsefulCycle);
+                printf("Skipping to earliest next useful cycle = %" PRIu64 "\n", earliestNextUsefulCycle);
 #endif
                 cycleCounter[config_index] = earliestNextUsefulCycle;
             } else {
@@ -231,7 +232,7 @@ void Simulator::CreateAndRunThreads (void) {\
         contexts[i].pL1Cache = pCaches_[i];
         contexts[i].pSimulator = this;
         if (pthread_create(&pThreads_[i], NULL, Simulator::SimCache, static_cast<void*>(&contexts[i]))) {
-            fprintf(stderr, "Error in creating thread %llu\n", i);
+            fprintf(stderr, "Error in creating thread %" PRIu64 "\n", i);
         }
         pThreadsOutstanding_[threadId] = pThreads_[i];
         pthread_mutex_unlock(&lock_);
