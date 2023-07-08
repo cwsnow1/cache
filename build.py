@@ -41,5 +41,5 @@ if __name__ == "__main__":
         defines.append("-DSIM_TRACE=0")
 
     os.system('cmake ' + build_type + ' -S . -B ' + build_dir + ' ' + ''.join(str(x) for x in defines))
-    os.system('cd ' + build_dir + ' && make')
+    os.system('cmake --build build --config ' + args.build_type)
 

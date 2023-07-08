@@ -96,7 +96,7 @@ int main (int argc, char* argv[]) {
 
         char *pOutputFilenameBegin = outputFilenameBuffer + outputFilenameLength;
         for (uint8_t j = 0; j < numberOfCacheLevels; j++) {
-            int bytesWritten = sprintf(pOutputFilenameBegin, "_%lu_%lu_%lu", pConfigs[j].cacheSize, pConfigs[j].blockSize, pConfigs[j].associativity);
+            int bytesWritten = sprintf(pOutputFilenameBegin, "_%llu_%llu_%llu", pConfigs[j].cacheSize, pConfigs[j].blockSize, pConfigs[j].associativity);
             pOutputFilenameBegin += bytesWritten;
         }
         sprintf(pOutputFilenameBegin, ".txt");
@@ -137,7 +137,7 @@ int main (int argc, char* argv[]) {
             pBuffer += sizeof(SimTraceEntry);
             assert(pBuffer < pBuffers[threadId] + bufferSize);
             cycle += entry.cycle_offset;
-            fprintf(pOutputFile, "%012lu\t%u\t\t", cycle, entry.cache_level);
+            fprintf(pOutputFile, "%012llu\t%u\t\t", cycle, entry.cache_level);
 
             int numberOfArguments = kNumberOfArgumentsInSimTraceEntry[entry.trace_entry_id];
             switch (numberOfArguments)

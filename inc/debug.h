@@ -1,6 +1,9 @@
-#include <features.h>
-
 #ifdef NDEBUG
+#ifdef _WIN32
+#define CODE_FOR_ASSERT(...)
+#define assert_release(x) static_cast<void>(x)
+#else // _WIN32
+#include <features.h>
 
 #ifndef _ASSERT_H_DECLS
 #define _ASSERT_H_DECLS
@@ -70,7 +73,7 @@ __END_DECLS
 # endif
 
 #define CODE_FOR_ASSERT(...)
-
+#endif // _WIN32
 #else // NDEBUG
 #define CODE_FOR_ASSERT(x) x
 #define assert_release assert

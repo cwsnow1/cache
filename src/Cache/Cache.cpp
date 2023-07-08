@@ -147,7 +147,7 @@ void Cache::updateLRUList (uint64_t setIndex, uint8_t mruIndex) {
 int16_t Cache::evictBlock (uint64_t setIndex) {
     int16_t lruBlockIndex = sets_[setIndex].lruList[config_.associativity - 1];
     if (!sets_[setIndex].ways[lruBlockIndex].valid) {
-        DEBUG_TRACE("Cache[%hhu] not evicting invalid block from set %lu\n", cacheLevel_, setIndex);
+        DEBUG_TRACE("Cache[%hhu] not evicting invalid block from set %llu\n", cacheLevel_, setIndex);
         return lruBlockIndex;
     }
     uint64_t oldBlockAddress = sets_[setIndex].ways[lruBlockIndex].blockAddress;
@@ -197,9 +197,9 @@ int16_t Cache::requestBlock (uint64_t setIndex, uint64_t blockAddress) {
 
 Status Cache::handleAccess (Request *request) {
     if (cycle_ < request->cycleToCallBack) {
-        DEBUG_TRACE("%lu/%lu cycles for this operation in cacheLevel=%hhu\n", cycle_ - request->cycle, kAccessTimeInCycles[cacheLevel_], cacheLevel_);
+        DEBUG_TRACE("%llu/%llu cycles for this operation in cacheLevel=%hhu\n", cycle_ - request->cycle, kAccessTimeInCycles[cacheLevel_], cacheLevel_);
         if (earliestNextUsefulCycle_ > request->cycleToCallBack) {
-            DEBUG_TRACE("Cache[%hhu] next useful cycle set to %lu\n", cacheLevel_, request->cycleToCallBack);
+            DEBUG_TRACE("Cache[%hhu] next useful cycle set to %llu\n", cacheLevel_, request->cycleToCallBack);
             earliestNextUsefulCycle_ = request->cycleToCallBack;
         }
         return kWaiting;
@@ -210,7 +210,7 @@ Status Cache::handleAccess (Request *request) {
     uint64_t blockAddress = addressToBlockAddress(access.ptr);
     uint64_t setIndex = addressToSetIndex(access.ptr);
     if (sets_[setIndex].busy) {
-        DEBUG_TRACE("Cache[%hhu] set %lu is busy\n", cacheLevel_, setIndex);
+        DEBUG_TRACE("Cache[%hhu] set %llu is busy\n", cacheLevel_, setIndex);
         return kBusy;
     }
     wasWorkDoneThisCycle_ = true;
@@ -239,7 +239,7 @@ Status Cache::handleAccess (Request *request) {
         // Cast is OK after check above
         blockIndex = static_cast<uint8_t>(requestedBlock);
         sets_[setIndex].busy = true;
-        DEBUG_TRACE("Cache[%hhu] set %lu marked as busy due to miss\n", cacheLevel_, setIndex);
+        DEBUG_TRACE("Cache[%hhu] set %llu marked as busy due to miss\n", cacheLevel_, setIndex);
         if (access.rw == READ) {
             ++stats_.readMisses;
         } else {
@@ -260,14 +260,14 @@ uint64_t Cache::InternalProcessCache (uint64_t cycle, int16_t *pCompletedRequest
     cycle_ = cycle;
     if (pLowerCache_->GetWasWorkDoneThisCycle()) {
         for_each_in_double_list(pRequestManager_->GetBusyRequests()) {
-            DEBUG_TRACE("Cache[%hhu] trying request %lu from busy requests list, address=0x%012lx\n", cacheLevel_, poolIndex, pRequestManager_->GetRequestAtIndex(poolIndex)->instruction.ptr);
+            DEBUG_TRACE("Cache[%hhu] trying request %llu from busy requests list, address=0x%012llx\n", cacheLevel_, poolIndex, pRequestManager_->GetRequestAtIndex(poolIndex)->instruction.ptr);
             Status status = handleAccess(pRequestManager_->GetRequestAtIndex(poolIndex));
             if (status == kHit) {
-                DEBUG_TRACE("Cache[%hhu] hit, set=%lu\n", cacheLevel_, addressToSetIndex(pRequestManager_->GetRequestAtIndex(poolIndex)->instruction.ptr));
+                DEBUG_TRACE("Cache[%hhu] hit, set=%llu\n", cacheLevel_, addressToSetIndex(pRequestManager_->GetRequestAtIndex(poolIndex)->instruction.ptr));
                 if (pUpperCache_) {
                     Cache *upperCache = static_cast<Cache*>(pUpperCache_);
                     uint64_t setIndex = upperCache->addressToSetIndex(pRequestManager_->GetRequestAtIndex(poolIndex)->instruction.ptr);
-                    DEBUG_TRACE("Cache[%hhu] marking set %lu as no longer busy\n", static_cast<uint8_t> (cacheLevel_ - 1), setIndex);
+                    DEBUG_TRACE("Cache[%hhu] marking set %llu as no longer busy\n", static_cast<uint8_t> (cacheLevel_ - 1), setIndex);
                     static_cast<Cache*>(pUpperCache_)->ResetCacheSetBusy(setIndex);
                 }
                 if (cacheLevel_ == kL1) {
@@ -283,15 +283,15 @@ uint64_t Cache::InternalProcessCache (uint64_t cycle, int16_t *pCompletedRequest
         }
     }
     for_each_in_double_list(pRequestManager_->GetWaitingRequests()) {
-        DEBUG_TRACE("Cache[%hhu] trying request %lu from waiting list, address=0x%012lx\n", cacheLevel_, poolIndex, pRequestManager_->GetRequestAtIndex(poolIndex)->instruction.ptr);
+        DEBUG_TRACE("Cache[%hhu] trying request %llu from waiting list, address=0x%012llx\n", cacheLevel_, poolIndex, pRequestManager_->GetRequestAtIndex(poolIndex)->instruction.ptr);
         Status status = handleAccess(pRequestManager_->GetRequestAtIndex(poolIndex));
         switch (status) {
         case kHit:
-            DEBUG_TRACE("Cache[%hhu] hit, set=%lu\n", cacheLevel_, addressToSetIndex(pRequestManager_->GetRequestAtIndex(poolIndex)->instruction.ptr));
+            DEBUG_TRACE("Cache[%hhu] hit, set=%llu\n", cacheLevel_, addressToSetIndex(pRequestManager_->GetRequestAtIndex(poolIndex)->instruction.ptr));
             if (pUpperCache_) {
                 Cache *upperCache = static_cast<Cache*>(pUpperCache_);
                 uint64_t setIndex = upperCache->addressToSetIndex(pRequestManager_->GetRequestAtIndex(poolIndex)->instruction.ptr);
-                DEBUG_TRACE("Cache[%hhu] marking set %lu as no longer busy\n", static_cast<uint8_t> (cacheLevel_ - 1), setIndex);
+                DEBUG_TRACE("Cache[%hhu] marking set %llu as no longer busy\n", static_cast<uint8_t> (cacheLevel_ - 1), setIndex);
                 upperCache->sets_[setIndex].busy = false;
             }
             if (cacheLevel_ == kL1) {
@@ -306,7 +306,7 @@ uint64_t Cache::InternalProcessCache (uint64_t cycle, int16_t *pCompletedRequest
             pRequestManager_->AddRequestToBusyList(elementIterator);
             break;
         case kWaiting:
-            DEBUG_TRACE("Cache[%hhu] request %lu is still waiting, breaking out of loop\n", cacheLevel_, poolIndex);
+            DEBUG_TRACE("Cache[%hhu] request %llu is still waiting, breaking out of loop\n", cacheLevel_, poolIndex);
             goto out_of_loop; // Break out of for loop
             break;
         default:
