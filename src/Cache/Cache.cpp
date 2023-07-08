@@ -67,8 +67,10 @@ Cache::Cache (Cache *pUpperCache, CacheLevel cacheLevel, uint8_t numCacheLevels,
 }
 
 Cache::~Cache () {
-    if (pLowerCache_) {
-        delete pLowerCache_;
+    for (Memory *pMemoryIterator = pLowerCache_; pMemoryIterator != nullptr; ) {
+        Memory *pNextLowerMemory = pMemoryIterator->GetLowerCache();
+        delete pMemoryIterator;
+        pMemoryIterator = pNextLowerMemory;
     }
 }
 
