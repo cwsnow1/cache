@@ -28,14 +28,13 @@ extern SimTracer *gSimTracer;
 //          Public Functions
 // =====================================
 
-Cache::Cache (Cache *pUpperCache, CacheLevel cacheLevel, uint8_t numCacheLevels, Configuration *pCacheConfigs, uint64_t configIndex) {
+Cache::Cache (Cache *pUpperCache, CacheLevel cacheLevel, uint8_t numCacheLevels, Configuration *pCacheConfigs) {
     Configuration cacheConfig = pCacheConfigs[cacheLevel];
     pUpperCache_ = pUpperCache;
     cacheLevel_ = cacheLevel;
     config_.cacheSize = cacheConfig.cacheSize;
     config_.blockSize = cacheConfig.blockSize;
     blockSizeBits_ = 0;
-    configIndex_ = configIndex;
     uint64_t tmp = config_.blockSize;
     for (; (tmp & 1) == 0; tmp >>= 1) {
         blockSizeBits_++;
@@ -56,7 +55,7 @@ Cache::Cache (Cache *pUpperCache, CacheLevel cacheLevel, uint8_t numCacheLevels,
     blockAddressToSetIndexMask_ = numSets_ - 1;
     earliestNextUsefulCycle_ = UINT64_MAX;
     if (cacheLevel < numCacheLevels - 1) {
-        pLowerCache_ = new Cache(this, static_cast<CacheLevel>(cacheLevel + 1), numCacheLevels, pCacheConfigs, configIndex);
+        pLowerCache_ = new Cache(this, static_cast<CacheLevel>(cacheLevel + 1), numCacheLevels, pCacheConfigs);
         pLowerCache_->SetUpperCache(static_cast<Memory*>(this));
     } else {
         pLowerCache_ = new Memory(this);

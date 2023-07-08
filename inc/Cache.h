@@ -52,10 +52,8 @@ class Cache : public Memory {
      * @param cacheLevel            Level of cache
      * @param numberOfCacheLevels   Number of cache levels
      * @param pConfigs              Array of structure containing all the config info needed per cache level
-     * @param configIndex           Index in global caches structure
      */
-    Cache(Cache *pUpperCache, CacheLevel cacheLevel, uint8_t numberOfCacheLevels,
-          Configuration *pConfigs, uint64_t configIndex);
+    Cache(Cache *pUpperCache, CacheLevel cacheLevel, uint8_t numberOfCacheLevels, Configuration *pConfigs);
 
     /**
      * @brief Destroy the Cache object
