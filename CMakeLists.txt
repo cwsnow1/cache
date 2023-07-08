@@ -8,7 +8,7 @@ add_subdirectory(sim_trace_decoder)
 
 set(CMAKE_CXX_STANDARD 11)
 set(CMAKE_CXX_COMPILER g++)
-set(CMAKE_CXX_FLAGS "-Wall  -pedantic ")
+set(CMAKE_CXX_FLAGS "-Wall")
 
 if(SIM_TRACE EQUAL 1)
     add_definitions(-DSIM_TRACE=1)

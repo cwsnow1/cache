@@ -1,3 +1,17 @@
 #pragma once
+#define COMMA ,
 
-enum CacheLevel { kL1, kL2, kL3, kMainMemory } __attribute__((packed));
+#ifdef __GNUC__
+#define PACK( __Declaration__ ) __Declaration__ __attribute__((__packed__))
+#endif
+
+#ifdef _MSC_VER
+#define PACK( __Declaration__ ) __pragma( pack(push, 1) ) __Declaration__ __pragma( pack(pop))
+#endif
+
+PACK(enum CacheLevel {
+    kL1 COMMA
+    kL2 COMMA
+    kL3 COMMA
+    kMainMemory
+});

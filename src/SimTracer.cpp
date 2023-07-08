@@ -71,7 +71,7 @@ SimTracer::~SimTracer() {
     fclose(pFile_);
 }
 
-void SimTracer::Print(trace_entry_id_t traceEntryId, Memory *pMemory, ...) {
+void SimTracer::Print(TraceEntryId traceEntryId, Memory *pMemory, ...) {
     uint64_t threadId = pMemory->threadId_;
     assert(threadId < static_cast<uint64_t>(gTestParams.maxNumberOfThreads));
     uint64_t cycle = pMemory->GetCycle();
