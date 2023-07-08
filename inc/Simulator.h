@@ -12,6 +12,7 @@ class Simulator;
 struct SimCacheContext {
     Cache* pL1Cache;
     Simulator* pSimulator;
+    uint64_t configIndex;
 };
 
 class Simulator {

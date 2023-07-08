@@ -165,10 +165,8 @@ class Memory {
      */
     inline uint64_t GetCycle() { return cycle_; }
 
-    // Multi-threading fields
-    // TODO: move these out of class
+    // Multi-threading field
     uint64_t threadId_;
-    uint64_t configIndex_;
 
    protected:
 

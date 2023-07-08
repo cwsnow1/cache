@@ -125,14 +125,15 @@ void* Simulator::SimCache (void *pSimCacheContext) {
     SimCacheContext *simCacheContext = static_cast<SimCacheContext*>(pSimCacheContext);
     Cache *this_cache = simCacheContext->pL1Cache;
     Simulator* pSimulator = simCacheContext->pSimulator;
+    uint64_t configIndex = simCacheContext->configIndex;
+
     uint64_t* cycleCounter = pSimulator->GetCycleCounter();
     Instruction* accesses = pSimulator->GetAccesses();
     const uint64_t numAccesses = pSimulator->GetNumAccesses();
 
     assert(this_cache->GetCacheLevel() == kL1);
     this_cache->AllocateMemory();
-    uint64_t config_index = this_cache->configIndex_;
-    cycleCounter[config_index] = 0;
+    cycleCounter[configIndex] = 0;
     bitfield64_t oustanding_requests = 0;
     int16_t completed_requests[RequestManager::kMaxNumberOfRequests] = { 0 };
     static_assert(RequestManager::kMaxNumberOfRequests <= 64,"Too many requests to store requests in this bitfield");
@@ -140,37 +141,37 @@ void* Simulator::SimCache (void *pSimCacheContext) {
     bool work_done = false;
     do {
 #if (CONSOLE_PRINT == 1)
-        printf("====================\nTICK %010" PRIu64 "\n====================\n", cycleCounter[config_index]);
+        printf("====================\nTICK %010" PRIu64 "\n====================\n", cycleCounter[configIndex]);
         char c;
         assert_release(scanf("%c", &c) == 1);
 #endif
         work_done = false;
         if (i < numAccesses) {
-            int16_t request_index = this_cache->AddAccessRequest(accesses[i], cycleCounter[config_index]);
+            int16_t request_index = this_cache->AddAccessRequest(accesses[i], cycleCounter[configIndex]);
             if (request_index != -1) {
                 work_done = true;
                 ++i;
                 Simulator::SetBit(oustanding_requests, request_index);
             }
         }
-        uint64_t num_completed_requests = this_cache->ProcessCache(cycleCounter[config_index], completed_requests);
+        uint64_t num_completed_requests = this_cache->ProcessCache(cycleCounter[configIndex], completed_requests);
         work_done |= this_cache->GetWasWorkDoneThisCycle();
         for (uint64_t j = 0; j < num_completed_requests; j++) {
             work_done = true;
             Simulator::ResetBit(oustanding_requests, completed_requests[j]);
         }
         if (work_done) {
-            cycleCounter[config_index]++;
+            cycleCounter[configIndex]++;
         } else {
             uint64_t earliestNextUsefulCycle = this_cache->CalculateEarliestNextUsefulCycle();
-            assert(earliestNextUsefulCycle > cycleCounter[config_index]);
+            assert(earliestNextUsefulCycle > cycleCounter[configIndex]);
             if (earliestNextUsefulCycle < UINT64_MAX) {
 #if (CONSOLE_PRINT == 1)
                 printf("Skipping to earliest next useful cycle = %" PRIu64 "\n", earliestNextUsefulCycle);
 #endif
-                cycleCounter[config_index] = earliestNextUsefulCycle;
+                cycleCounter[configIndex] = earliestNextUsefulCycle;
             } else {
-                cycleCounter[config_index]++;
+                cycleCounter[configIndex]++;
             }
         }
     } while (oustanding_requests || i < numAccesses);
@@ -231,6 +232,7 @@ void Simulator::CreateAndRunThreads (void) {\
         pCaches_[i]->SetThreadId(threadId);
         contexts[i].pL1Cache = pCaches_[i];
         contexts[i].pSimulator = this;
+        contexts[i].configIndex = i;
         if (pthread_create(&pThreads_[i], NULL, Simulator::SimCache, static_cast<void*>(&contexts[i]))) {
             fprintf(stderr, "Error in creating thread %" PRIu64 "\n", i);
         }
@@ -260,7 +262,7 @@ void Simulator::SetupCaches (CacheLevel cacheLevel, uint64_t minBlockSize, uint6
                     if (cacheLevel < gTestParams.numberOfCacheLevels - 1) {
                         SetupCaches(static_cast<CacheLevel>(cacheLevel + 1), blockSize, cacheSize * 2);
                     } else {
-                        pCaches_[threadNumber] = new Cache(NULL, kL1, gTestParams.numberOfCacheLevels, configs, threadNumber);
+                        pCaches_[threadNumber] = new Cache(NULL, kL1, gTestParams.numberOfCacheLevels, configs);
                         threadNumber++;
                     }
                 }
