@@ -57,7 +57,7 @@ int main (int argc, char** argv) {
     }
 
     t = time(NULL) - t;
-    printf("Program took %lld seconds\n", t);
+    printf("Program took %" PRId64 " seconds\n", t);
 
     return 0;
 }
