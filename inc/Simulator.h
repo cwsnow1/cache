@@ -152,6 +152,7 @@ class Simulator {
     volatile int32_t numThreadsOutstanding_;
     uint64_t configsToTest_;
     pthread_t* pThreadsOutstanding_;
+    uint64_t *pAccessIndices;
 
 };
 

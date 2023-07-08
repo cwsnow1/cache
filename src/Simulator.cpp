@@ -6,6 +6,8 @@
 #include <string.h>
 #include <unistd.h>
 #include <inttypes.h>
+#include <chrono>
+#include <thread>
 
 #include "Simulator.h"
 #include "IOUtilities.h"
@@ -67,14 +69,41 @@ Simulator::Simulator(const char *pInputFilename) {
 
 void* Simulator::TrackProgress(void * pSimulatorPointer) {
     Simulator *pSimulator = static_cast<Simulator*>(pSimulatorPointer);
+    uint64_t numAccesses = static_cast<float> (pSimulator->GetNumAccesses());
+    float oneConfigPercentage = 100.0f / static_cast<float> (pSimulator->numConfigs_);
+    char progressBar[] = "[                                        ]";
+    const int progressBars = sizeof(progressBar) / sizeof(char) - 3;
+
     printf("Running... %02.0f%% complete\n", 0.0f);
     while(pSimulator->configsToTest_) {
+        // Calculate progress
+        // 1. Configs completed
         uint64_t configsDone = pSimulator->numConfigs_ - pSimulator->configsToTest_;
         float progressPercent = (configsDone / static_cast<float> (pSimulator->numConfigs_)) * 100.0f;
-        printf("\x1b[1A");
-        printf("Running... %d threads running, %" PRIu64 " to go. %02.0f%% complete\n", pSimulator->numThreadsOutstanding_, pSimulator->configsToTest_, progressPercent);
-        sleep(1);
+
+        // 2. Configs in progress
+        for (auto i = 0; i < gTestParams.maxNumberOfThreads; i++) {
+            if (pSimulator->pAccessIndices[i] < numAccesses) {
+                progressPercent += oneConfigPercentage * (static_cast<float>(pSimulator->pAccessIndices[i]) / numAccesses);
+            }
+        }
+
+        int numberOfProgressBarCharacters = static_cast<int>(progressBars * (progressPercent / 100.0f));
+        for (auto i = 1; i <= numberOfProgressBarCharacters; i++) {
+            if (i == numberOfProgressBarCharacters) {
+                progressBar[i] = '>';
+            } else {
+                progressBar[i] = '=';
+            }
+        }
+        // Go back to beginning of line
+        printf("\x1b[1A\x1b[1A");
+        printf("Running... %02d threads running, %02" PRIu64 " to go. %02.0f%% complete\n", pSimulator->numThreadsOutstanding_, pSimulator->configsToTest_, progressPercent);
+        printf("%s\n", progressBar);
+        std::this_thread::sleep_for(std::chrono::milliseconds(100));
     }
+    // clear screen
+    printf("\033[2J");
     pthread_exit(NULL);
     return nullptr;
 }
@@ -137,7 +166,8 @@ void* Simulator::SimCache (void *pSimCacheContext) {
     bitfield64_t oustanding_requests = 0;
     int16_t completed_requests[RequestManager::kMaxNumberOfRequests] = { 0 };
     static_assert(RequestManager::kMaxNumberOfRequests <= 64,"Too many requests to store requests in this bitfield");
-    uint64_t i = 0;
+    uint64_t &i = pSimulator->pAccessIndices[this_cache->threadId_];
+    i = 0;
     bool work_done = false;
     do {
 #if (CONSOLE_PRINT == 1)
@@ -217,6 +247,10 @@ void Simulator::CreateAndRunThreads (void) {\
     pThreadsOutstanding_ = new pthread_t[gTestParams.maxNumberOfThreads];
     // Cast of kInvalidThreadId to int is OK for memset because it is all 1
     memset(pThreadsOutstanding_, static_cast<int> (kInvalidThreadId), sizeof(pthread_t) * gTestParams.maxNumberOfThreads);
+
+    pAccessIndices = new uint64_t[gTestParams.maxNumberOfThreads];
+    memset(pAccessIndices, 0, sizeof(uint64_t) * gTestParams.maxNumberOfThreads);
+
     SimCacheContext *pContexts = new SimCacheContext[numConfigs_];
     for (uint64_t i = 0; i < numConfigs_; i++) {
         while (numThreadsOutstanding_ == gTestParams.maxNumberOfThreads)
@@ -244,6 +278,7 @@ void Simulator::CreateAndRunThreads (void) {\
     }
     delete[] pThreadsOutstanding_;
     delete[] pContexts;
+    delete[] pAccessIndices;
 #if (CONSOLE_PRINT == 0)
     pthread_join(progressThread, NULL);
 #endif
