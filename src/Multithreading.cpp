@@ -32,7 +32,7 @@ void Multithreading::InitializeLock(Lock_t *pLock) {
     }
 }
 
-void Multithreading::StartThread(THREAD_FUNCTION_TYPE threadFunction, void *pThreadData, Thread_t *pThreadOut) {
+void Multithreading::StartThread(THREAD_FUNCTION_TYPE(threadFunction), void *pThreadData, Thread_t *pThreadOut) {
     if (pthread_create(pThreadOut, NULL, threadFunction, pThreadData)) {
         fprintf(stderr, "Error in creating thread\n");
     }
