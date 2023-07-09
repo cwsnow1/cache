@@ -203,5 +203,5 @@ inline uint64_t* Simulator::GetCycleCounter() {
 }
 
 inline Thread_t* Simulator::GetThreadsOutstanding() {
-     return pThreadsOutstanding_;
+    return pThreadsOutstanding_;
 }

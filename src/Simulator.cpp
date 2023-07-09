@@ -267,7 +267,6 @@ void Simulator::CreateAndRunThreads (void) {
 #if (CONSOLE_PRINT == 0)
     Thread_t progressThread;
     Multithreading::StartThread(Simulator::TrackProgress, this, &progressThread);
-    // pthread_create(&progressThread, NULL, Simulator::TrackProgress, this);
 #endif
     uint64_t threadId = 0;
 
@@ -296,26 +295,17 @@ void Simulator::CreateAndRunThreads (void) {
         pContexts[i].pSimulator = this;
         pContexts[i].configIndex = i;
         Multithreading::StartThread(Simulator::SimCache, static_cast<void*> (&pContexts[i]), &pThreads_[i]);
-        /*
-        if (pthread_create(&pThreads_[i], NULL, Simulator::SimCache, static_cast<void*>(&pContexts[i]))) {
-            fprintf(stderr, "Error in creating thread %" PRIu64 "\n", i);
-        }
-        */
+
         pThreadsOutstanding_[threadId] = pThreads_[i];
         Multithreading::Unlock(&lock_);
     }
     Multithreading::WaitForThreads(numConfigs_, pThreads_);
-    /*
-    for (uint64_t i = 0; i < numConfigs_; i++) {
-        pthread_join(pThreads_[i], NULL);
-    }
-    */
+
     delete[] pThreadsOutstanding_;
     delete[] pContexts;
     delete[] pAccessIndices;
 #if (CONSOLE_PRINT == 0)
     Multithreading::WaitForThreads(1, &progressThread);
-    //pthread_join(progressThread, NULL);
 #endif
     assert(numThreadsOutstanding_ == 0);
 }
