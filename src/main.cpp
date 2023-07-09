@@ -4,9 +4,16 @@
 #include <stdint.h>
 #include <string.h>
 #include <stdbool.h>
-#include <pthread.h>
-#include <unistd.h>
 #include <inttypes.h>
+
+#ifdef __GNUC__
+#include <unistd.h>
+#endif
+
+#ifdef _MSC_VER
+#include <time.h>
+#endif
+
 
 #include "Simulator.h"
 #include "Cache.h"
@@ -14,7 +21,6 @@
 #include "IOUtilities.h"
 #include "SimTracer.h"
 #include "debug.h"
-
 /**
  *  @brief Prints the usage of the program in case of error
  */

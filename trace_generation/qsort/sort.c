@@ -1,5 +1,6 @@
 #include <stdio.h>
 #include <stdlib.h>
+#include <inttypes.h>
 
 #define SIZE (100000)
 
@@ -24,14 +25,14 @@ int main(int argc, char** argv) {
     randomize(array, SIZE);
     printf("Peeking at the first 10 elements:\n");
     for (int i = 0; i < 10; i++) {
-        printf("%d: %ld\n", i, array[i]);
+        printf("%d: %" PRId64 "\n", i, array[i]);
     }
     printf("Sorting...\n");
     qsort(array, SIZE, sizeof(size_t), cmpfunc);
     printf("Done!\n");
     printf("Peeking at the first 10 elements:\n");
     for (int i = 0; i < 10; i++) {
-        printf("%d: %ld\n", i, array[i]);
+        printf("%d: %" PRId64 "\n", i, array[i]);
     }
 
     return 0;

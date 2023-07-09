@@ -8,34 +8,34 @@
 #define SIM_TRACE (1)
 #endif
 
-typedef enum trace_entry_id_e {
-    SIM_TRACE__HIT,
-    SIM_TRACE__MISS,
-    SIM_TRACE__LRU_UPDATE,
-    SIM_TRACE__EVICT,
-    SIM_TRACE__REQUEST_ADDED,
-    SIM_TRACE__REQUEST_FAILED,
-    SIM_TRACE__EVICT_FAILED,
+PACK(enum TraceEntryId {
+    SIM_TRACE__HIT              COMMA
+    SIM_TRACE__MISS             COMMA
+    SIM_TRACE__LRU_UPDATE       COMMA
+    SIM_TRACE__EVICT            COMMA
+    SIM_TRACE__REQUEST_ADDED    COMMA
+    SIM_TRACE__REQUEST_FAILED   COMMA
+    SIM_TRACE__EVICT_FAILED     COMMA
 
     // Add new entries above this
-    kNumberOfSimTraceEntries,
-    SIM_TRACE__INVALID,
-} __attribute__ ((packed)) trace_entry_id_t;
+    kNumberOfSimTraceEntries    COMMA
+    SIM_TRACE__INVALID          COMMA
+});
 
 typedef uint32_t sim_trace_entry_data_t;
 typedef uint32_t sync_pattern_t;
-struct SimTraceEntry {
+PACK(struct SimTraceEntry {
     uint16_t cycle_offset;
-    trace_entry_id_t trace_entry_id;
+    TraceEntryId trace_entry_id;
     CacheLevel cache_level;
 
-    SimTraceEntry(uint16_t cycle_offset, trace_entry_id_t trace_entry_id, CacheLevel cache_level) {
+    SimTraceEntry(uint16_t cycle_offset, TraceEntryId trace_entry_id, CacheLevel cache_level) {
         this->cycle_offset = cycle_offset;
         this->trace_entry_id = trace_entry_id;
         this->cache_level = cache_level;
     };
 
-} __attribute__ ((packed));
+});
 
 
 #define MAX_NUM_SIM_TRACE_VALUES            (5)
@@ -73,7 +73,7 @@ public:
      * @param pMemory           Pointer to memory object making entry, used to print context info
      * @param ...               Up to MAX_NUM_SIM_TRACE_VALUES values the size of sim_trace_entry_data_t
      */
-    void Print(trace_entry_id_t traceEntryId, Memory *pMemory, ...);
+    void Print(TraceEntryId traceEntryId, Memory *pMemory, ...);
 
     /**
      * @brief           Writes the sim trace buffer for a thread after it completes (NOT THREAD-SAFE!)
