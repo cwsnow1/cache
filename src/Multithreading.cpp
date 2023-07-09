@@ -59,7 +59,7 @@ void Multithreading::InitializeLock(Lock_t *pLock) {
     InitializeCriticalSection(pLock);
 }
 
-void Multithreading::StartThread(THREAD_FUNCTION_TYPE threadFunction, void *pThreadData, Thread_t *pThreadOut) {
+void Multithreading::StartThread(THREAD_FUNCTION_TYPE(threadFunction), void *pThreadData, Thread_t *pThreadOut) {
     DWORD threadIdentifier; // not used
     *pThreadOut = CreateThread(
         NULL,
