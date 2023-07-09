@@ -70,7 +70,6 @@ void Multithreading::StartThread(THREAD_FUNCTION_TYPE(threadFunction), void *pTh
         &threadIdentifier
     );
 }
-#include <stdio.h>
 
 void Multithreading::WaitForThreads(uint64_t numberOfThreads, Thread_t *pThreadArray) {
     // Windows max number of threads is 64, only wait for the last 64 threads if number of configs exceeds this
@@ -78,9 +77,7 @@ void Multithreading::WaitForThreads(uint64_t numberOfThreads, Thread_t *pThreadA
         pThreadArray = &pThreadArray[numberOfThreads - MAXIMUM_WAIT_OBJECTS];
         numberOfThreads = MAXIMUM_WAIT_OBJECTS;
     }
-    DWORD return_value = WaitForMultipleObjects(static_cast<DWORD>(numberOfThreads), static_cast<const HANDLE*>(pThreadArray), TRUE, INFINITE);
-    DWORD error = GetLastError();
-    printf("return=%d, error=%d\n", return_value, error);
+    WaitForMultipleObjects(static_cast<DWORD>(numberOfThreads), static_cast<const HANDLE*>(pThreadArray), TRUE, INFINITE);
 }
 
 #else
