@@ -1,13 +1,20 @@
 #include <stdint.h>
-#include <pthread.h>
 #include <stdbool.h>
 #include <assert.h>
 #include <stdlib.h>
 #include <string.h>
-#include <unistd.h>
 #include <inttypes.h>
 #include <chrono>
 #include <thread>
+
+#ifdef __GNUC__
+#include <pthread.h>
+#include <unistd.h>
+#endif
+
+#ifdef _MSC_VER
+#include <Windows.h>
+#endif
 
 #include "Simulator.h"
 #include "IOUtilities.h"
@@ -16,6 +23,7 @@
 #include "default_test_params.h"
 #include "debug.h"
 #include "RequestManager.h"
+#include "Multithreading.h"
 
 #if (SIM_TRACE == 1)
 SimTracer *gSimTracer;
@@ -46,6 +54,12 @@ Simulator::Simulator(const char *pInputFilename) {
         gTestParams.maxNumberOfThreads = numConfigs_;
     }
     configsToTest_ = numConfigs_;
+#ifdef _MSC_VER
+    if (gTestParams.maxNumberOfThreads > MAXIMUM_WAIT_OBJECTS) {
+        gTestParams.maxNumberOfThreads = MAXIMUM_WAIT_OBJECTS;
+        printf("Setting maximum number of threads to Windows maximum of %" PRId32 "\n", MAXIMUM_WAIT_OBJECTS);
+    }
+#endif
 #if (SIM_TRACE == 1)
     uint64_t simTraceBufferMemorySize = gTestParams.maxNumberOfThreads * kSimTraceBufferSizeInBytes;
     if (simTraceBufferMemorySize > MEMORY_USAGE_LIMIT) {
@@ -58,7 +72,7 @@ Simulator::Simulator(const char *pInputFilename) {
     pCycleCounter_ = new uint64_t[numConfigs_];
     assert(pCycleCounter_);
     memset(pCycleCounter_, 0, sizeof(uint64_t) * numConfigs_);
-    pThreads_ = new pthread_t[numConfigs_];
+    pThreads_ = new Thread_t[numConfigs_];
     assert(pThreads_);
     pCaches_ = new Cache*[numConfigs_];
     assert(pCaches_);
@@ -66,8 +80,11 @@ Simulator::Simulator(const char *pInputFilename) {
     SetupCaches(kL1, gTestParams.minBlockSize, gTestParams.minCacheSize);
 }
 
-
+#ifdef _MSC_VER
+DWORD WINAPI Simulator::TrackProgress(void *pSimulatorPointer) {
+#else
 void* Simulator::TrackProgress(void * pSimulatorPointer) {
+#endif
     Simulator *pSimulator = static_cast<Simulator*>(pSimulatorPointer);
     uint64_t numAccesses = static_cast<float> (pSimulator->GetNumAccesses());
     float oneConfigPercentage = 100.0f / static_cast<float> (pSimulator->numConfigs_);
@@ -104,8 +121,12 @@ void* Simulator::TrackProgress(void * pSimulatorPointer) {
     }
     // clear screen
     printf("\033[2J");
+#ifdef _MSC_VER
+    return 0;
+#else
     pthread_exit(NULL);
     return nullptr;
+#endif
 }
 
 void Simulator::PrintStats(FILE* pTextStream, FILE* pCSVStream) {
@@ -150,7 +171,11 @@ Simulator::~Simulator() {
 #endif
 }
 
+#ifdef _MSC_VER
+DWORD WINAPI Simulator::SimCache(void *pSimCacheContext) {
+#else
 void* Simulator::SimCache (void *pSimCacheContext) {
+#endif
     SimCacheContext *simCacheContext = static_cast<SimCacheContext*>(pSimCacheContext);
     Cache *this_cache = simCacheContext->pL1Cache;
     Simulator* pSimulator = simCacheContext->pSimulator;
@@ -184,6 +209,10 @@ void* Simulator::SimCache (void *pSimCacheContext) {
                 Simulator::SetBit(oustanding_requests, request_index);
             }
         }
+        else if (i > (numAccesses + 1)) {
+            printf("thread_id=%llu\n", this_cache->threadId_);
+            printf("i=%llu\n", i);
+        }
         uint64_t num_completed_requests = this_cache->ProcessCache(cycleCounter[configIndex], completed_requests);
         work_done |= this_cache->GetWasWorkDoneThisCycle();
         for (uint64_t j = 0; j < num_completed_requests; j++) {
@@ -205,19 +234,22 @@ void* Simulator::SimCache (void *pSimCacheContext) {
             }
         }
     } while (oustanding_requests || i < numAccesses);
-    pthread_mutex_lock(&pSimulator->lock_);
+    Multithreading::Lock(&pSimulator->lock_);
 #if (SIM_TRACE == 1)
     gSimTracer->WriteThreadBuffer(this_cache);
 #endif
     pSimulator->DecrementConfigsToTest();
     pSimulator->DecrementNumThreadsOutstanding();
-    assert(pSimulator->GetThreadsOutstanding()[this_cache->threadId_] == pthread_self());
     // Mark thread as not in use
     pSimulator->GetThreadsOutstanding()[this_cache->threadId_] = Simulator::kInvalidThreadId;
-    pthread_mutex_unlock(&pSimulator->lock_);
+    Multithreading::Unlock(&pSimulator->lock_);
     this_cache->FreeMemory();
+#ifdef _MSC_VER
+    return 0;
+#else
     pthread_exit(NULL);
     return nullptr;
+#endif
 }
 
 void Simulator::DecrementConfigsToTest() {
@@ -232,21 +264,20 @@ void Simulator::DecrementNumThreadsOutstanding() {
  * @brief Generate threads that will call sim_cache
  * 
  */
-void Simulator::CreateAndRunThreads (void) {\
-    if (pthread_mutex_init(&lock_, NULL) != 0){
-        fprintf(stderr, "Mutex lock init failed\n");
-        exit(1);
-    }
+void Simulator::CreateAndRunThreads (void) {
+    Multithreading::InitializeLock(&lock_);
+
 #if (CONSOLE_PRINT == 0)
-    pthread_t progressThread;
-    pthread_create(&progressThread, NULL, Simulator::TrackProgress, this);
+    Thread_t progressThread;
+    Multithreading::StartThread(Simulator::TrackProgress, this, &progressThread);
+    // pthread_create(&progressThread, NULL, Simulator::TrackProgress, this);
 #endif
     uint64_t threadId = 0;
 
     // internal threadId to pthread threadId mapping used to track which threads are active
-    pThreadsOutstanding_ = new pthread_t[gTestParams.maxNumberOfThreads];
+    pThreadsOutstanding_ = new Thread_t[gTestParams.maxNumberOfThreads];
     // Cast of kInvalidThreadId to int is OK for memset because it is all 1
-    memset(pThreadsOutstanding_, static_cast<int> (kInvalidThreadId), sizeof(pthread_t) * gTestParams.maxNumberOfThreads);
+    memset(pThreadsOutstanding_, reinterpret_cast<int> (kInvalidThreadId), sizeof(Thread_t) * gTestParams.maxNumberOfThreads);
 
     pAccessIndices = new uint64_t[gTestParams.maxNumberOfThreads];
     memset(pAccessIndices, 0, sizeof(uint64_t) * gTestParams.maxNumberOfThreads);
@@ -255,7 +286,7 @@ void Simulator::CreateAndRunThreads (void) {\
     for (uint64_t i = 0; i < numConfigs_; i++) {
         while (numThreadsOutstanding_ == gTestParams.maxNumberOfThreads)
             ;
-        pthread_mutex_lock(&lock_);
+        Multithreading::Lock(&lock_);
         numThreadsOutstanding_++;
         // Search for a threadId that is not in use
         for (threadId = 0; threadId < static_cast<uint64_t>(gTestParams.maxNumberOfThreads); threadId++) {
@@ -267,20 +298,27 @@ void Simulator::CreateAndRunThreads (void) {\
         pContexts[i].pL1Cache = pCaches_[i];
         pContexts[i].pSimulator = this;
         pContexts[i].configIndex = i;
+        Multithreading::StartThread(Simulator::SimCache, static_cast<void*> (&pContexts[i]), &pThreads_[i]);
+        /*
         if (pthread_create(&pThreads_[i], NULL, Simulator::SimCache, static_cast<void*>(&pContexts[i]))) {
             fprintf(stderr, "Error in creating thread %" PRIu64 "\n", i);
         }
+        */
         pThreadsOutstanding_[threadId] = pThreads_[i];
-        pthread_mutex_unlock(&lock_);
+        Multithreading::Unlock(&lock_);
     }
+    Multithreading::WaitForThreads(numConfigs_, pThreads_);
+    /*
     for (uint64_t i = 0; i < numConfigs_; i++) {
         pthread_join(pThreads_[i], NULL);
     }
+    */
     delete[] pThreadsOutstanding_;
     delete[] pContexts;
     delete[] pAccessIndices;
 #if (CONSOLE_PRINT == 0)
-    pthread_join(progressThread, NULL);
+    Multithreading::WaitForThreads(1, &progressThread);
+    //pthread_join(progressThread, NULL);
 #endif
     assert(numThreadsOutstanding_ == 0);
 }

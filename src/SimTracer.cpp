@@ -5,6 +5,7 @@
 #include <string.h>
 #include <stdbool.h>
 #include <stdarg.h>
+#include <inttypes.h>
 
 #include "Cache.h"
 #include "SimTracer.h"
@@ -19,7 +20,7 @@ SimTracer::SimTracer(const char *filename, uint64_t numberOfConfigs) {
     if (numberOfConfigs > SIM_TRACE_WARNING_THRESHOLD) {
         printf("The number of configs is very high for simulation tracing.\n");
         printf("There is no issue with that, but it will take ~2 times as long\n");
-        printf("as normal, and will write a .bin file that will be %lu MiB\n\n", (numberOfConfigs * kSimTraceBufferSizeInBytes) >> 20);
+        printf("as normal, and will write a .bin file that will be" PRIu64 "MiB\n\n", (numberOfConfigs * kSimTraceBufferSizeInBytes) >> 20);
         printf("Note: On my setup, making the number of threads unlimited has a\n");
         printf("bigger benefit to performance when sim tracing than when not.\n\n");
         printf("Do you wish to continue? [Y/n]\n");

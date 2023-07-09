@@ -3,6 +3,7 @@
 #include <stdint.h>
 #include <stdio.h>
 
+#include "Multithreading.h"
 #include "Cache.h"
 
 
@@ -22,6 +23,16 @@ class Simulator {
 
     ~Simulator();
 
+#ifdef _MSC_VER
+    /**
+     * @brief                       Runs through all memory accesses with given setup cache
+     * 
+     * @param pSimCacheContext      void pointer of a SimCacheContext
+     * 
+     * @return                      Status
+     */
+    static DWORD WINAPI SimCache (void *pSimCacheContext);
+#else
     /**
      * @brief                       Runs through all memory accesses with given setup cache
      * 
@@ -30,6 +41,7 @@ class Simulator {
      * @return                      None
      */
     static void* SimCache (void *pSimCacheContext);
+#endif
 
     /**
      * @brief Generate threads that will call sim_cache
@@ -45,6 +57,15 @@ class Simulator {
      */
     void PrintStats(FILE* pTextStream, FILE* pCSVStream);
 
+#ifdef _MSC_VER
+    /**
+     * @brief                   Tracks and prints the progress of the simulation, intended to be called from separate thread
+     * 
+     * @param pSimulatorPointer Void pointer to simulator object
+     * @return                  Status
+     */
+    static DWORD WINAPI TrackProgress(void *pSimulatorPointer);
+#else
     /**
      * @brief                   Tracks and prints the progress of the simulation, intended to be called from separate thread
      * 
@@ -52,6 +73,7 @@ class Simulator {
      * @return                  None
      */
     static void* TrackProgress(void * pSimulatorPointer);
+#endif
 
     /**
      * @brief   Determines the maximum value of given parameters
@@ -98,7 +120,7 @@ class Simulator {
      * @brief Get the threads outstanding
      * 
      */
-    inline pthread_t* GetThreadsOutstanding();
+    inline Thread_t* GetThreadsOutstanding();
 
     /**
      * @brief Decrement the configs to test counter
@@ -112,9 +134,9 @@ class Simulator {
      */
     void DecrementNumThreadsOutstanding();
 
-    pthread_mutex_t lock_;
+    Lock_t lock_;
 
-    static constexpr uint64_t kInvalidThreadId = UINT64_MAX;
+    static constexpr Thread_t kInvalidThreadId = reinterpret_cast<Thread_t>(UINT64_MAX);
 
     private:
 
@@ -140,7 +162,8 @@ class Simulator {
     // Common across all threads
     Instruction *pAccesses_;
     uint64_t numAccesses_;
-    pthread_t *pThreads_;
+    Thread_t *pThreads_;
+    Thread_t *pThreadsOutstanding_;
     Cache **pCaches_;
     uint64_t *pCycleCounter_;
     uint64_t numConfigs_;
@@ -151,7 +174,6 @@ class Simulator {
     // running with large numbers of configs
     volatile int32_t numThreadsOutstanding_;
     uint64_t configsToTest_;
-    pthread_t* pThreadsOutstanding_;
     uint64_t *pAccessIndices;
 
 };
@@ -161,11 +183,11 @@ inline uint64_t Simulator::Max(uint64_t x, uint64_t y) {
 }
 
 inline void Simulator::SetBit(bitfield64_t& bitfield, int16_t index) {
-    bitfield |= (1 << (index));
+    bitfield |= (1ULL << (index));
 }
 
 inline void Simulator::ResetBit(bitfield64_t& bitfield, int16_t index) {
-    bitfield &= ~(1 << (index));
+    bitfield &= ~(1ULL << (index));
 }
 
 inline uint64_t Simulator::GetNumAccesses() {
@@ -180,6 +202,6 @@ inline uint64_t* Simulator::GetCycleCounter() {
     return pCycleCounter_;
 }
 
-inline pthread_t* Simulator::GetThreadsOutstanding() {
-    return pThreadsOutstanding_;
+inline Thread_t* Simulator::GetThreadsOutstanding() {
+     return pThreadsOutstanding_;
 }
