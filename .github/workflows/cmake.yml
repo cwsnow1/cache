@@ -37,9 +37,9 @@ jobs:
       # Execute tests defined by the CMake configuration.
       # See https://cmake.org/cmake/help/latest/manual/ctest.1.html for more detail
       - if: matrix.os == 'windows-latest'
-        run: ${{github.workspace}}\build\${{ matrix.build-type }}\cache.exe ${{github.workspace}}\ls-l.trace
+      run: ${{github.workspace}}\build\${{ matrix.build-type }}\cache.exe ${{github.workspace}}\ls-l.trace
       - if: matrix.os == 'ubuntu-latest'
-        run: ${{github.workspace}}/build/cache ${{github.workspace}}/ls-l.trace
+      run: ${{github.workspace}}/build/cache ${{github.workspace}}/ls-l.trace
 
   build_sim_trace_release:
     # The CMake configure and build commands are platform agnostic and should work equally well on Windows or Mac.
