@@ -7,7 +7,7 @@
 
 typedef pthread_t Thread_t;
 typedef pthread_mutex_t Lock_t;
-#define THREAD_FUNCTION_TYPE  (void *)
+#define THREAD_FUNCTION_TYPE void*
 #endif
 
 #ifdef _MSC_VER

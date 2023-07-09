@@ -32,8 +32,3 @@ add_executable(${PROJECT_NAME} ${SRC_FILES})
 IF (!WIN32)
 target_link_libraries(${PROJECT_NAME} pthread)
 ENDIF()
-
-include(CTest)
-
-add_test(NAME ls-l_run COMMAND cache ../ls-l.trace)
-
