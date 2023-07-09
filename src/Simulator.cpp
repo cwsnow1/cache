@@ -209,10 +209,7 @@ void* Simulator::SimCache (void *pSimCacheContext) {
                 Simulator::SetBit(oustanding_requests, request_index);
             }
         }
-        else if (i > (numAccesses + 1)) {
-            printf("thread_id=%llu\n", this_cache->threadId_);
-            printf("i=%llu\n", i);
-        }
+
         uint64_t num_completed_requests = this_cache->ProcessCache(cycleCounter[configIndex], completed_requests);
         work_done |= this_cache->GetWasWorkDoneThisCycle();
         for (uint64_t j = 0; j < num_completed_requests; j++) {
