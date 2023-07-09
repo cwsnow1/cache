@@ -274,7 +274,7 @@ void Simulator::CreateAndRunThreads (void) {
     // internal threadId to pthread threadId mapping used to track which threads are active
     pThreadsOutstanding_ = new Thread_t[gTestParams.maxNumberOfThreads];
     // Cast of kInvalidThreadId to int is OK for memset because it is all 1
-    memset(pThreadsOutstanding_, reinterpret_cast<int> (kInvalidThreadId), sizeof(Thread_t) * gTestParams.maxNumberOfThreads);
+    memset(pThreadsOutstanding_, -1, sizeof(Thread_t) * gTestParams.maxNumberOfThreads);
 
     pAccessIndices = new uint64_t[gTestParams.maxNumberOfThreads];
     memset(pAccessIndices, 0, sizeof(uint64_t) * gTestParams.maxNumberOfThreads);
