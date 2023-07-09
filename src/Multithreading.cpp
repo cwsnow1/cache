@@ -2,6 +2,7 @@
 #include <pthread.h>
 #include <unistd.h>
 #include <stdio.h>
+#include <stdlib.h>
 #endif
 
 #ifdef _MSC_VER
@@ -22,10 +23,6 @@ void Multithreading::Lock(Lock_t *pLock) {
 
 void Multithreading::Unlock(Lock_t *pLock) {
     pthread_mutex_unlock(pLock);
-}
-
-Thread_t Multithreading::GetSelf() {
-    return pthread_self();
 }
 
 void Multithreading::InitializeLock(Lock_t *pLock) {

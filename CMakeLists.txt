@@ -8,7 +8,9 @@ add_subdirectory(sim_trace_decoder)
 
 set(CMAKE_CXX_STANDARD 11)
 set(CMAKE_CXX_COMPILER g++)
-set(CMAKE_CXX_FLAGS "-Wall")
+IF (!WIN32)
+set(CMAKE_CXX_FLAGS "-Wall -Werror -pedantic")
+ENDIF()
 
 if(SIM_TRACE EQUAL 1)
     add_definitions(-DSIM_TRACE=1)
@@ -27,7 +29,9 @@ include_directories(${cache_SOURCE_DIR}/inc)
 file(GLOB_RECURSE SRC_FILES ${cache_SOURCE_DIR}/src/*.cpp)
 
 add_executable(${PROJECT_NAME} ${SRC_FILES})
+IF (!WIN32)
 target_link_libraries(${PROJECT_NAME} pthread)
+ENDIF()
 
 include(CTest)
 
