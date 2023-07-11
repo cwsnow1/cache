@@ -218,22 +218,32 @@ Status Cache::handleAccess (Request *request) {
     wasWorkDoneThisCycle_ = true;
     uint8_t blockIndex;
     bool hit = findBlockInSet(setIndex, blockAddress, blockIndex);
+    request->attemptCount++;
     if (hit) {
         gSimTracer->Print(SIM_TRACE__HIT, static_cast<Memory*>(this),
             pRequestManager_->GetPoolIndex(request), blockAddress>>32, blockAddress & UINT32_MAX, setIndex);
         if (access.rw == READ) {
-            if (request->IsFirstAttempt) {
+            if (request->attemptCount == 1) {
                 ++stats_.readHits;
             }
         } else {
-            if (request->IsFirstAttempt) {
+            if (request->attemptCount == 1) {
                 ++stats_.writeHits;
             }
             sets_[setIndex].ways[blockIndex].dirty = true;
         }
     } else {
         gSimTracer->Print(SIM_TRACE__MISS, static_cast<Memory*>(this), pRequestManager_->GetPoolIndex(request), setIndex);
-        request->IsFirstAttempt = false;
+        if (access.rw == READ) {
+            if (request->attemptCount == 1) {
+                ++stats_.readMisses;
+            }
+        } else {
+            if (request->attemptCount == 1) {
+                ++stats_.writeMisses;
+            }
+        }
+
         int16_t requestedBlock = requestBlock(setIndex, blockAddress);
         if (requestedBlock < 0) {
             return kMiss;
@@ -242,10 +252,7 @@ Status Cache::handleAccess (Request *request) {
         blockIndex = static_cast<uint8_t>(requestedBlock);
         sets_[setIndex].busy = true;
         DEBUG_TRACE("Cache[%hhu] set %" PRIu64 " marked as busy due to miss\n", cacheLevel_, setIndex);
-        if (access.rw == READ) {
-            ++stats_.readMisses;
-        } else {
-            ++stats_.writeMisses;
+        if (access.rw == WRITE) {
             sets_[setIndex].ways[blockIndex].dirty = true;
         }
     }
