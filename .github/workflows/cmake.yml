@@ -37,14 +37,20 @@ jobs:
       # Execute tests defined by the CMake configuration.
       # See https://cmake.org/cmake/help/latest/manual/ctest.1.html for more detail
       if: matrix.os == 'windows-latest'
-      run: ${{github.workspace}}\build\${{ matrix.build-type }}\cache.exe ${{github.workspace}}\ls-l.trace
+      run: ${{github.workspace}}\build\${{ matrix.build-type }}\cache.exe ${{github.workspace}}\ls-l.trace ${{ matrix.os }}_${{ matrix.build-type }}
 
     - name: Linux Test
       working-directory: ${{github.workspace}}/build
       # Execute tests defined by the CMake configuration.
       # See https://cmake.org/cmake/help/latest/manual/ctest.1.html for more detail
       if: matrix.os == 'ubuntu-latest'
-      run: ${{github.workspace}}/build/cache ${{github.workspace}}/ls-l.trace
+      run: ${{github.workspace}}/build/cache ${{github.workspace}}/ls-l.trace ${{ matrix.os }}_${{ matrix.build-type }}
+
+    - name: Upload Test Results
+      uses: actions/upload-artifact@v3
+      with:
+        name: ${{ matrix.os }}_${{ matrix.build-type }}
+        path: ${{github.workspace}}/build/${{ matrix.os }}_${{ matrix.build-type }}
 
   build_sim_trace_release:
     # The CMake configure and build commands are platform agnostic and should work equally well on Windows or Mac.
@@ -191,4 +197,17 @@ jobs:
       working-directory: ${{github.workspace}}/build
       run: sim_trace_decoder/decoder ../sim_trace.bin out
 
+  verify_test_results:
+    needs: build
 
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Download Artifacts
+      uses: actions/download-artifact@v3
+
+    - name: Compare Test Outputs
+      run: |
+        diff windows-latest_Debug/windows-latest_Debug windows-latest_Release/windows-latest_Release
+        diff windows-latest_Debug/windows-latest_Debug ubuntu-latest_Debug/ubuntu-latest_Debug
+        diff windows-latest_Debug/windows-latest_Debug ubuntu-latest_Release/ubuntu-latest_Release
