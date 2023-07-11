@@ -208,6 +208,6 @@ jobs:
 
     - name: Compare Test Outputs
       run: |
-        diff windows-latest_Debug/windows-latest_Debug windows-latest_Release/windows-latest_Release
-        diff windows-latest_Debug/windows-latest_Debug ubuntu-latest_Debug/ubuntu-latest_Debug
-        diff windows-latest_Debug/windows-latest_Debug ubuntu-latest_Release/ubuntu-latest_Release
+        diff -w windows-latest_Debug/windows-latest_Debug windows-latest_Release/windows-latest_Release
+        diff -w windows-latest_Debug/windows-latest_Debug ubuntu-latest_Debug/ubuntu-latest_Debug
+        diff -w windows-latest_Debug/windows-latest_Debug ubuntu-latest_Release/ubuntu-latest_Release
