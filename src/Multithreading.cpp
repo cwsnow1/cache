@@ -9,10 +9,6 @@
 #include <Windows.h>
 #endif
 
-#ifdef __GNUC__
-#elif defined(_MSC_VER)
-#endif
-
 #include "Multithreading.h"
 
 #ifdef __GNUC__

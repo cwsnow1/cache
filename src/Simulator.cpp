@@ -231,6 +231,8 @@ void* Simulator::SimCache (void *pSimCacheContext) {
             }
         }
     } while (oustanding_requests || i < numAccesses);
+    CODE_FOR_ASSERT(Statistics stats = this_cache->GetStats());
+    assert(stats.readHits + stats.readMisses + stats.writeHits + stats.writeMisses == numAccesses);
     Multithreading::Lock(&pSimulator->lock_);
 #if (SIM_TRACE == 1)
     gSimTracer->WriteThreadBuffer(this_cache);

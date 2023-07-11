@@ -59,5 +59,5 @@ void RequestManager::NewInstruction(uint64_t poolIndex, Instruction access, uint
     pRequest->instruction = access;
     pRequest->cycle = cycle;
     pRequest->cycleToCallBack = cycle + accessTimeInCycles;
-    pRequest->IsFirstAttempt = true;
+    pRequest->attemptCount = 0;
 }

@@ -8,7 +8,7 @@ struct Request {
     Instruction instruction;
     uint64_t cycle;
     uint64_t cycleToCallBack;
-    bool IsFirstAttempt;
+    uint64_t attemptCount;
 };
 
 class RequestManager {
