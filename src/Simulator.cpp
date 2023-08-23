@@ -42,11 +42,8 @@ Simulator::Simulator(const char *pInputFilename) {
 
     // Read in trace file
     uint64_t fileLength = 0;
-    uint8_t *pFileContents = IOUtilities::ReadInFile(pInputFilename, &fileLength);
-    pAccesses_ = IOUtilities::ParseBuffer(pFileContents, fileLength);
-
-    assert(pAccesses_ != NULL);
-    numAccesses_ = fileLength / FILE_LINE_LENGTH_IN_BYTES;
+    uint8_t *pFileContents = IOUtilities::ReadInFile(pInputFilename, fileLength);
+    IOUtilities::ParseBuffer(pFileContents, fileLength, &pAccesses_);
 
     CalculateNumValidConfigs(numConfigs_, 0, gTestParams.minBlockSize, gTestParams.minCacheSize);
     printf("Total number of possible configs = %" PRIu64 "\n", numConfigs_);
@@ -163,7 +160,7 @@ Simulator::~Simulator() {
     }
     delete[] pCaches_;
     delete[] pCycleCounter_;
-    delete[] pAccesses_;
+    delete pAccesses_;
     delete[] pThreads_;
 #if (SIM_TRACE == 1)
     delete gSimTracer;
@@ -182,7 +179,7 @@ void* Simulator::SimCache (void *pSimCacheContext) {
     uint64_t configIndex = simCacheContext->configIndex;
 
     uint64_t* cycleCounter = pSimulator->GetCycleCounter();
-    Instruction* accesses = pSimulator->GetAccesses();
+    MemoryAccesses* accesses = pSimulator->GetAccesses();
     const uint64_t numAccesses = pSimulator->GetNumAccesses();
 
     assert(this_cache->GetCacheLevel() == kL1);
@@ -202,7 +199,7 @@ void* Simulator::SimCache (void *pSimCacheContext) {
 #endif
         work_done = false;
         if (i < numAccesses) {
-            int16_t request_index = this_cache->AddAccessRequest(accesses[i], cycleCounter[configIndex]);
+            int16_t request_index = this_cache->AddAccessRequest(accesses->pDataAccesses[i], cycleCounter[configIndex]);
             if (request_index != -1) {
                 work_done = true;
                 ++i;

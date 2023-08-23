@@ -10,16 +10,25 @@
  * 0xbeefdeadbeef: R 0xdeadbeefdead\n
  * etc.
  *
- * The first address is a don't care, that is 16 bytes including WS before rw
+ * 2 bytes to begin line
+ * 12 bytes for first address, an instrution read
+ * 2 bytes d/c
  * 1 byte rw
  * 3 bytes dc including WS
  * 12 bytes for address
  * 1 byte newline
  */
-#define FILE_LINE_LENGTH_IN_BYTES (33)
-#define FIRST_ADDRESS_LENGTH_IN_BYTES (16)
-#define RW_LENGHT_IN_BYTES (1)
-#define AFTER_RW_LENGTH_IN_BYTES (3)
+constexpr uint64_t kPaddingLengthInBytes = 2;
+constexpr uint64_t kAddressLengthInBytes = 12;
+constexpr uint64_t kRwLengthInBytes = 1;
+constexpr uint64_t kPaddingAfterRwLengthInBytes = 3;
+constexpr uint64_t kFileLineLengthInBytes =   kPaddingLengthInBytes
+                                            + kAddressLengthInBytes
+                                            + kPaddingLengthInBytes
+                                            + kRwLengthInBytes
+                                            + kPaddingAfterRwLengthInBytes
+                                            + kAddressLengthInBytes
+                                            + sizeof('\n');
 
 class IOUtilities {
 public:
@@ -60,10 +69,10 @@ public:
      *  @brief                  Takes in a trace file
      *
      *  @param filename         Name of the trace file to read
-     *  @param num_accesses     Output. Returns the length of the file in bytes
+     *  @param length           Output. Returns the length of the file in bytes
      *  @return                 Array of file contents
      */
-    static uint8_t *ReadInFile(const char *filename, uint64_t *length);
+    static uint8_t *ReadInFile(const char *filename, uint64_t& length);
 
     /**
      * @brief           Parses the contents of a trace file and coverts to
@@ -71,9 +80,9 @@ public:
      *
      * @param buffer    Pointer to the contents of the file
      * @param length    Lenght of buffer in bytes
-     * @return          Array of instruction structs for internal use
+     * @return          Memory accesses structure with I and D
      */
-    static Instruction *ParseBuffer(uint8_t *buffer, uint64_t length);
+    static void ParseBuffer(uint8_t *buffer, uint64_t length, MemoryAccesses **pAccesses);
 
 private:
 
@@ -87,9 +96,9 @@ private:
      * @brief       Parses a single line of the trace file
      * 
      * @param line  Pointer within the buffer to the start of a line
-     * @param address  Out. Parsed address value
-     * @param rw    Out. Access type, read or write
+     * @param pDataAccess           Pointer to data portion of memory access
+     * @param pInstructionAccess    Pointer to instruction portion of memory access
      */
-    static void parseLine (uint8_t *line, uint64_t *address, access_t *rw);
+    static void parseLine (uint8_t *line, Instruction *pDataAccess, Instruction *pInstructionAccess);
 
 };

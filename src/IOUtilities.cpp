@@ -175,8 +175,7 @@ void IOUtilities::LoadTestParameters (void) {
     verify_test_params();
 }
 
-uint8_t * IOUtilities::ReadInFile (const char* filename, uint64_t *length) {
-    assert(length);
+uint8_t * IOUtilities::ReadInFile (const char* filename, uint64_t& length) {
 
     uint8_t *buffer = NULL;
     uint64_t m;
@@ -199,7 +198,7 @@ uint8_t * IOUtilities::ReadInFile (const char* filename, uint64_t *length) {
     if (fread(buffer, 1, m, f) != m)    goto error;
     fclose(f);
 
-    *length = m;
+    length = m;
     return buffer;
 
 error:
@@ -209,24 +208,31 @@ error:
     exit(1);
 }
 
-void IOUtilities::parseLine (uint8_t *line, uint64_t *address, access_t *rw) {
-    line += FIRST_ADDRESS_LENGTH_IN_BYTES;
-    char rw_c = *line;
-    *rw = (rw_c == 'R') ? READ : WRITE;
-    line += RW_LENGHT_IN_BYTES + AFTER_RW_LENGTH_IN_BYTES;
+void IOUtilities::parseLine (uint8_t *line, Instruction *pDataAccess, Instruction *pInstructionAccess) {
+    line += kPaddingLengthInBytes;
     char* end_ptr;
-    *address = strtoll(reinterpret_cast<char*> (line), &end_ptr, 16);
+    pInstructionAccess->rw = READ;
+    pInstructionAccess->ptr = strtoull(reinterpret_cast<char*> (line), &end_ptr, 16);
+    line += kPaddingLengthInBytes + kAddressLengthInBytes;
+    char rw_c = *line;
+    pDataAccess->rw = (rw_c == 'R') ? READ : WRITE;
+    line += kRwLengthInBytes + kPaddingAfterRwLengthInBytes;
+    pDataAccess->ptr = strtoll(reinterpret_cast<char*> (line), &end_ptr, 16);
     assert(*end_ptr == '\n');
 }
 
-Instruction * IOUtilities::ParseBuffer (uint8_t *buffer, uint64_t length) {
+void IOUtilities::ParseBuffer (uint8_t *buffer, uint64_t length, MemoryAccesses **pAccesses) {
     assert(buffer);
     const uint8_t *buffer_start = buffer;
-    uint64_t num_lines = length / FILE_LINE_LENGTH_IN_BYTES;
-    Instruction *accesses = new Instruction[num_lines];
-    for (uint64_t i = 0; i < num_lines; i++, buffer += FILE_LINE_LENGTH_IN_BYTES) {
-        IOUtilities::parseLine(buffer, &accesses[i].ptr, &accesses[i].rw);
+    uint64_t numberOfLines = length / kFileLineLengthInBytes;
+    Instruction *pDataAccesses = new Instruction[numberOfLines];
+    Instruction *pInstructionAccesses = new Instruction[numberOfLines];
+    for (uint64_t i = 0; i < numberOfLines; i++, buffer += kFileLineLengthInBytes) {
+        IOUtilities::parseLine(buffer, &pDataAccesses[i], &pInstructionAccesses[i]);
     }
+    *pAccesses = new MemoryAccesses;
+    (*pAccesses)->pDataAccesses = pDataAccesses;
+    (*pAccesses)->pInstructionAccesses = pInstructionAccesses;
+    (*pAccesses)->length = numberOfLines;
     delete[] buffer_start;
-    return accesses;
 }
