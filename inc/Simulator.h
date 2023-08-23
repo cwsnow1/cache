@@ -108,7 +108,7 @@ class Simulator {
     /**
      * @brief Get accesses, a list of Instruction objects
      */
-    inline Instruction* GetAccesses();
+    inline MemoryAccesses* GetAccesses();
 
     /**
      * @brief Get the cycle counter
@@ -160,8 +160,7 @@ class Simulator {
     void CalculateNumValidConfigs(uint64_t& pNumConfigs, uint8_t cacheLevel, uint64_t minBlockSize, uint64_t minCacheSize);
 
     // Common across all threads
-    Instruction *pAccesses_;
-    uint64_t numAccesses_;
+    MemoryAccesses *pAccesses_;
     Thread_t *pThreads_;
     Thread_t *pThreadsOutstanding_;
     Cache **pCaches_;
@@ -191,10 +190,10 @@ inline void Simulator::ResetBit(bitfield64_t& bitfield, int16_t index) {
 }
 
 inline uint64_t Simulator::GetNumAccesses() {
-    return numAccesses_;
+    return pAccesses_->length;
 }
 
-inline Instruction* Simulator::GetAccesses() {
+inline MemoryAccesses* Simulator::GetAccesses() {
     return pAccesses_;
 }
 

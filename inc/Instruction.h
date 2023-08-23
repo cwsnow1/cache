@@ -14,3 +14,14 @@ struct Instruction {
         this->rw = rw;
     }
 };
+
+struct MemoryAccesses {
+    Instruction *pDataAccesses;
+    Instruction *pInstructionAccesses;
+    uint64_t length;
+
+    ~MemoryAccesses() {
+        delete[] pDataAccesses;
+        delete[] pInstructionAccesses;
+    }
+};
