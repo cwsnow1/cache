@@ -74,6 +74,9 @@ bool DoubleList::PushElement(DoubleListElement *pElement) {
 
 DoubleListElement *DoubleList::PopElement() {
     DoubleListElement *head = pHead_;
+    if (head == pTail_) {
+        pTail_ = nullptr;
+    }
     if (head) {
         if (head->pNext_) {
             head->pNext_->pPrevious_ = NULL;
