@@ -45,7 +45,7 @@ Simulator::Simulator(const char *pInputFilename) {
     uint8_t *pFileContents = IOUtilities::ReadInFile(pInputFilename, fileLength);
     IOUtilities::ParseBuffer(pFileContents, fileLength, &pAccesses_);
 
-    CalculateNumValidConfigs(numConfigs_, 0, gTestParams.minBlockSize, gTestParams.minCacheSize);
+    CalculateNumValidConfigs(numConfigs_, 0, gTestParams.minBlockSize[kL1], gTestParams.minCacheSize[kL1]);
     printf("Total number of possible configs = %" PRIu64 "\n", numConfigs_);
     if (numConfigs_ < static_cast<uint64_t>(gTestParams.maxNumberOfThreads) || (gTestParams.maxNumberOfThreads < 0)) {
         gTestParams.maxNumberOfThreads = numConfigs_;
@@ -74,7 +74,7 @@ Simulator::Simulator(const char *pInputFilename) {
     pCaches_ = new Cache*[numConfigs_];
     assert(pCaches_);
 
-    SetupCaches(kL1, gTestParams.minBlockSize, gTestParams.minCacheSize);
+    SetupCaches(kL1, gTestParams.minBlockSize[kL1], gTestParams.minCacheSize[kL1]);
 }
 
 #ifdef _MSC_VER
@@ -358,16 +358,16 @@ void Simulator::CreateAndRunThreads (void) {
 
 void Simulator::SetupCaches (CacheLevel cacheLevel, uint64_t minBlockSize, uint64_t minCacheSize) {
     static uint64_t threadNumber = 0;
-    static Configuration configs[MAX_NUM_CACHE_LEVELS];
-    for (uint64_t blockSize = minBlockSize; blockSize <= gTestParams.maxBlockSize; blockSize <<= 1) {
-        for (uint64_t cacheSize = Max(minCacheSize, blockSize); cacheSize <= (gTestParams.maxCacheSize * (1 << cacheLevel)); cacheSize <<= 1) {
-            for (uint8_t blocksPerSet = gTestParams.minBlocksPerSet; blocksPerSet <= gTestParams.maxBlocksPerSet; blocksPerSet <<= 1) {
+    static Configuration configs[kMaxNumberOfCacheLevels];
+    for (uint64_t blockSize = Max(minBlockSize, gTestParams.minBlockSize[cacheLevel]); blockSize <= gTestParams.maxBlockSize[cacheLevel]; blockSize <<= 1) {
+        for (uint64_t cacheSize = Max(minCacheSize, blockSize); cacheSize <= gTestParams.maxCacheSize[cacheLevel]; cacheSize <<= 1) {
+            for (uint8_t blocksPerSet = gTestParams.minBlocksPerSet[cacheLevel]; blocksPerSet <= gTestParams.maxBlocksPerSet[cacheLevel]; blocksPerSet <<= 1) {
                 configs[cacheLevel].blockSize = blockSize;
                 configs[cacheLevel].cacheSize = cacheSize;
                 configs[cacheLevel].associativity = blocksPerSet;
                 if (Cache::IsCacheConfigValid(configs[cacheLevel])) {
                     if (cacheLevel < gTestParams.numberOfCacheLevels - 1) {
-                        SetupCaches(static_cast<CacheLevel>(cacheLevel + 1), blockSize, cacheSize * 2);
+                        SetupCaches(static_cast<CacheLevel>(cacheLevel + 1), blockSize, gTestParams.minCacheSize[cacheLevel + 1]);
                     } else {
                         pCaches_[threadNumber] = new Cache(NULL, kL1, gTestParams.numberOfCacheLevels, configs);
                         threadNumber++;
@@ -379,13 +379,13 @@ void Simulator::SetupCaches (CacheLevel cacheLevel, uint64_t minBlockSize, uint6
 }
 
 void Simulator::CalculateNumValidConfigs (uint64_t& pNumConfigs, uint8_t cacheLevel, uint64_t minBlockSize, uint64_t minCacheSize) {
-    for (uint64_t blockSize = minBlockSize; blockSize <= gTestParams.maxBlockSize; blockSize <<= 1) {
-        for (uint64_t cacheSize = Max(minCacheSize, blockSize); cacheSize <= gTestParams.maxCacheSize; cacheSize <<= 1) {
-            for (uint8_t blocksPerSet = gTestParams.minBlocksPerSet; blocksPerSet <= gTestParams.maxBlocksPerSet; blocksPerSet <<= 1) {
+    for (uint64_t blockSize = Max(minBlockSize, gTestParams.minBlockSize[cacheLevel]); blockSize <= gTestParams.maxBlockSize[cacheLevel]; blockSize <<= 1) {
+        for (uint64_t cacheSize = Max(minCacheSize, blockSize); cacheSize <= gTestParams.maxCacheSize[cacheLevel]; cacheSize <<= 1) {
+            for (uint8_t blocksPerSet = gTestParams.minBlocksPerSet[cacheLevel]; blocksPerSet <= gTestParams.maxBlocksPerSet[cacheLevel]; blocksPerSet <<= 1) {
                 Configuration config = Configuration(cacheSize, blockSize, blocksPerSet);
                 if (Cache::IsCacheConfigValid(config)) {
                     if (cacheLevel < gTestParams.numberOfCacheLevels - 1) {
-                        CalculateNumValidConfigs(pNumConfigs, cacheLevel + 1, blockSize, cacheSize);
+                        CalculateNumValidConfigs(pNumConfigs, cacheLevel + 1, blockSize, gTestParams.minCacheSize[cacheLevel + 1]);
                     } else {
                         pNumConfigs++;
                     }

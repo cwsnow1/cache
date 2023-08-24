@@ -13,5 +13,6 @@ PACK(enum CacheLevel {
     kL1 COMMA
     kL2 COMMA
     kL3 COMMA
-    kMainMemory
+    kMainMemory COMMA
+    kMaxNumberOfCacheLevels = kMainMemory COMMA
 });

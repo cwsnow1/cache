@@ -124,11 +124,16 @@ void IOUtilities::verify_test_params (void) {
 
     // Check that values make sense. May help in understanding why a parameter config
     // will be found to have 0 possible cache configs
-    assert_release(gTestParams.numberOfCacheLevels <= MAX_NUM_CACHE_LEVELS);
-    assert_release(gTestParams.minBlockSize <= gTestParams.maxBlockSize);
-    assert_release(gTestParams.minCacheSize <= gTestParams.maxCacheSize);
-    assert_release(gTestParams.minCacheSize >= gTestParams.minBlockSize);
-    assert_release(gTestParams.numberOfCacheLevels <= kMainMemory && "Update kAccessTimeInCycles & enum cache_levels");
+    assert_release(gTestParams.numberOfCacheLevels <= kMaxNumberOfCacheLevels);
+    for (int i = 0; i < kMaxNumberOfCacheLevels; i++) {
+        assert_release(gTestParams.minBlockSize[i] <= gTestParams.maxBlockSize[i]);
+        assert_release(gTestParams.minCacheSize[i] <= gTestParams.maxCacheSize[i]);
+        assert_release(gTestParams.minCacheSize[i] >= gTestParams.minBlockSize[i]);
+        assert_release(gTestParams.minBlocksPerSet[i]);
+        assert_release(gTestParams.maxBlocksPerSet[i]);
+        assert_release(gTestParams.maxBlocksPerSet[i] >= gTestParams.minBlocksPerSet[i]);
+    }
+    assert_release(gTestParams.numberOfCacheLevels <= kMaxNumberOfCacheLevels && "Update kAccessTimeInCycles & enum cache_levels");
 #if (CONSOLE_PRINT == 1)
     if (gTestParams.maxNumberOfThreads > 1) {
         printf("WARNING: Console printing with multiple threads is not recommended. Do you wish to continue? [Y/n]\n");
@@ -153,23 +158,33 @@ void IOUtilities::LoadTestParameters (void) {
         params_f = fopen(kParametersFilename, "w+");
         assert(params_f);
         fprintf(params_f, "NUM_CACHE_LEVELS=%d\n",    NUM_CACHE_LEVELS);
-        fprintf(params_f, "MIN_BLOCK_SIZE=%d\n",      MIN_BLOCK_SIZE);
-        fprintf(params_f, "MAX_BLOCK_SIZE=%d\n",      MAX_BLOCK_SIZE);
-        fprintf(params_f, "MIN_CACHE_SIZE=%d\n",      MIN_CACHE_SIZE);
-        fprintf(params_f, "MAX_CACHE_SIZE=%d\n",      MAX_CACHE_SIZE);
-        fprintf(params_f, "MIN_ASSOCIATIVITY=%d\n",   MIN_ASSOCIATIVITY);
-        fprintf(params_f, "MAX_ASSOCIATIVITY=%d\n",   MAX_ASSOCIATIVITY);
+        for (int i = 0; i < kMaxNumberOfCacheLevels; i++) {
+            fprintf(params_f, "L%d_MIN_BLOCK_SIZE=%d\n",    i + 1, MIN_BLOCK_SIZE);
+            fprintf(params_f, "L%d_MAX_BLOCK_SIZE=%d\n",    i + 1, MAX_BLOCK_SIZE);
+            fprintf(params_f, "L%d_MIN_CACHE_SIZE=%d\n",    i + 1, MIN_CACHE_SIZE);
+            fprintf(params_f, "L%d_MAX_CACHE_SIZE=%d\n",    i + 1, MAX_CACHE_SIZE);
+            fprintf(params_f, "L%d_MIN_ASSOCIATIVITY=%d\n", i + 1, MIN_ASSOCIATIVITY);
+            fprintf(params_f, "L%d_MAX_ASSOCIATIVITY=%d\n", i + 1, MAX_ASSOCIATIVITY);
+        }
         fprintf(params_f, "MAX_NUM_THREADS=%d\n",     MAX_NUM_THREADS);
         assert_release(fseek(params_f, 0, SEEK_SET) == 0);
     }
     // File exists, read it in
     assert_release(fscanf(params_f, "NUM_CACHE_LEVELS=%u\n",    reinterpret_cast<uint32_t*>(&gTestParams.numberOfCacheLevels)));
-    assert_release(fscanf(params_f, "MIN_BLOCK_SIZE=%" PRIu64 "\n",    &gTestParams.minBlockSize));
-    assert_release(fscanf(params_f, "MAX_BLOCK_SIZE=%" PRIu64 "\n",    &gTestParams.maxBlockSize));
-    assert_release(fscanf(params_f, "MIN_CACHE_SIZE=%" PRIu64 "\n",    &gTestParams.minCacheSize));
-    assert_release(fscanf(params_f, "MAX_CACHE_SIZE=%" PRIu64 "\n",    &gTestParams.maxCacheSize));
-    assert_release(fscanf(params_f, "MIN_ASSOCIATIVITY=%u\n",   reinterpret_cast<uint32_t*>(&gTestParams.minBlocksPerSet)));
-    assert_release(fscanf(params_f, "MAX_ASSOCIATIVITY=%u\n",   reinterpret_cast<uint32_t*>(&gTestParams.maxBlocksPerSet)));
+    for (uint64_t i = 0; i < kMaxNumberOfCacheLevels; i++) {
+        int cacheLevel;
+        int expectedCacheLevel = static_cast<int> (i) + 1;
+        assert_release(fscanf(params_f, "L%d_MIN_BLOCK_SIZE=%" PRIu64 "\n", &cacheLevel, &gTestParams.minBlockSize[i]));
+        assert_release(fscanf(params_f, "L%d_MAX_BLOCK_SIZE=%" PRIu64 "\n", &cacheLevel, &gTestParams.maxBlockSize[i]));
+        assert_release(fscanf(params_f, "L%d_MIN_CACHE_SIZE=%" PRIu64 "\n", &cacheLevel, &gTestParams.minCacheSize[i]));
+        assert_release(fscanf(params_f, "L%d_MAX_CACHE_SIZE=%" PRIu64 "\n", &cacheLevel, &gTestParams.maxCacheSize[i]));
+        uint32_t associativity;
+        assert_release(fscanf(params_f, "L%d_MIN_ASSOCIATIVITY=%u\n", &cacheLevel, &associativity));
+        gTestParams.minBlocksPerSet[i] = static_cast<uint8_t> (associativity);
+        assert_release(fscanf(params_f, "L%d_MAX_ASSOCIATIVITY=%u\n", &cacheLevel, &associativity));
+        gTestParams.maxBlocksPerSet[i] = static_cast<uint8_t> (associativity);
+        assert(cacheLevel == expectedCacheLevel);
+    }
     assert_release(fscanf(params_f, "MAX_NUM_THREADS=%d\n",     &gTestParams.maxNumberOfThreads));
     fclose(params_f);
     verify_test_params();
