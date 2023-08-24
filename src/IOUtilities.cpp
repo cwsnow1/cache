@@ -218,6 +218,8 @@ void IOUtilities::parseLine (uint8_t *line, Instruction *pDataAccess, Instructio
     pDataAccess->rw = (rw_c == 'R') ? READ : WRITE;
     line += kRwLengthInBytes + kPaddingAfterRwLengthInBytes;
     pDataAccess->ptr = strtoll(reinterpret_cast<char*> (line), &end_ptr, 16);
+    // If this assert fails, it is likely that the addresses in the trace are not uniform
+    // and do not match the length assumptions made here
     assert(*end_ptr == '\n');
 }
 
