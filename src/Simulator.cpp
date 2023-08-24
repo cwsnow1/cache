@@ -185,25 +185,49 @@ void* Simulator::SimCache (void *pSimCacheContext) {
     assert(this_cache->GetCacheLevel() == kL1);
     this_cache->AllocateMemory();
     cycleCounter[configIndex] = 0;
-    bitfield64_t oustanding_requests = 0;
+    uint64_t outstanding_requests[RequestManager::kMaxNumberOfRequests] = { Simulator::kInvalidRequestIndex };
     int16_t completed_requests[RequestManager::kMaxNumberOfRequests] = { 0 };
     static_assert(RequestManager::kMaxNumberOfRequests <= 64,"Too many requests to store requests in this bitfield");
     uint64_t &i = pSimulator->pAccessIndices[this_cache->threadId_];
+    DoubleList *pDataAccessRequests = new DoubleList(RequestManager::kMaxNumberOfRequests);
+    DoubleList *pFreeAccessRequests = new DoubleList(RequestManager::kMaxNumberOfRequests);
+    for (uint64_t requestIndex = 0; requestIndex < RequestManager::kMaxNumberOfRequests; requestIndex++) {
+        DoubleListElement *pElement = new DoubleListElement;
+        pFreeAccessRequests->PushElement(pElement);
+    }
     i = 0;
     bool work_done = false;
+    bool isOutstandingRequest;
     do {
 #if (CONSOLE_PRINT == 1)
         printf("====================\nTICK %010" PRIu64 "\n====================\n", cycleCounter[configIndex]);
         char c;
         assert_release(scanf("%c", &c) == 1);
 #endif
+        isOutstandingRequest = false;
         work_done = false;
-        if (i < numAccesses) {
-            int16_t request_index = this_cache->AddAccessRequest(accesses->pDataAccesses[i], cycleCounter[configIndex]);
+
+        if (pDataAccessRequests->PeekHead()) {
+            DoubleListElement *pElement = pDataAccessRequests->PeekHead();
+            uint64_t instructionIndex = pElement->poolIndex_;
+            int16_t request_index = this_cache->AddAccessRequest(accesses->pDataAccesses[instructionIndex], cycleCounter[configIndex]);
+            assert(request_index != -1);
+            if (request_index != -1) {
+                pElement = pDataAccessRequests->PopElement();
+                pFreeAccessRequests->PushElement(pElement);
+                outstanding_requests[request_index] = Simulator::kDataAccessRequest;
+                work_done = true;
+            }
+            isOutstandingRequest = true;
+        }
+
+        if ((i < numAccesses) && !work_done) {
+            int16_t request_index = this_cache->AddAccessRequest(accesses->pInstructionAccesses[i], cycleCounter[configIndex]);
             if (request_index != -1) {
                 work_done = true;
+                outstanding_requests[request_index] = i;
                 ++i;
-                Simulator::SetBit(oustanding_requests, request_index);
+                isOutstandingRequest = true;
             }
         }
 
@@ -211,7 +235,20 @@ void* Simulator::SimCache (void *pSimCacheContext) {
         work_done |= this_cache->GetWasWorkDoneThisCycle();
         for (uint64_t j = 0; j < num_completed_requests; j++) {
             work_done = true;
-            Simulator::ResetBit(oustanding_requests, completed_requests[j]);
+            // Clear out outstanding requests
+            if (outstanding_requests[completed_requests[j]] == Simulator::kDataAccessRequest) {
+                outstanding_requests[completed_requests[j]] = Simulator::kInvalidRequestIndex;
+                continue;
+            }
+            uint64_t complete_request_index = outstanding_requests[completed_requests[j]];
+            outstanding_requests[completed_requests[j]] = Simulator::kInvalidRequestIndex;
+            // add data access request to queue
+            DoubleListElement *pElement = pFreeAccessRequests->PopElement();
+            assert(pElement);
+            pElement->poolIndex_ = complete_request_index;
+            pDataAccessRequests->AddElementToTail(pElement);
+
+            isOutstandingRequest = true;
         }
         if (work_done) {
             cycleCounter[configIndex]++;
@@ -227,9 +264,17 @@ void* Simulator::SimCache (void *pSimCacheContext) {
                 cycleCounter[configIndex]++;
             }
         }
-    } while (oustanding_requests || i < numAccesses);
+        if (!isOutstandingRequest) {
+            for (uint64_t requestIndex = 0; requestIndex < RequestManager::kMaxNumberOfRequests; requestIndex++) {
+                if (outstanding_requests[requestIndex] != Simulator::kInvalidRequestIndex) {
+                    isOutstandingRequest = true;
+                    break;
+                }
+            }
+        }
+    } while (isOutstandingRequest || i < numAccesses);
     CODE_FOR_ASSERT(Statistics stats = this_cache->GetStats());
-    assert(stats.readHits + stats.readMisses + stats.writeHits + stats.writeMisses == numAccesses);
+    assert(stats.readHits + stats.readMisses + stats.writeHits + stats.writeMisses == numAccesses * 2);
     Multithreading::Lock(&pSimulator->lock_);
 #if (SIM_TRACE == 1)
     gSimTracer->WriteThreadBuffer(this_cache);
@@ -243,6 +288,8 @@ void* Simulator::SimCache (void *pSimCacheContext) {
 #ifdef _MSC_VER
     return 0;
 #else
+    delete pFreeAccessRequests;
+    delete pDataAccessRequests;
     pthread_exit(NULL);
     return nullptr;
 #endif

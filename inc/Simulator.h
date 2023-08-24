@@ -138,6 +138,10 @@ class Simulator {
 
     static constexpr Thread_t kInvalidThreadId = reinterpret_cast<Thread_t>(UINT64_MAX);
 
+    static constexpr uint64_t kInvalidRequestIndex = UINT64_MAX;
+
+    static constexpr uint64_t kDataAccessRequest = UINT64_MAX - 1;
+
     private:
 
     /**
