@@ -8,6 +8,3 @@
 #define MIN_ASSOCIATIVITY   (1)
 #define MAX_ASSOCIATIVITY   (2)
 #define MAX_NUM_THREADS     (12) // -1 for no limit
-
-// Defined for simplification, not a test parameter
-#define MAX_NUM_CACHE_LEVELS (4)

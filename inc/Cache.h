@@ -229,12 +229,12 @@ class Cache : public Memory {
 
 struct TestParamaters {
     uint8_t numberOfCacheLevels;
-    uint64_t minBlockSize;
-    uint64_t maxBlockSize;
-    uint64_t minCacheSize;
-    uint64_t maxCacheSize;
-    uint8_t minBlocksPerSet;
-    uint8_t maxBlocksPerSet;
+    uint64_t minBlockSize[kMaxNumberOfCacheLevels];
+    uint64_t maxBlockSize[kMaxNumberOfCacheLevels];
+    uint64_t minCacheSize[kMaxNumberOfCacheLevels];
+    uint64_t maxCacheSize[kMaxNumberOfCacheLevels];
+    uint8_t minBlocksPerSet[kMaxNumberOfCacheLevels];
+    uint8_t maxBlocksPerSet[kMaxNumberOfCacheLevels];
     int32_t maxNumberOfThreads;
 };
 
