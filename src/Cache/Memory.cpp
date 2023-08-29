@@ -44,7 +44,7 @@ int16_t Memory::AddAccessRequest (Instruction access, uint64_t cycle) {
         uint64_t poolIndex = element->poolIndex_;
         pRequestManager_->NewInstruction(poolIndex, access, cycle, kAccessTimeInCycles[cacheLevel_]);
         DEBUG_TRACE("Cache[%hhu] New request added at index %" PRIu64 ", call back at tick %" PRIu64 "\n", cacheLevel_, poolIndex, pRequestManager_->GetRequestAtIndex(poolIndex)->cycleToCallBack);
-        gSimTracer->Print(SIM_TRACE__REQUEST_ADDED, this, poolIndex, access.rw == READ ? 'r' : 'w', (access.ptr >> 32), access.ptr & UINT32_MAX, kAccessTimeInCycles[cacheLevel_]);
+        gSimTracer->Print(SIM_TRACE__REQUEST_ADDED, this, poolIndex, access.rw, (access.ptr >> 32), access.ptr & UINT32_MAX, kAccessTimeInCycles[cacheLevel_]);
 
         return static_cast<int16_t> (poolIndex);
     }
