@@ -56,7 +56,6 @@ Cache::Cache (Cache *pUpperCache, CacheLevel cacheLevel, uint8_t numCacheLevels,
     earliestNextUsefulCycle_ = UINT64_MAX;
     if (cacheLevel < numCacheLevels - 1) {
         pLowerCache_ = new Cache(this, static_cast<CacheLevel>(cacheLevel + 1), numCacheLevels, pCacheConfigs);
-        pLowerCache_->SetUpperCache(static_cast<Memory*>(this));
     } else {
         pLowerCache_ = new Memory(this);
     }
@@ -159,7 +158,7 @@ int16_t Cache::evictBlock (uint64_t setIndex) {
         ++stats_.writebacks;
         sets_[setIndex].ways[lruBlockIndex].dirty = false;
     }
-    if (pLowerCache_->AddAccessRequest(lowerCacheAccess, cycle_) == -1) {
+    if (pLowerCache_->AddAccessRequest(lowerCacheAccess, cycle_) == RequestManager::kInvalidRequestIndex) {
         gSimTracer->Print(SIM_TRACE__EVICT_FAILED, static_cast<Memory*>(this));
         DEBUG_TRACE("Cache[%hhu] could not make request to lower cache in evictBlock, returning\n", cacheLevel_);
         return -1;
@@ -276,7 +275,7 @@ uint64_t Cache::InternalProcessCache (uint64_t cycle, int16_t *pCompletedRequest
                 if (pUpperCache_) {
                     Cache *upperCache = static_cast<Cache*>(pUpperCache_);
                     uint64_t setIndex = upperCache->addressToSetIndex(pRequestManager_->GetRequestAtIndex(poolIndex)->instruction.ptr);
-                    DEBUG_TRACE("Cache[%hhu] marking set %" PRIu64 " as no longer busy\n", static_cast<uint8_t> (cacheLevel_ - 1), setIndex);
+                    DEBUG_TRACE("Cache[%hhu] marking set %" PRIu64 " as no longer busy\n", static_cast<uint8_t> (pUpperCache_->GetCacheLevel()), setIndex);
                     static_cast<Cache*>(pUpperCache_)->ResetCacheSetBusy(setIndex);
                 }
                 if (cacheLevel_ == kL1) {
@@ -300,7 +299,7 @@ uint64_t Cache::InternalProcessCache (uint64_t cycle, int16_t *pCompletedRequest
             if (pUpperCache_) {
                 Cache *upperCache = static_cast<Cache*>(pUpperCache_);
                 uint64_t setIndex = upperCache->addressToSetIndex(pRequestManager_->GetRequestAtIndex(poolIndex)->instruction.ptr);
-                DEBUG_TRACE("Cache[%hhu] marking set %" PRIu64 " as no longer busy\n", static_cast<uint8_t> (cacheLevel_ - 1), setIndex);
+                DEBUG_TRACE("Cache[%hhu] marking set %" PRIu64 " as no longer busy\n", static_cast<uint8_t> (pUpperCache_->GetCacheLevel()), setIndex);
                 upperCache->sets_[setIndex].busy = false;
             }
             if (cacheLevel_ == kL1) {

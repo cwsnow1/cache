@@ -48,7 +48,7 @@ int16_t Memory::AddAccessRequest (Instruction access, uint64_t cycle) {
 
         return static_cast<int16_t> (poolIndex);
     }
-    return -1;
+    return RequestManager::kInvalidRequestIndex;
 }
 
 uint64_t Memory::InternalProcessCache (uint64_t cycle, int16_t *pCompletedRequests) {

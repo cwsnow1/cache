@@ -124,6 +124,8 @@ class RequestManager {
 
     static constexpr uint64_t kMaxNumberOfRequests = 8;
 
+    static constexpr int16_t kInvalidRequestIndex = -1;
+
    private:
 
     Request *pRequestPool_;
