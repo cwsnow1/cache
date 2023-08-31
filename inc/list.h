@@ -56,6 +56,10 @@ class DoubleList {
 
     DoubleListElement *PeekHead() { return pHead_; }
 
+    inline uint64_t GetCount() { return count_; }
+
+    inline uint64_t GetCapacity() { return capacity_; }
+
    private:
     DoubleListElement *pHead_;
     DoubleListElement *pTail_;

@@ -10,8 +10,24 @@
 typedef uint64_t bitfield64_t;
 class Simulator;
 
+enum CacheType {
+    kDataCache,
+    kInstructionCache,
+    kNumberOfCacheTypes
+};
+
+struct CacheGroup {
+    Cache* pCaches[kNumberOfCacheTypes];
+
+    ~CacheGroup() {
+        for (auto i = 0; i < kNumberOfCacheTypes; i++) {
+            delete pCaches[i];
+        }
+    }
+};
+
 struct SimCacheContext {
-    Cache* pL1Cache;
+    CacheGroup *caches;
     Simulator* pSimulator;
     uint64_t configIndex;
 };
@@ -167,7 +183,7 @@ class Simulator {
     MemoryAccesses *pAccesses_;
     Thread_t *pThreads_;
     Thread_t *pThreadsOutstanding_;
-    Cache **pCaches_;
+    CacheGroup *pCaches_;
     uint64_t *pCycleCounter_;
     uint64_t numConfigs_;
 
