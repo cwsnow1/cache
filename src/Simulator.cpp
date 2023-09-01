@@ -6,7 +6,6 @@
 #include <inttypes.h>
 #include <chrono>
 #include <thread>
-#include <list>
 
 #ifdef __GNUC__
 #include <pthread.h>
