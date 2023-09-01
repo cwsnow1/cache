@@ -7,7 +7,6 @@
 #include "Cache.h"
 
 
-typedef uint64_t bitfield64_t;
 class Simulator;
 
 enum CacheType {
@@ -101,22 +100,6 @@ class Simulator {
     inline static uint64_t Max(uint64_t x, uint64_t y);
 
     /**
-     * @brief           Set the bit in given bitfield
-     * 
-     * @param pBitfield Bitfield to be set
-     * @param index     Index of bit to set
-     */
-    inline static void SetBit(bitfield64_t& pBitfield, int16_t index);
-
-    /**
-     * @brief           Reset the bit in given bitfield
-     * 
-     * @param pBitfield Bitfield to be reset
-     * @param index     Index of bit to reset
-     */
-    inline static void ResetBit(bitfield64_t& pBitfield, int16_t index);
-
-    /**
      * @brief Get the number of accesses in trace file
      */
     inline uint64_t GetNumAccesses();
@@ -157,6 +140,10 @@ class Simulator {
     static constexpr uint64_t kInvalidRequestIndex = UINT64_MAX;
 
     static constexpr uint64_t kDataAccessRequest = UINT64_MAX - 1;
+
+    static constexpr uint64_t kProgressTrackerSyncPeriod = 1 << 14;
+
+    static_assert(isPowerOfTwo(kProgressTrackerSyncPeriod), "Sync period must be power of two");
 
     private:
 
@@ -199,14 +186,6 @@ class Simulator {
 
 inline uint64_t Simulator::Max(uint64_t x, uint64_t y) {
     return (x > y) ? x : y;
-}
-
-inline void Simulator::SetBit(bitfield64_t& bitfield, int16_t index) {
-    bitfield |= (1ULL << (index));
-}
-
-inline void Simulator::ResetBit(bitfield64_t& bitfield, int16_t index) {
-    bitfield &= ~(1ULL << (index));
 }
 
 inline uint64_t Simulator::GetNumAccesses() {

@@ -6,6 +6,7 @@
 #include <inttypes.h>
 #include <chrono>
 #include <thread>
+#include <list>
 
 #ifdef __GNUC__
 #include <pthread.h>
@@ -184,12 +185,11 @@ void* Simulator::SimCache (void *pSimCacheContext) {
     MemoryAccesses* accesses = pSimulator->GetAccesses();
     const uint64_t numAccesses = pSimulator->GetNumAccesses();
 
-    cycleCounter[configIndex] = 0;
+    uint64_t localCycleCounter = 0;
     uint64_t outstanding_requests[kNumberOfCacheTypes][RequestManager::kMaxNumberOfRequests] = { Simulator::kInvalidRequestIndex };
     int16_t completed_requests[kNumberOfCacheTypes][RequestManager::kMaxNumberOfRequests] = { 0 };
     uint64_t num_completed_requests[kNumberOfCacheTypes] = { 0 };
-    static_assert(RequestManager::kMaxNumberOfRequests <= 64,"Too many requests to store requests in this bitfield");
-    uint64_t &i = pSimulator->pAccessIndices[pTheseCaches[kDataCache]->threadId_];
+
     DoubleList *pDataAccessRequests = new DoubleList(RequestManager::kMaxNumberOfRequests);
     DoubleList *pFreeAccessRequests = new DoubleList(RequestManager::kMaxNumberOfRequests);
     uint64_t reservedCount = 0;
@@ -197,12 +197,12 @@ void* Simulator::SimCache (void *pSimCacheContext) {
         DoubleListElement *pElement = new DoubleListElement;
         pFreeAccessRequests->PushElement(pElement);
     }
-    i = 0;
+    uint64_t i = 0;
     bool work_done = false;
     bool isOutstandingRequest;
     do {
 #if (CONSOLE_PRINT == 1)
-        printf("====================\nTICK %010" PRIu64 "\n====================\n", cycleCounter[configIndex]);
+        printf("====================\nTICK %010" PRIu64 "\n====================\n", localCycleCounter);
         char c;
         assert_release(scanf("%c", &c) == 1);
 #endif
@@ -212,7 +212,7 @@ void* Simulator::SimCache (void *pSimCacheContext) {
         if (pDataAccessRequests->PeekHead()) {
             DoubleListElement *pElement = pDataAccessRequests->PeekHead();
             uint64_t instructionIndex = pElement->poolIndex_;
-            int16_t request_index = pTheseCaches[kDataCache]->AddAccessRequest(accesses->pDataAccesses[instructionIndex], cycleCounter[configIndex]);
+            int16_t request_index = pTheseCaches[kDataCache]->AddAccessRequest(accesses->pDataAccesses[instructionIndex], localCycleCounter);
             if (request_index != RequestManager::kInvalidRequestIndex) {
                 pElement = pDataAccessRequests->PopElement();
                 pFreeAccessRequests->PushElement(pElement);
@@ -224,12 +224,16 @@ void* Simulator::SimCache (void *pSimCacheContext) {
 
         if ((i < numAccesses) && !work_done) {
             if (pDataAccessRequests->GetCount() + reservedCount < pDataAccessRequests->GetCapacity()) {
-                int16_t request_index = pTheseCaches[kInstructionCache]->AddAccessRequest(accesses->pInstructionAccesses[i], cycleCounter[configIndex]);
+                int16_t request_index = pTheseCaches[kInstructionCache]->AddAccessRequest(accesses->pInstructionAccesses[i], localCycleCounter);
                 if (request_index != -1) {
                     reservedCount++;
                     work_done = true;
                     outstanding_requests[kInstructionCache][request_index] = i;
                     ++i;
+                    // Periodically sync the index for use by progress tracker
+                    if (i % Simulator::kProgressTrackerSyncPeriod == 0) {
+                        pSimulator->pAccessIndices[pTheseCaches[kDataCache]->threadId_] = i;
+                    }
                     isOutstandingRequest = true;
                 }
             }
@@ -243,7 +247,7 @@ void* Simulator::SimCache (void *pSimCacheContext) {
                 printf("Instruction Cache\n");
             }
 #endif
-            num_completed_requests[j] = pTheseCaches[j]->ProcessCache(cycleCounter[configIndex], completed_requests[j]);
+            num_completed_requests[j] = pTheseCaches[j]->ProcessCache(localCycleCounter, completed_requests[j]);
             work_done |= pTheseCaches[j]->GetWasWorkDoneThisCycle();
         }
 
@@ -270,21 +274,21 @@ void* Simulator::SimCache (void *pSimCacheContext) {
             isOutstandingRequest = true;
         }
         if (work_done) {
-            cycleCounter[configIndex]++;
+            localCycleCounter++;
         } else {
             uint64_t earliestNextUsefulCycle = UINT64_MAX;
             for (auto j = 0; j < kNumberOfCacheTypes; j++) {
                 uint64_t nextUsefulCycle = pTheseCaches[j]->CalculateEarliestNextUsefulCycle();
                 earliestNextUsefulCycle = nextUsefulCycle < earliestNextUsefulCycle ? nextUsefulCycle : earliestNextUsefulCycle;
             }
-            assert(earliestNextUsefulCycle > cycleCounter[configIndex]);
+            assert(earliestNextUsefulCycle > localCycleCounter);
             if (earliestNextUsefulCycle < UINT64_MAX) {
 #if (CONSOLE_PRINT == 1)
                 printf("Skipping to earliest next useful cycle = %" PRIu64 "\n", earliestNextUsefulCycle);
 #endif
-                cycleCounter[configIndex] = earliestNextUsefulCycle;
+                localCycleCounter = earliestNextUsefulCycle;
             } else {
-                cycleCounter[configIndex]++;
+                localCycleCounter++;
             }
         }
         if (!isOutstandingRequest) {
@@ -300,6 +304,8 @@ void* Simulator::SimCache (void *pSimCacheContext) {
     } while (isOutstandingRequest || i < numAccesses);
     CODE_FOR_ASSERT(Statistics stats = pTheseCaches[kDataCache]->GetStats());
     assert(stats.readHits + stats.readMisses + stats.writeHits + stats.writeMisses == numAccesses);
+    pSimulator->pAccessIndices[pTheseCaches[kDataCache]->threadId_] = i;
+    cycleCounter[configIndex] = localCycleCounter;
     Multithreading::Lock(&pSimulator->lock_);
 #if (SIM_TRACE == 1)
     gSimTracer->WriteThreadBuffer(pTheseCaches[kDataCache]);

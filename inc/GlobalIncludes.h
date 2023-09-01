@@ -16,3 +16,8 @@ PACK(enum CacheLevel {
     kMainMemory COMMA
     kMaxNumberOfCacheLevels = kMainMemory COMMA
 });
+
+template <typename T>
+constexpr bool isPowerOfTwo(T n) {
+    return (n & (n - 1)) == 0;
+}
