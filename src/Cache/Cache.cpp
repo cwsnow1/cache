@@ -48,10 +48,7 @@ Cache::Cache (Cache *pUpperCache, CacheLevel cacheLevel, uint8_t numCacheLevels,
     config_.associativity = cacheConfig.associativity;
     assert_release(numBlocks % config_.associativity == 0 && "Number of blocks must divide evenly with associativity");
     numSets_ = numBlocks / config_.associativity;
-    tmp = numSets_;
-    for (; (tmp & 1) == 0; tmp >>= 1)
-        ;
-    assert_release(tmp == 1 && "Number of sets must be a power of 2");
+    assert_release(isPowerOfTwo(numSets_) && "Number of sets must be a power of 2");
     blockAddressToSetIndexMask_ = numSets_ - 1;
     earliestNextUsefulCycle_ = UINT64_MAX;
     if (cacheLevel < numCacheLevels - 1) {
