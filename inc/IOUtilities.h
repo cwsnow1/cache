@@ -1,6 +1,7 @@
 #pragma once
 #include <stdint.h>
 #include <stdio.h>
+#include <vector>
 
 #include "Cache.h"
 
@@ -99,6 +100,6 @@ private:
      * @param pDataAccess           Pointer to data portion of memory access
      * @param pInstructionAccess    Pointer to instruction portion of memory access
      */
-    static void parseLine (uint8_t *line, Instruction *pDataAccess, Instruction *pInstructionAccess);
+    static void parseLine (uint8_t *line, std::vector<Instruction>& dataAccesses, std::vector<Instruction>& instructionAccesses);
 
 };

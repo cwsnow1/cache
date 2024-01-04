@@ -189,7 +189,7 @@ inline uint64_t Simulator::Max(uint64_t x, uint64_t y) {
 }
 
 inline uint64_t Simulator::GetNumAccesses() {
-    return pAccesses_->length;
+    return pAccesses_->instructionAccesses_.size();
 }
 
 inline MemoryAccesses* Simulator::GetAccesses() {

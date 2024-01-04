@@ -1,27 +1,34 @@
 #pragma once
 
-#include <stdint.h>
+#include <cstdint>
+#include <cstddef>
+#include <vector>
 
-typedef enum access_e { READ, WRITE } access_t;
+typedef enum access_e { READ, WRITE, NEITHER } access_t;
 
 struct Instruction {
     uint64_t ptr;
     access_t rw;
+    size_t dataAccessIndex;
+
+    static constexpr size_t invalidIndex = SIZE_MAX;
 
     Instruction() {}
     Instruction(uint64_t ptr, access_t rw) {
         this->ptr = ptr;
         this->rw = rw;
+        dataAccessIndex = invalidIndex;
     }
 };
 
 struct MemoryAccesses {
-    Instruction *pDataAccesses;
-    Instruction *pInstructionAccesses;
-    uint64_t length;
+    std::vector<Instruction> dataAccesses_;
+    std::vector<Instruction> instructionAccesses_;
 
-    ~MemoryAccesses() {
-        delete[] pDataAccesses;
-        delete[] pInstructionAccesses;
+    MemoryAccesses() {
+        dataAccesses_ = std::vector<Instruction>();
+        instructionAccesses_ = std::vector<Instruction>();
     }
+
+    ~MemoryAccesses() { }
 };
