@@ -25,6 +25,7 @@ struct Statistics {
     uint64_t writeMisses = 0;
     uint64_t readMisses = 0;
     uint64_t writebacks = 0;
+    uint64_t numInstructions = 0;
 };
 
 class Memory {
@@ -92,7 +93,7 @@ class Memory {
      *
      * @return Statistics
      */
-    inline Statistics GetStats() { return stats_; }
+    inline Statistics& GetStats() { return stats_; }
 
     /**
      * @brief Get the cache level

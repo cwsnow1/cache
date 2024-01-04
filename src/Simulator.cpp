@@ -139,9 +139,7 @@ void Simulator::PrintStats(FILE* pTextStream, FILE* pCSVStream) {
         IOUtilities::PrintStatistics(pCaches_[i].pCaches[kDataCache], pCycleCounter_[i], pTextStream);
         IOUtilities::PrintStatisticsCSV(pCaches_[i].pCaches[kDataCache], pCycleCounter_[i], pCSVStream);
         Statistics stats = pCaches_[i].pCaches[kDataCache]->GetStats();
-        uint64_t numberOfReads =  stats.readHits  + stats.readMisses;
-        uint64_t numberOfWrites = stats.writeHits + stats.writeMisses;
-        float cpi = static_cast<float> (pCycleCounter_[i]) / (numberOfReads + numberOfWrites);
+        float cpi = static_cast<float> (pCycleCounter_[i]) / (stats.numInstructions);
         if (cpi < minCpi) {
             minCpi = cpi;
             min_i = i;
@@ -211,7 +209,7 @@ void* Simulator::SimCache (void *pSimCacheContext) {
         if (pDataAccessRequests->PeekHead()) {
             DoubleListElement *pElement = pDataAccessRequests->PeekHead();
             uint64_t instructionIndex = pElement->poolIndex_;
-            int16_t request_index = pTheseCaches[kDataCache]->AddAccessRequest(accesses->pDataAccesses[instructionIndex], localCycleCounter);
+            int16_t request_index = pTheseCaches[kDataCache]->AddAccessRequest(accesses->dataAccesses_[instructionIndex], localCycleCounter);
             if (request_index != RequestManager::kInvalidRequestIndex) {
                 pElement = pDataAccessRequests->PopElement();
                 pFreeAccessRequests->PushElement(pElement);
@@ -223,7 +221,7 @@ void* Simulator::SimCache (void *pSimCacheContext) {
 
         if ((i < numAccesses) && !work_done) {
             if (pDataAccessRequests->GetCount() + reservedCount < pDataAccessRequests->GetCapacity()) {
-                int16_t request_index = pTheseCaches[kInstructionCache]->AddAccessRequest(accesses->pInstructionAccesses[i], localCycleCounter);
+                int16_t request_index = pTheseCaches[kInstructionCache]->AddAccessRequest(accesses->instructionAccesses_[i], localCycleCounter);
                 if (request_index != -1) {
                     reservedCount++;
                     work_done = true;
@@ -262,12 +260,16 @@ void* Simulator::SimCache (void *pSimCacheContext) {
 
             uint64_t complete_request_index = outstanding_requests[kInstructionCache][completed_requests[kInstructionCache][j]];
             outstanding_requests[kInstructionCache][completed_requests[kInstructionCache][j]] = Simulator::kInvalidRequestIndex;
-            // add data access request to queue
+
+            // add data access request to queue if necessary
             assert(reservedCount);
             reservedCount--;
+            if (accesses->instructionAccesses_[complete_request_index].dataAccessIndex == Instruction::invalidIndex) {
+                continue;
+            }
             DoubleListElement *pElement = pFreeAccessRequests->PopElement();
             assert(pElement);
-            pElement->poolIndex_ = complete_request_index;
+            pElement->poolIndex_ = accesses->instructionAccesses_[complete_request_index].dataAccessIndex;
             pDataAccessRequests->AddElementToTail(pElement);
 
             isOutstandingRequest = true;
@@ -301,8 +303,9 @@ void* Simulator::SimCache (void *pSimCacheContext) {
             }
         }
     } while (isOutstandingRequest || i < numAccesses);
-    CODE_FOR_ASSERT(Statistics stats = pTheseCaches[kDataCache]->GetStats());
-    assert(stats.readHits + stats.readMisses + stats.writeHits + stats.writeMisses == numAccesses);
+    Statistics& stats = pTheseCaches[kDataCache]->GetStats();
+    assert(stats.readHits + stats.readMisses + stats.writeHits + stats.writeMisses == accesses->dataAccesses_.size());
+    stats.numInstructions = numAccesses;
     pSimulator->pAccessIndices[pTheseCaches[kDataCache]->threadId_] = i;
     cycleCounter[configIndex] = localCycleCounter;
     Multithreading::Lock(&pSimulator->lock_);

@@ -5,6 +5,7 @@
 #include <assert.h>
 #include <string.h>
 #include <inttypes.h>
+#include <vector>
 
 #include "default_test_params.h"
 #include "Cache.h"
@@ -45,9 +46,7 @@ void IOUtilities::PrintStatistics (Memory *memory, uint64_t cycle, FILE *stream)
         fprintf(stream, "Main memory writes: %08" PRIu64 "\n\n", stats.writebacks);
         fprintf(stream, "Total number of cycles: %010" PRIu64 "\n", cycle);
         Statistics topLevelStats = cache->GetTopLevelCache()->GetStats();
-        uint64_t numberOfTopLevelReads =  topLevelStats.readHits  + topLevelStats.readMisses;
-        uint64_t numberOfTopLevelWrites = topLevelStats.writeHits + topLevelStats.writeMisses;
-        float cpi = static_cast<float>(cycle) / (numberOfTopLevelReads + numberOfTopLevelWrites);
+        float cpi = static_cast<float>(cycle) / (topLevelStats.numInstructions);
         fprintf(stream, "CPI: %.4f\n", cpi);
         fprintf(stream, "=========================\n\n");
     } else {
@@ -76,9 +75,7 @@ void IOUtilities::PrintStatisticsCSV (Memory *memory, uint64_t cycle, FILE *stre
     if (cache_level == gTestParams.numberOfCacheLevels - 1) {
         fprintf(stream, "%08" PRIu64 ",%08" PRIu64 ",%010" PRIu64 ",", stats.readMisses + stats.writeMisses, stats.writebacks, cycle);
         Statistics topLevelStats = cache->GetTopLevelCache()->GetStats();
-        uint64_t numberOfTopLevelReads =  topLevelStats.readHits  + topLevelStats.readMisses;
-        uint64_t numberOfTopLevelWrites = topLevelStats.writeHits + topLevelStats.writeMisses;
-        float cpi = static_cast<float> (cycle) / (numberOfTopLevelReads + numberOfTopLevelWrites);
+        float cpi = static_cast<float> (cycle) / (topLevelStats.numInstructions);
         fprintf(stream, "%.4f\n", cpi);
     } else {
         PrintStatisticsCSV(memory->GetLowerCache(), cycle, stream);
@@ -223,16 +220,27 @@ error:
     exit(1);
 }
 
-void IOUtilities::parseLine (uint8_t *line, Instruction *pDataAccess, Instruction *pInstructionAccess) {
+void IOUtilities::parseLine (uint8_t *line, std::vector<Instruction>& dataAccesses, std::vector<Instruction>& instructionAccesses) {
     line += kPaddingLengthInBytes;
     char* end_ptr;
+    instructionAccesses.push_back(Instruction(strtoull(reinterpret_cast<char*> (line), &end_ptr, 16), READ));
+    /*
     pInstructionAccess->rw = READ;
     pInstructionAccess->ptr = strtoull(reinterpret_cast<char*> (line), &end_ptr, 16);
+    */
     line += kPaddingLengthInBytes + kAddressLengthInBytes;
     char rw_c = *line;
-    pDataAccess->rw = (rw_c == 'R') ? READ : WRITE;
     line += kRwLengthInBytes + kPaddingAfterRwLengthInBytes;
-    pDataAccess->ptr = strtoll(reinterpret_cast<char*> (line), &end_ptr, 16);
+    Instruction dataAccess;
+    if (rw_c == 'R')
+        dataAccess.rw = READ;
+    else if (rw_c == 'W')
+        dataAccess.rw = WRITE;
+    else
+        return;
+    dataAccess.ptr = strtoll(reinterpret_cast<char*> (line), &end_ptr, 16);
+    instructionAccesses.back().dataAccessIndex = dataAccesses.size();
+    dataAccesses.push_back(dataAccess);
     // If this assert fails, it is likely that the addresses in the trace are not uniform
     // and do not match the length assumptions made here
     assert(*end_ptr == '\n');
@@ -242,14 +250,9 @@ void IOUtilities::ParseBuffer (uint8_t *buffer, uint64_t length, MemoryAccesses 
     assert(buffer);
     const uint8_t *buffer_start = buffer;
     uint64_t numberOfLines = length / kFileLineLengthInBytes;
-    Instruction *pDataAccesses = new Instruction[numberOfLines];
-    Instruction *pInstructionAccesses = new Instruction[numberOfLines];
+    *pAccesses = new MemoryAccesses();
     for (uint64_t i = 0; i < numberOfLines; i++, buffer += kFileLineLengthInBytes) {
-        IOUtilities::parseLine(buffer, &pDataAccesses[i], &pInstructionAccesses[i]);
+        IOUtilities::parseLine(buffer, (*pAccesses)->dataAccesses_, (*pAccesses)->instructionAccesses_);
     }
-    *pAccesses = new MemoryAccesses;
-    (*pAccesses)->pDataAccesses = pDataAccesses;
-    (*pAccesses)->pInstructionAccesses = pInstructionAccesses;
-    (*pAccesses)->length = numberOfLines;
     delete[] buffer_start;
 }
