@@ -1,5 +1,6 @@
 #pragma once
 #include <stdint.h>
+#include <vector>
 
 #ifdef __GNUC__
 #include <pthread.h>
@@ -23,6 +24,6 @@ namespace Multithreading {
     void Lock(Lock_t *pLock);
     void Unlock(Lock_t *pLock);
     void StartThread(THREAD_FUNCTION_TYPE(threadFunction), void *pThreadData, Thread_t *pThreadOut);
-    void WaitForThreads(uint64_t numberOfThreads, Thread_t *pThreadArray);
+    void WaitForThreads(std::vector<Thread_t> threads);
 }
 

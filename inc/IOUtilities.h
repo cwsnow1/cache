@@ -83,7 +83,7 @@ public:
      * @param length    Lenght of buffer in bytes
      * @return          Memory accesses structure with I and D
      */
-    static void ParseBuffer(uint8_t *buffer, uint64_t length, MemoryAccesses **pAccesses);
+    static void ParseBuffer(uint8_t *buffer, uint64_t length, MemoryAccesses& accesses);
 
 private:
 

@@ -246,13 +246,12 @@ void IOUtilities::parseLine (uint8_t *line, std::vector<Instruction>& dataAccess
     assert(*end_ptr == '\n');
 }
 
-void IOUtilities::ParseBuffer (uint8_t *buffer, uint64_t length, MemoryAccesses **pAccesses) {
+void IOUtilities::ParseBuffer (uint8_t *buffer, uint64_t length, MemoryAccesses& accesses) {
     assert(buffer);
     const uint8_t *buffer_start = buffer;
     uint64_t numberOfLines = length / kFileLineLengthInBytes;
-    *pAccesses = new MemoryAccesses();
     for (uint64_t i = 0; i < numberOfLines; i++, buffer += kFileLineLengthInBytes) {
-        IOUtilities::parseLine(buffer, (*pAccesses)->dataAccesses_, (*pAccesses)->instructionAccesses_);
+        IOUtilities::parseLine(buffer, accesses.dataAccesses_, accesses.instructionAccesses_);
     }
     delete[] buffer_start;
 }
