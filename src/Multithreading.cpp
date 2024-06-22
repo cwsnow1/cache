@@ -9,6 +9,7 @@
 #include <Windows.h>
 #endif
 
+#include <vector>
 #include "Multithreading.h"
 
 #ifdef __GNUC__
@@ -34,9 +35,9 @@ void Multithreading::StartThread(THREAD_FUNCTION_TYPE(threadFunction), void *pTh
     }
 }
 
-void Multithreading::WaitForThreads(uint64_t numberOfThreads, Thread_t *pThreadArray) {
-    for (uint64_t i = 0; i < numberOfThreads; i++) {
-        pthread_join(pThreadArray[i], NULL);
+void Multithreading::WaitForThreads(std::vector<Thread_t> threads) {
+    for (auto thread : threads) {
+        pthread_join(thread, NULL);
     }
 }
 
@@ -67,13 +68,15 @@ void Multithreading::StartThread(THREAD_FUNCTION_TYPE(threadFunction), void *pTh
     );
 }
 
-void Multithreading::WaitForThreads(uint64_t numberOfThreads, Thread_t *pThreadArray) {
+void Multithreading::WaitForThreads(std::vector<Thread_t> threads) {
     // Windows max number of threads is 64, only wait for the last 64 threads if number of configs exceeds this
-    if (numberOfThreads > MAXIMUM_WAIT_OBJECTS) {
-        pThreadArray = &pThreadArray[numberOfThreads - MAXIMUM_WAIT_OBJECTS];
+    Thread_t *pThreadArray = threads.data();
+    DWORD numberOfThreads = static_cast<DWORD>(threads.size());
+    if (threads.size() > MAXIMUM_WAIT_OBJECTS) {
+        pThreadArray = &pThreadArray[threads.size() - MAXIMUM_WAIT_OBJECTS];
         numberOfThreads = MAXIMUM_WAIT_OBJECTS;
     }
-    WaitForMultipleObjects(static_cast<DWORD>(numberOfThreads), static_cast<const HANDLE*>(pThreadArray), TRUE, INFINITE);
+    WaitForMultipleObjects(numberOfThreads, static_cast<const HANDLE*>(pThreadArray), TRUE, INFINITE);
 }
 
 #else

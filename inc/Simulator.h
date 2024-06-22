@@ -2,6 +2,7 @@
 
 #include <stdint.h>
 #include <stdio.h>
+#include <vector>
 
 #include "Multithreading.h"
 #include "Cache.h"
@@ -15,18 +16,8 @@ enum CacheType {
     kNumberOfCacheTypes
 };
 
-struct CacheGroup {
-    Cache* pCaches[kNumberOfCacheTypes];
-
-    ~CacheGroup() {
-        for (auto i = 0; i < kNumberOfCacheTypes; i++) {
-            delete pCaches[i];
-        }
-    }
-};
-
 struct SimCacheContext {
-    CacheGroup *caches;
+    std::vector<Cache*> caches;
     Simulator* pSimulator;
     uint64_t configIndex;
 };
@@ -91,35 +82,26 @@ class Simulator {
 #endif
 
     /**
-     * @brief   Determines the maximum value of given parameters
-     * 
-     * @param x 
-     * @param y 
-     * @return The greater of x or y
-     */
-    inline static uint64_t Max(uint64_t x, uint64_t y);
-
-    /**
      * @brief Get the number of accesses in trace file
      */
-    inline uint64_t GetNumAccesses();
+    inline const uint64_t GetNumAccesses() const;
 
     /**
      * @brief Get accesses, a list of Instruction objects
      */
-    inline MemoryAccesses* GetAccesses();
+    inline const MemoryAccesses& GetAccesses() const;
 
     /**
      * @brief Get the cycle counter
      * 
      */
-    inline uint64_t* GetCycleCounter();
+    inline uint64_t& GetCycleCounter(uint64_t index);
 
     /**
      * @brief Get the threads outstanding
      * 
      */
-    inline Thread_t* GetThreadsOutstanding();
+    inline std::vector<Thread_t>& GetThreadsOutstanding();
 
     /**
      * @brief Decrement the configs to test counter
@@ -167,11 +149,11 @@ class Simulator {
     void CalculateNumValidConfigs(uint64_t& pNumConfigs, uint8_t cacheLevel, uint64_t minBlockSize, uint64_t minCacheSize);
 
     // Common across all threads
-    MemoryAccesses *pAccesses_;
-    Thread_t *pThreads_;
-    Thread_t *pThreadsOutstanding_;
-    CacheGroup *pCaches_;
-    uint64_t *pCycleCounter_;
+    MemoryAccesses accesses_;
+    std::vector<Thread_t> threads_;
+    std::vector<std::vector<Cache*>> caches_;
+    std::vector<uint64_t> cycleCounters_;
+    std::vector<Thread_t> threadsOutstanding_;
     uint64_t numConfigs_;
 
     // Note: No performance benefit is seen by limiting the
@@ -180,26 +162,22 @@ class Simulator {
     // running with large numbers of configs
     volatile int32_t numThreadsOutstanding_;
     uint64_t configsToTest_;
-    uint64_t *pAccessIndices;
+    std::vector<uint64_t> accessIndices_;
 
 };
 
-inline uint64_t Simulator::Max(uint64_t x, uint64_t y) {
-    return (x > y) ? x : y;
+inline const uint64_t Simulator::GetNumAccesses() const {
+    return accesses_.instructionAccesses_.size();
 }
 
-inline uint64_t Simulator::GetNumAccesses() {
-    return pAccesses_->instructionAccesses_.size();
+inline const MemoryAccesses& Simulator::GetAccesses() const {
+    return accesses_;
 }
 
-inline MemoryAccesses* Simulator::GetAccesses() {
-    return pAccesses_;
+inline uint64_t& Simulator::GetCycleCounter(uint64_t index) {
+    return cycleCounters_[index];
 }
 
-inline uint64_t* Simulator::GetCycleCounter() {
-    return pCycleCounter_;
-}
-
-inline Thread_t* Simulator::GetThreadsOutstanding() {
-    return pThreadsOutstanding_;
+inline std::vector<Thread_t>& Simulator::GetThreadsOutstanding() {
+    return threadsOutstanding_;
 }
