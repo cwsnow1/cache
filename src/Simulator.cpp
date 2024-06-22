@@ -5,6 +5,7 @@
 #include <stdlib.h>
 #include <string.h>
 
+#include <algorithm>
 #include <chrono>
 #include <thread>
 
@@ -14,6 +15,7 @@
 #endif
 
 #ifdef _MSC_VER
+#define NOMINMAX
 #include <Windows.h>
 #endif
 
