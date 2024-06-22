@@ -414,7 +414,8 @@ void Simulator::CreateAndRunThreads(void) {
 
     // internal threadId to pthread threadId mapping used to track which threads
     // are active
-    threadsOutstanding_ = std::vector<Thread_t>(gTestParams.maxNumberOfThreads, kInvalidThreadId);
+    threadsOutstanding_ = std::vector<Thread_t>(gTestParams.maxNumberOfThreads);
+    memset(threadsOutstanding_.data(), -1, sizeof(Thread_t) * threadsOutstanding_.size());
 
     accessIndices_ = std::vector<uint64_t>(gTestParams.maxNumberOfThreads, 0);
 
