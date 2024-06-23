@@ -1,10 +1,6 @@
-#include <stdio.h>
-#include <stdlib.h>
-#include <assert.h>
-#include <stdint.h>
-#include <string.h>
-#include <stdbool.h>
-#include <inttypes.h>
+#include <cinttypes>
+#include <cstdlib>
+#include <cstring>
 
 #ifdef __GNUC__
 #include <unistd.h>
@@ -14,17 +10,16 @@
 #include <time.h>
 #endif
 
-
-#include "Simulator.h"
 #include "Cache.h"
-#include "default_test_params.h"
 #include "IOUtilities.h"
 #include "SimTracer.h"
+#include "Simulator.h"
 #include "debug.h"
+#include "default_test_params.h"
 /**
  *  @brief Prints the usage of the program in case of error
  */
-static void usage (void) {
+static void usage(void) {
     fprintf(stderr, "Usage: ./cache <input trace> [output statistics file]\n");
     exit(1);
 }
@@ -32,10 +27,10 @@ static void usage (void) {
 /**
  * MAIN FUNCTION
  */
-int main (int argc, char** argv) {
+int main(int argc, char** argv) {
     time_t t = time(NULL);
-    FILE *pTextOutputStream = stdout;
-    FILE *pCsvOutputStream = nullptr;
+    FILE* pTextOutputStream = stdout;
+    FILE* pCsvOutputStream = nullptr;
     if (argc < 2) {
         fprintf(stderr, "Not enough args!\n");
         usage();
@@ -47,7 +42,7 @@ int main (int argc, char** argv) {
         }
         constexpr int csvFilenameMaxLength = 100;
         char csvOutputFilename[csvFilenameMaxLength];
-        char *pCsvOutputFilename = csvOutputFilename + strlen(argv[2]);
+        char* pCsvOutputFilename = csvOutputFilename + strlen(argv[2]);
         strncpy(csvOutputFilename, argv[2], csvFilenameMaxLength);
         sprintf(pCsvOutputFilename, ".csv");
         pCsvOutputStream = fopen(csvOutputFilename, "w");

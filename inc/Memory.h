@@ -1,8 +1,8 @@
 #pragma once
 
-#include "list.h"
 #include "GlobalIncludes.h"
 #include "RequestManager.h"
+#include "list.h"
 
 // Obviously these are approximations
 constexpr uint64_t kAccessTimeInCycles[] = {
@@ -29,20 +29,19 @@ struct Statistics {
 };
 
 class Memory {
-   public:
-
+  public:
     Memory() = default;
 
     /**
      * @brief Construct a new Memory object
-     * 
-     * @param pLowestCache 
+     *
+     * @param pLowestCache
      */
-    Memory(Memory *pLowestCache);
+    Memory(Memory* pLowestCache);
 
     /**
      * @brief Destroy the Memory object
-     * 
+     *
      */
     ~Memory() = default;
 
@@ -54,37 +53,37 @@ class Memory {
 
     /**
      * @brief Get the Upper Cache object
-     * 
+     *
      * @return Memory* memory object one level above this
      */
-    Memory *GetUpperCache() {
+    Memory* GetUpperCache() {
         return pUpperCache_;
     }
 
     /**
      * @brief Set the Upper Cache object
-     * 
-     * @param pUpperCache 
+     *
+     * @param pUpperCache
      */
-    void SetUpperCache(Memory *pUpperCache) {
+    void SetUpperCache(Memory* pUpperCache) {
         pUpperCache_ = pUpperCache;
     }
 
     /**
      * @brief Get the Lower Cache object
-     * 
+     *
      * @return Memory* memory object one level below this
      */
-    Memory *GetLowerCache() {
+    Memory* GetLowerCache() {
         return pLowerCache_;
     }
 
     /**
      * @brief Set the Lower Cache object
-     * 
-     * @param pLowerCache 
+     *
+     * @param pLowerCache
      */
-    void SetLowerCache(Memory *pLowerCache) {
+    void SetLowerCache(Memory* pLowerCache) {
         pLowerCache_ = pLowerCache;
     }
 
@@ -93,18 +92,22 @@ class Memory {
      *
      * @return Statistics
      */
-    inline Statistics& GetStats() { return stats_; }
+    inline Statistics& GetStats() {
+        return stats_;
+    }
 
     /**
      * @brief Get the cache level
      *
      * @return CacheLevel
      */
-    inline CacheLevel GetCacheLevel() { return cacheLevel_; }
+    inline CacheLevel GetCacheLevel() {
+        return cacheLevel_;
+    }
 
     /**
      * @brief Frees memory allocated by this Memory object
-     * 
+     *
      */
     void FreeMemory();
 
@@ -114,12 +117,15 @@ class Memory {
      * @return true if work was done
      * @return false id work wasn't done
      */
-    bool GetWasWorkDoneThisCycle() { return wasWorkDoneThisCycle_; }
+    bool GetWasWorkDoneThisCycle() {
+        return wasWorkDoneThisCycle_;
+    }
 
     /**
      * @brief                       Set whether work was done this cycle
-     * 
-     * @param wasWorkDoneThisCycle  whether a meaningful piece of work was done such that the upper cache needs to check its busy list
+     *
+     * @param wasWorkDoneThisCycle  whether a meaningful piece of work was done such that the upper cache needs to check
+     * its busy list
      */
     void SetWasWorkDoneThisCycle(bool wasWorkDoneThisCycle) {
         wasWorkDoneThisCycle_ = wasWorkDoneThisCycle;
@@ -127,20 +133,23 @@ class Memory {
 
     /**
      * @brief                       Simulates a single clock cycle in a single cache level
-     * 
+     *
      * @param cycle                 Current clock cycle
-     * @param pCompletedRequests    Out. An array of the request indices that were completed this tick. Length is the return value
-     * 
+     * @param pCompletedRequests    Out. An array of the request indices that were completed this tick. Length is the
+     * return value
+     *
      * @return                      Number of requests completed this tick
      */
-    uint64_t InternalProcessCache (uint64_t cycle, int16_t *pCompletedRequests);
+    uint64_t InternalProcessCache(uint64_t cycle, int16_t* pCompletedRequests);
 
     /**
      * @brief Get the Earliest Next Useful Cycle
      *
      * @return uint64_t the cycle wherein the next useful piece of work can be done
      */
-    uint64_t GetEarliestNextUsefulCycle() { return earliestNextUsefulCycle_; }
+    uint64_t GetEarliestNextUsefulCycle() {
+        return earliestNextUsefulCycle_;
+    }
 
     /**
      * @brief Get the Earliest Next Useful Cycle
@@ -164,13 +173,14 @@ class Memory {
      *
      * @return uint64_t
      */
-    inline uint64_t GetCycle() { return cycle_; }
+    inline uint64_t GetCycle() {
+        return cycle_;
+    }
 
     // Multi-threading field
     uint64_t threadId_;
 
-   protected:
-
+  protected:
     /**
      * @brief           Attempts a read or write to the given cache
      *
@@ -178,12 +188,12 @@ class Memory {
      * @return true     If the request was completed and need not be called
      * again
      */
-    Status handleAccess(Request *pRequest);
+    Status handleAccess(Request* pRequest);
 
     // Cache hierarchy fields
-    Memory *pUpperCache_;
-    Memory *pLowerCache_;
-    Memory *pMainMemory_;
+    Memory* pUpperCache_;
+    Memory* pLowerCache_;
+    Memory* pMainMemory_;
     CacheLevel cacheLevel_;
 
     uint64_t cycle_;

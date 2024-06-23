@@ -1,10 +1,14 @@
 #pragma once
 
-#include <cstdint>
 #include <cstddef>
+#include <cstdint>
 #include <vector>
 
-typedef enum access_e { READ, WRITE, NEITHER } access_t;
+typedef enum access_e {
+    READ,
+    WRITE,
+    NEITHER
+} access_t;
 
 struct Instruction {
     uint64_t ptr;
@@ -13,7 +17,8 @@ struct Instruction {
 
     static constexpr size_t invalidIndex = SIZE_MAX;
 
-    Instruction() {}
+    Instruction() {
+    }
     Instruction(uint64_t ptr, access_t rw) {
         this->ptr = ptr;
         this->rw = rw;
@@ -30,5 +35,6 @@ struct MemoryAccesses {
         instructionAccesses_ = std::vector<Instruction>();
     }
 
-    ~MemoryAccesses() { }
+    ~MemoryAccesses() {
+    }
 };

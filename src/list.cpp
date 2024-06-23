@@ -19,7 +19,7 @@ DoubleList::~DoubleList() {
     }
 }
 
-bool DoubleList::RemoveElement(DoubleListElement *pElement) {
+bool DoubleList::RemoveElement(DoubleListElement* pElement) {
     for_each_in_double_list(this) {
         (void)poolIndex;
         if (elementIterator == pElement) {
@@ -42,7 +42,7 @@ bool DoubleList::RemoveElement(DoubleListElement *pElement) {
     return false;
 }
 
-bool DoubleList::AddElementToTail(DoubleListElement *pElement) {
+bool DoubleList::AddElementToTail(DoubleListElement* pElement) {
     if (count_ == capacity_) {
         return false;
     }
@@ -58,7 +58,7 @@ bool DoubleList::AddElementToTail(DoubleListElement *pElement) {
     return true;
 }
 
-bool DoubleList::PushElement(DoubleListElement *pElement) {
+bool DoubleList::PushElement(DoubleListElement* pElement) {
     if (count_ == capacity_) {
         return false;
     }
@@ -72,8 +72,8 @@ bool DoubleList::PushElement(DoubleListElement *pElement) {
     return true;
 }
 
-DoubleListElement *DoubleList::PopElement() {
-    DoubleListElement *head = pHead_;
+DoubleListElement* DoubleList::PopElement() {
+    DoubleListElement* head = pHead_;
     if (head == pTail_) {
         pTail_ = nullptr;
     }
