@@ -1,6 +1,6 @@
 #include <cinttypes>
 #include <cstdlib>
-#include <cstring>
+#include <string>
 
 #ifdef __GNUC__
 #include <unistd.h>
@@ -40,12 +40,9 @@ int main(int argc, char** argv) {
             fprintf(stderr, "Unable to open output file %s\n", argv[2]);
             usage();
         }
-        constexpr int csvFilenameMaxLength = 100;
-        char csvOutputFilename[csvFilenameMaxLength];
-        char* pCsvOutputFilename = csvOutputFilename + strlen(argv[2]);
-        strncpy(csvOutputFilename, argv[2], csvFilenameMaxLength);
-        sprintf(pCsvOutputFilename, ".csv");
-        pCsvOutputStream = fopen(csvOutputFilename, "w");
+        std::string csvOutputFilename(argv[2]);
+        csvOutputFilename.append(".csv");
+        pCsvOutputStream = fopen(csvOutputFilename.c_str(), "w");
     }
 
     Simulator simulator(argv[1]);
