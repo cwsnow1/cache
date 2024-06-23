@@ -1,21 +1,21 @@
-#include <stdint.h>
 #include <assert.h>
-#include <stdlib.h>
-#include <stdbool.h>
-#include <string.h>
 #include <inttypes.h>
+#include <stdbool.h>
+#include <stdint.h>
+#include <stdlib.h>
+#include <string.h>
 
-#include "list.h"
 #include "Cache.h"
+#include "Memory.h"
 #include "SimTracer.h"
 #include "debug.h"
-#include "Memory.h"
+#include "list.h"
 
 #if (SIM_TRACE == 1)
-extern SimTracer *gSimTracer;
+extern SimTracer* gSimTracer;
 #else
 extern SimTracer dummySimTracer;
-extern SimTracer *gSimTracer;
+extern SimTracer* gSimTracer;
 #endif
 
 #if (CONSOLE_PRINT == 1)
@@ -28,7 +28,7 @@ extern SimTracer *gSimTracer;
 //          Public Functions
 // =====================================
 
-Cache::Cache (Cache *pUpperCache, CacheLevel cacheLevel, uint8_t numCacheLevels, Configuration *pCacheConfigs) {
+Cache::Cache(Cache* pUpperCache, CacheLevel cacheLevel, uint8_t numCacheLevels, Configuration* pCacheConfigs) {
     Configuration cacheConfig = pCacheConfigs[cacheLevel];
     pUpperCache_ = pUpperCache;
     cacheLevel_ = cacheLevel;
@@ -56,21 +56,21 @@ Cache::Cache (Cache *pUpperCache, CacheLevel cacheLevel, uint8_t numCacheLevels,
     } else {
         pLowerCache_ = new Memory(this);
     }
-    Memory *pMainMemory = this;
+    Memory* pMainMemory = this;
     for (; pMainMemory->GetCacheLevel() != kMainMemory; pMainMemory = pMainMemory->GetLowerCache())
         ;
     pMainMemory_ = pMainMemory;
 }
 
-Cache::~Cache () {
-    for (Memory *pMemoryIterator = pLowerCache_; pMemoryIterator != nullptr; ) {
-        Memory *pNextLowerMemory = pMemoryIterator->GetLowerCache();
+Cache::~Cache() {
+    for (Memory* pMemoryIterator = pLowerCache_; pMemoryIterator != nullptr;) {
+        Memory* pNextLowerMemory = pMemoryIterator->GetLowerCache();
         delete pMemoryIterator;
         pMemoryIterator = pNextLowerMemory;
     }
 }
 
-void Cache::AllocateMemory () {
+void Cache::AllocateMemory() {
     sets_ = new Set[numSets_];
     for (uint64_t i = 0; i < numSets_; i++) {
         sets_[i].ways = new Block[config_.associativity];
@@ -87,20 +87,20 @@ void Cache::AllocateMemory () {
     }
 }
 
-void Cache::SetThreadId (uint64_t threadId) {
+void Cache::SetThreadId(uint64_t threadId) {
     threadId_ = threadId;
     if (cacheLevel_ != kMainMemory) {
         static_cast<Cache*>(pLowerCache_)->SetThreadId(threadId);
     }
 }
 
-bool Cache::IsCacheConfigValid (Configuration config) {
+bool Cache::IsCacheConfigValid(Configuration config) {
     assert_release((config.cacheSize % config.blockSize == 0) && "Block size must be a factor of cache size!");
     uint64_t numBlocks = config.cacheSize / config.blockSize;
     return numBlocks >= config.associativity;
 }
 
-void Cache::FreeMemory () {
+void Cache::FreeMemory() {
     assert(sets_);
     for (uint64_t i = 0; i < numSets_; i++) {
         assert(sets_[i].ways);
@@ -116,7 +116,7 @@ void Cache::FreeMemory () {
     }
 }
 
-uint64_t Cache::ProcessCache (uint64_t cycle, int16_t *pCompletedRequests) {
+uint64_t Cache::ProcessCache(uint64_t cycle, int16_t* pCompletedRequests) {
     return pMainMemory_->InternalProcessCache(cycle, pCompletedRequests);
 }
 
@@ -124,11 +124,11 @@ uint64_t Cache::ProcessCache (uint64_t cycle, int16_t *pCompletedRequests) {
 //          Private Functions
 // =====================================
 
-void Cache::updateLRUList (uint64_t setIndex, uint8_t mruIndex) {
+void Cache::updateLRUList(uint64_t setIndex, uint8_t mruIndex) {
     if (config_.associativity == 1) {
         return;
     }
-    uint8_t *lruList = sets_[setIndex].lruList;
+    uint8_t* lruList = sets_[setIndex].lruList;
     uint8_t previousValue = mruIndex;
     // find MRU index in the lruList
     for (uint8_t i = 0; i < config_.associativity; i++) {
@@ -139,10 +139,11 @@ void Cache::updateLRUList (uint64_t setIndex, uint8_t mruIndex) {
         }
         previousValue = tmp;
     }
-    gSimTracer->Print(SIM_TRACE__LRU_UPDATE, static_cast<Memory*>(this), static_cast<uint32_t>(setIndex), lruList[0], lruList[config_.associativity - 1]);
+    gSimTracer->Print(SIM_TRACE__LRU_UPDATE, static_cast<Memory*>(this), static_cast<uint32_t>(setIndex), lruList[0],
+                      lruList[config_.associativity - 1]);
 }
 
-int16_t Cache::evictBlock (uint64_t setIndex) {
+int16_t Cache::evictBlock(uint64_t setIndex) {
     int16_t lruBlockIndex = sets_[setIndex].lruList[config_.associativity - 1];
     if (!sets_[setIndex].ways[lruBlockIndex].valid) {
         DEBUG_TRACE("Cache[%hhu] not evicting invalid block from set %" PRIu64 "\n", cacheLevel_, setIndex);
@@ -164,7 +165,7 @@ int16_t Cache::evictBlock (uint64_t setIndex) {
     return lruBlockIndex;
 }
 
-bool Cache::findBlockInSet (uint64_t setIndex, uint64_t blockAddress, uint8_t& pBlockIndex) {
+bool Cache::findBlockInSet(uint64_t setIndex, uint64_t blockAddress, uint8_t& pBlockIndex) {
     for (uint64_t i = 0; i < config_.associativity; i++) {
         if (sets_[setIndex].ways[i].valid && (sets_[setIndex].ways[i].blockAddress == blockAddress)) {
             pBlockIndex = i;
@@ -175,7 +176,7 @@ bool Cache::findBlockInSet (uint64_t setIndex, uint64_t blockAddress, uint8_t& p
     return false;
 }
 
-int16_t Cache::requestBlock (uint64_t setIndex, uint64_t blockAddress) {
+int16_t Cache::requestBlock(uint64_t setIndex, uint64_t blockAddress) {
     int16_t blockIndex = evictBlock(setIndex);
     if (blockIndex == -1) {
         return -1;
@@ -193,9 +194,10 @@ int16_t Cache::requestBlock (uint64_t setIndex, uint64_t blockAddress) {
     return blockIndex;
 }
 
-Status Cache::handleAccess (Request *request) {
+Status Cache::handleAccess(Request* request) {
     if (cycle_ < request->cycleToCallBack) {
-        DEBUG_TRACE("%" PRIu64 "/%" PRIu64 " cycles for this operation in cacheLevel=%hhu\n", cycle_ - request->cycle, kAccessTimeInCycles[cacheLevel_], cacheLevel_);
+        DEBUG_TRACE("%" PRIu64 "/%" PRIu64 " cycles for this operation in cacheLevel=%hhu\n", cycle_ - request->cycle,
+                    kAccessTimeInCycles[cacheLevel_], cacheLevel_);
         if (earliestNextUsefulCycle_ > request->cycleToCallBack) {
             DEBUG_TRACE("Cache[%hhu] next useful cycle set to %" PRIu64 "\n", cacheLevel_, request->cycleToCallBack);
             earliestNextUsefulCycle_ = request->cycleToCallBack;
@@ -216,8 +218,8 @@ Status Cache::handleAccess (Request *request) {
     bool hit = findBlockInSet(setIndex, blockAddress, blockIndex);
     request->attemptCount++;
     if (hit) {
-        gSimTracer->Print(SIM_TRACE__HIT, static_cast<Memory*>(this),
-            pRequestManager_->GetPoolIndex(request), blockAddress>>32, blockAddress & UINT32_MAX, setIndex);
+        gSimTracer->Print(SIM_TRACE__HIT, static_cast<Memory*>(this), pRequestManager_->GetPoolIndex(request),
+                          blockAddress >> 32, blockAddress & UINT32_MAX, setIndex);
         if (access.rw == READ) {
             if (request->attemptCount == 1) {
                 ++stats_.readHits;
@@ -229,7 +231,8 @@ Status Cache::handleAccess (Request *request) {
             sets_[setIndex].ways[blockIndex].dirty = true;
         }
     } else {
-        gSimTracer->Print(SIM_TRACE__MISS, static_cast<Memory*>(this), pRequestManager_->GetPoolIndex(request), setIndex);
+        gSimTracer->Print(SIM_TRACE__MISS, static_cast<Memory*>(this), pRequestManager_->GetPoolIndex(request),
+                          setIndex);
         if (access.rw == READ) {
             if (request->attemptCount == 1) {
                 ++stats_.readMisses;
@@ -259,20 +262,24 @@ void Cache::ResetCacheSetBusy(uint64_t setIndex) {
     sets_[setIndex].busy = false;
 }
 
-uint64_t Cache::InternalProcessCache (uint64_t cycle, int16_t *pCompletedRequests) {
+uint64_t Cache::InternalProcessCache(uint64_t cycle, int16_t* pCompletedRequests) {
     uint64_t numberOfRequestsCompleted = 0;
     wasWorkDoneThisCycle_ = false;
     cycle_ = cycle;
     if (pLowerCache_->GetWasWorkDoneThisCycle()) {
         for_each_in_double_list(pRequestManager_->GetBusyRequests()) {
-            DEBUG_TRACE("Cache[%hhu] trying request %" PRIu64 " from busy requests list, address=0x%012" PRIx64 "\n", cacheLevel_, poolIndex, pRequestManager_->GetRequestAtIndex(poolIndex)->instruction.ptr);
+            DEBUG_TRACE("Cache[%hhu] trying request %" PRIu64 " from busy requests list, address=0x%012" PRIx64 "\n",
+                        cacheLevel_, poolIndex, pRequestManager_->GetRequestAtIndex(poolIndex)->instruction.ptr);
             Status status = handleAccess(pRequestManager_->GetRequestAtIndex(poolIndex));
             if (status == kHit) {
-                DEBUG_TRACE("Cache[%hhu] hit, set=%" PRIu64 "\n", cacheLevel_, addressToSetIndex(pRequestManager_->GetRequestAtIndex(poolIndex)->instruction.ptr));
+                DEBUG_TRACE("Cache[%hhu] hit, set=%" PRIu64 "\n", cacheLevel_,
+                            addressToSetIndex(pRequestManager_->GetRequestAtIndex(poolIndex)->instruction.ptr));
                 if (pUpperCache_) {
-                    Cache *upperCache = static_cast<Cache*>(pUpperCache_);
-                    uint64_t setIndex = upperCache->addressToSetIndex(pRequestManager_->GetRequestAtIndex(poolIndex)->instruction.ptr);
-                    DEBUG_TRACE("Cache[%hhu] marking set %" PRIu64 " as no longer busy\n", static_cast<uint8_t> (pUpperCache_->GetCacheLevel()), setIndex);
+                    Cache* upperCache = static_cast<Cache*>(pUpperCache_);
+                    uint64_t setIndex =
+                        upperCache->addressToSetIndex(pRequestManager_->GetRequestAtIndex(poolIndex)->instruction.ptr);
+                    DEBUG_TRACE("Cache[%hhu] marking set %" PRIu64 " as no longer busy\n",
+                                static_cast<uint8_t>(pUpperCache_->GetCacheLevel()), setIndex);
                     static_cast<Cache*>(pUpperCache_)->ResetCacheSetBusy(setIndex);
                 }
                 if (cacheLevel_ == kL1) {
@@ -288,15 +295,19 @@ uint64_t Cache::InternalProcessCache (uint64_t cycle, int16_t *pCompletedRequest
         }
     }
     for_each_in_double_list(pRequestManager_->GetWaitingRequests()) {
-        DEBUG_TRACE("Cache[%hhu] trying request %" PRIu64 " from waiting list, address=0x%012" PRIx64 "\n", cacheLevel_, poolIndex, pRequestManager_->GetRequestAtIndex(poolIndex)->instruction.ptr);
+        DEBUG_TRACE("Cache[%hhu] trying request %" PRIu64 " from waiting list, address=0x%012" PRIx64 "\n", cacheLevel_,
+                    poolIndex, pRequestManager_->GetRequestAtIndex(poolIndex)->instruction.ptr);
         Status status = handleAccess(pRequestManager_->GetRequestAtIndex(poolIndex));
         switch (status) {
         case kHit:
-            DEBUG_TRACE("Cache[%hhu] hit, set=%" PRIu64 "\n", cacheLevel_, addressToSetIndex(pRequestManager_->GetRequestAtIndex(poolIndex)->instruction.ptr));
+            DEBUG_TRACE("Cache[%hhu] hit, set=%" PRIu64 "\n", cacheLevel_,
+                        addressToSetIndex(pRequestManager_->GetRequestAtIndex(poolIndex)->instruction.ptr));
             if (pUpperCache_) {
-                Cache *upperCache = static_cast<Cache*>(pUpperCache_);
-                uint64_t setIndex = upperCache->addressToSetIndex(pRequestManager_->GetRequestAtIndex(poolIndex)->instruction.ptr);
-                DEBUG_TRACE("Cache[%hhu] marking set %" PRIu64 " as no longer busy\n", static_cast<uint8_t> (pUpperCache_->GetCacheLevel()), setIndex);
+                Cache* upperCache = static_cast<Cache*>(pUpperCache_);
+                uint64_t setIndex =
+                    upperCache->addressToSetIndex(pRequestManager_->GetRequestAtIndex(poolIndex)->instruction.ptr);
+                DEBUG_TRACE("Cache[%hhu] marking set %" PRIu64 " as no longer busy\n",
+                            static_cast<uint8_t>(pUpperCache_->GetCacheLevel()), setIndex);
                 upperCache->sets_[setIndex].busy = false;
             }
             if (cacheLevel_ == kL1) {
@@ -311,7 +322,8 @@ uint64_t Cache::InternalProcessCache (uint64_t cycle, int16_t *pCompletedRequest
             pRequestManager_->AddRequestToBusyList(elementIterator);
             break;
         case kWaiting:
-            DEBUG_TRACE("Cache[%hhu] request %" PRIu64 " is still waiting, breaking out of loop\n", cacheLevel_, poolIndex);
+            DEBUG_TRACE("Cache[%hhu] request %" PRIu64 " is still waiting, breaking out of loop\n", cacheLevel_,
+                        poolIndex);
             goto out_of_loop; // Break out of for loop
             break;
         default:
@@ -323,7 +335,7 @@ out_of_loop:
     DEBUG_TRACE("\n");
 
     if (pUpperCache_) {
-        Cache *upperCache = static_cast<Cache*>(pUpperCache_);
+        Cache* upperCache = static_cast<Cache*>(pUpperCache_);
         numberOfRequestsCompleted = upperCache->InternalProcessCache(cycle, pCompletedRequests);
         upperCache->SetWasWorkDoneThisCycle(wasWorkDoneThisCycle_);
     }

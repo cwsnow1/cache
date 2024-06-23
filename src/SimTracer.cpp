@@ -1,11 +1,11 @@
-#include <stdint.h>
-#include <stdlib.h>
-#include <stdio.h>
 #include <assert.h>
-#include <string.h>
-#include <stdbool.h>
-#include <stdarg.h>
 #include <inttypes.h>
+#include <stdarg.h>
+#include <stdbool.h>
+#include <stdint.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
 
 #include "Cache.h"
 #include "SimTracer.h"
@@ -16,11 +16,12 @@
 
 extern TestParamaters gTestParams;
 
-SimTracer::SimTracer(const char *filename, uint64_t numberOfConfigs) {
+SimTracer::SimTracer(const char* filename, uint64_t numberOfConfigs) {
     if (numberOfConfigs > SIM_TRACE_WARNING_THRESHOLD) {
         printf("The number of configs is very high for simulation tracing.\n");
         printf("There is no issue with that, but it will take ~2 times as long\n");
-        printf("as normal, and will write a .bin file that will be %" PRIu64 "MiB\n\n", (numberOfConfigs * kSimTraceBufferSizeInBytes) >> 20);
+        printf("as normal, and will write a .bin file that will be %" PRIu64 "MiB\n\n",
+               (numberOfConfigs * kSimTraceBufferSizeInBytes) >> 20);
         printf("Note: On my setup, making the number of threads unlimited has a\n");
         printf("bigger benefit to performance when sim tracing than when not.\n\n");
         printf("Do you wish to continue? [Y/n]\n");
@@ -39,7 +40,7 @@ SimTracer::SimTracer(const char *filename, uint64_t numberOfConfigs) {
     }
     CODE_FOR_ASSERT(size_t ret = 0);
     // uint32_t number of bytes in each sim_trace
-    const uint32_t sim_trace_buffer_size_in_bytes =  kSimTraceBufferSizeInBytes;
+    const uint32_t sim_trace_buffer_size_in_bytes = kSimTraceBufferSizeInBytes;
     CODE_FOR_ASSERT(ret =) fwrite(&sim_trace_buffer_size_in_bytes, sizeof(uint32_t), 1, pFile_);
     assert(ret == 1);
     // uint16_t number of configs
@@ -72,19 +73,19 @@ SimTracer::~SimTracer() {
     fclose(pFile_);
 }
 
-void SimTracer::Print(TraceEntryId traceEntryId, Memory *pMemory, ...) {
+void SimTracer::Print(TraceEntryId traceEntryId, Memory* pMemory, ...) {
     uint64_t threadId = pMemory->threadId_;
     assert(threadId < static_cast<uint64_t>(gTestParams.maxNumberOfThreads));
     uint64_t cycle = pMemory->GetCycle();
     CacheLevel cacheLevel = pMemory->GetCacheLevel();
     // Roll over when buffer is filled
-    uint8_t *pLastEntry = pSimTraceBuffer_[threadId] + SIM_TRACE_LAST_ENTRY_OFFSET;
+    uint8_t* pLastEntry = pSimTraceBuffer_[threadId] + SIM_TRACE_LAST_ENTRY_OFFSET;
     if (pBufferAppendPoints_[threadId] >= pLastEntry) {
         pBufferAppendPoints_[threadId] = pSimTraceBuffer_[threadId];
     }
     // Sync pattern if needed
     if (++pEntryCounters_[threadId] == SIM_TRACE_SYNC_INTERVAL) {
-        *(reinterpret_cast<sync_pattern_t*> (pBufferAppendPoints_[threadId])) = kSyncPattern;
+        *(reinterpret_cast<sync_pattern_t*>(pBufferAppendPoints_[threadId])) = kSyncPattern;
         pBufferAppendPoints_[threadId] += sizeof(sync_pattern_t);
         pEntryCounters_[threadId] = 0;
     }
@@ -92,15 +93,16 @@ void SimTracer::Print(TraceEntryId traceEntryId, Memory *pMemory, ...) {
         fprintf(stderr, "cycle offset overflow!\n");
     }
     // Cast is OK because of check above
-    uint16_t cycleOffset = static_cast<uint16_t> (cycle - pPreviousCycleCounter_[threadId]);
+    uint16_t cycleOffset = static_cast<uint16_t>(cycle - pPreviousCycleCounter_[threadId]);
     pPreviousCycleCounter_[threadId] = cycle;
     SimTraceEntry entry = SimTraceEntry(cycleOffset, traceEntryId, cacheLevel);
-    *(reinterpret_cast<SimTraceEntry*> (pBufferAppendPoints_[threadId])) = entry;
+    *(reinterpret_cast<SimTraceEntry*>(pBufferAppendPoints_[threadId])) = entry;
     pBufferAppendPoints_[threadId] += sizeof(SimTraceEntry);
     va_list values;
     va_start(values, pMemory);
     for (uint8_t i = 0; i < kNumberOfArgumentsInSimTraceEntry[traceEntryId]; i++) {
-        *(reinterpret_cast<sim_trace_entry_data_t*> (pBufferAppendPoints_[threadId])) = va_arg(values, sim_trace_entry_data_t);
+        *(reinterpret_cast<sim_trace_entry_data_t*>(pBufferAppendPoints_[threadId])) =
+            va_arg(values, sim_trace_entry_data_t);
         pBufferAppendPoints_[threadId] += sizeof(sim_trace_entry_data_t);
     }
     va_end(values);
@@ -112,25 +114,27 @@ void SimTracer::Print(TraceEntryId traceEntryId, Memory *pMemory, ...) {
  * uint16_t number of configs
  * uint8_t num_cache_levels
  * Config entries
- * 
+ *
  * Config entry is as follows:
  * uint32_t buffer append point offset
  * config of each cache
  * buffer
  */
 
-void SimTracer::WriteThreadBuffer(Cache *pCache) {
+void SimTracer::WriteThreadBuffer(Cache* pCache) {
     CODE_FOR_ASSERT(size_t ret = 0);
     uint64_t threadId = pCache->threadId_;
 
     // Cast is OK because buffers will be less 4GiB
-    uint32_t bufferAppendPointOffset = static_cast<uint32_t> (pBufferAppendPoints_[threadId] - pSimTraceBuffer_[threadId]);
+    uint32_t bufferAppendPointOffset =
+        static_cast<uint32_t>(pBufferAppendPoints_[threadId] - pSimTraceBuffer_[threadId]);
     CODE_FOR_ASSERT(ret =) fwrite(&bufferAppendPointOffset, sizeof(uint32_t), 1, pFile_);
     assert(ret == 1);
     // configs of each cache
-    Configuration *pConfigs = new Configuration[gTestParams.numberOfCacheLevels];
+    Configuration* pConfigs = new Configuration[gTestParams.numberOfCacheLevels];
     uint8_t i = 0;
-    for (Cache *pCacheIterator = pCache; pCacheIterator->GetCacheLevel() != kMainMemory; pCacheIterator = static_cast<Cache*>(pCacheIterator->GetLowerCache()), i++) {
+    for (Cache* pCacheIterator = pCache; pCacheIterator->GetCacheLevel() != kMainMemory;
+         pCacheIterator = static_cast<Cache*>(pCacheIterator->GetLowerCache()), i++) {
         pConfigs[i].cacheSize = pCacheIterator->GetConfig().cacheSize;
         pConfigs[i].blockSize = pCacheIterator->GetConfig().blockSize;
         pConfigs[i].associativity = pCacheIterator->GetConfig().associativity;

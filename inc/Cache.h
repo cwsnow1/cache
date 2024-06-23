@@ -1,6 +1,6 @@
 #pragma once
-#include "list.h"
 #include "Memory.h"
+#include "list.h"
 
 struct Block {
     // The LSB of the blockAddress will be the
@@ -17,8 +17,8 @@ struct Block {
 };
 
 struct Set {
-    Block *ways;
-    uint8_t *lruList;
+    Block* ways;
+    uint8_t* lruList;
     bool busy;
 
     Set() {
@@ -34,8 +34,7 @@ struct Configuration {
     uint64_t associativity;
 
     Configuration() = default;
-    Configuration(uint64_t pCacheSize, uint64_t pBlockSize,
-                  uint64_t pAssociativity) {
+    Configuration(uint64_t pCacheSize, uint64_t pBlockSize, uint64_t pAssociativity) {
         cacheSize = pCacheSize;
         blockSize = pBlockSize;
         associativity = pAssociativity;
@@ -43,7 +42,7 @@ struct Configuration {
 };
 
 class Cache : public Memory {
-   public:
+  public:
     Cache() = default;
     /**
      * @brief                       Tries to initialize a cache structure
@@ -53,7 +52,7 @@ class Cache : public Memory {
      * @param numberOfCacheLevels   Number of cache levels
      * @param pConfigs              Array of structure containing all the config info needed per cache level
      */
-    Cache(Cache *pUpperCache, CacheLevel cacheLevel, uint8_t numberOfCacheLevels, Configuration *pConfigs);
+    Cache(Cache* pUpperCache, CacheLevel cacheLevel, uint8_t numberOfCacheLevels, Configuration* pConfigs);
 
     /**
      * @brief Destroy the Cache object
@@ -92,26 +91,29 @@ class Cache : public Memory {
      * structure(s)
      *
      * @param cycle                 Current clock cycle
-     * @param pCompletedRequests    Out. An array of the request indices that were completed this tick. Length is the return value
+     * @param pCompletedRequests    Out. An array of the request indices that were completed this tick. Length is the
+     * return value
      *
      * @return                      Number of requests completed this tick
      */
-    uint64_t ProcessCache(uint64_t pCycle, int16_t *pCompletedRequests);
+    uint64_t ProcessCache(uint64_t pCycle, int16_t* pCompletedRequests);
 
     /**
      * @brief   Get the Config object
      *
      * @return  Configuration
      */
-    inline Configuration GetConfig() { return config_; }
+    inline Configuration GetConfig() {
+        return config_;
+    }
 
     /**
      * @brief   Get the Top Level Cache object
      *
      * @return  Cache* top level cache object
      */
-    Cache *GetTopLevelCache() {
-        Memory *pUpperCache = GetUpperCache();
+    Cache* GetTopLevelCache() {
+        Memory* pUpperCache = GetUpperCache();
         while (pUpperCache->GetUpperCache() != nullptr) {
             pUpperCache = pUpperCache->GetUpperCache();
         }
@@ -120,29 +122,30 @@ class Cache : public Memory {
 
     /**
      * @brief Set the Main Memory object
-     * 
+     *
      * @param pMainMemory Main memory to set
      */
-    void SetMainMemory(Memory *pMainMemory) {
+    void SetMainMemory(Memory* pMainMemory) {
         pMainMemory_ = pMainMemory;
     }
 
     /**
      * @brief           Marks a set as no longer busy
-     * 
+     *
      * @param setIndex  Set to mark as not busy
      */
     void ResetCacheSetBusy(uint64_t setIndex);
 
     /**
      * @brief                       Simulates a single clock cycle in a single cache level
-     * 
+     *
      * @param cycle                 Current clock cycle
-     * @param pCompletedRequests    Out. An array of the request indices that were completed this tick. Length is the return value
-     * 
+     * @param pCompletedRequests    Out. An array of the request indices that were completed this tick. Length is the
+     * return value
+     *
      * @return                      Number of requests completed this tick
      */
-    uint64_t InternalProcessCache (uint64_t cycle, int16_t *pCompletedRequests);
+    uint64_t InternalProcessCache(uint64_t cycle, int16_t* pCompletedRequests);
 
     /**
      *  @brief Translates a raw address to a set index
@@ -152,7 +155,7 @@ class Cache : public Memory {
      */
     inline uint64_t addressToSetIndex(uint64_t pAddress);
 
-   private:
+  private:
     /**
      *  @brief Translates raw address to block address
      *
@@ -195,11 +198,11 @@ class Cache : public Memory {
      * @param pBlockIndex   Output: The block index within the set iff found
      * @return true         if the block is found in the set
      */
-    bool findBlockInSet(uint64_t setIndex, uint64_t blockAddress,
-                        uint8_t& pBlockIndex);
+    bool findBlockInSet(uint64_t setIndex, uint64_t blockAddress, uint8_t& pBlockIndex);
 
     /**
-     * @brief               Acquires the given block address into the given set. Makes any subsequent calls necessary to lower caches
+     * @brief               Acquires the given block address into the given set. Makes any subsequent calls necessary to
+     * lower caches
      *
      * @param setIndex      Set in which to put new block
      * @param blockAddress  Block address of block to acquire
@@ -213,7 +216,7 @@ class Cache : public Memory {
      * @param pRequest  Request structure to attempt
      * @return true     If the request was completed and need not be called again
      */
-    Status handleAccess(Request *pRequest);
+    Status handleAccess(Request* pRequest);
 
     // Cache sizing fields
     Configuration config_;
@@ -224,7 +227,7 @@ class Cache : public Memory {
     uint64_t blockAddressToSetIndexMask_;
 
     // Data
-    Set *sets_;
+    Set* sets_;
 };
 
 struct TestParamaters {

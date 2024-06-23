@@ -1,6 +1,6 @@
 #pragma once
-#include <inttypes.h>
 #include "SimTracer.h"
+#include <inttypes.h>
 
 constexpr sync_pattern_t kSyncPattern = 0xFFFFFFFF;
 
@@ -16,11 +16,5 @@ const char* simTraceEntryDefinitions[kNumberOfSimTraceEntries] = {
 };
 
 constexpr int kNumberOfArgumentsInSimTraceEntry[kNumberOfSimTraceEntries] = {
-    4,
-    2,
-    3,
-    2,
-    5,
-    0,
-    0,
+    4, 2, 3, 2, 5, 0, 0,
 };
