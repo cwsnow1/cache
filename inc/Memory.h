@@ -3,6 +3,7 @@
 #include "GlobalIncludes.h"
 #include "RequestManager.h"
 #include "list.h"
+#include <memory>
 
 // Obviously these are approximations
 constexpr uint64_t kAccessTimeInCycles[] = {
@@ -30,7 +31,7 @@ struct Statistics {
 
 class Memory {
   public:
-    Memory() = default;
+    Memory() = delete;
 
     /**
      * @brief Construct a new Memory object
@@ -56,17 +57,8 @@ class Memory {
      *
      * @return Memory* memory object one level above this
      */
-    Memory* GetUpperCache() {
+    Memory* GetUpperCache() const {
         return pUpperCache_;
-    }
-
-    /**
-     * @brief Set the Upper Cache object
-     *
-     * @param pUpperCache
-     */
-    void SetUpperCache(Memory* pUpperCache) {
-        pUpperCache_ = pUpperCache;
     }
 
     /**
@@ -74,17 +66,8 @@ class Memory {
      *
      * @return Memory* memory object one level below this
      */
-    Memory* GetLowerCache() {
-        return pLowerCache_;
-    }
-
-    /**
-     * @brief Set the Lower Cache object
-     *
-     * @param pLowerCache
-     */
-    void SetLowerCache(Memory* pLowerCache) {
-        pLowerCache_ = pLowerCache;
+    Memory& GetLowerCache() {
+        return *pLowerCache_;
     }
 
     /**
@@ -191,14 +174,14 @@ class Memory {
     Status handleAccess(Request* pRequest);
 
     // Cache hierarchy fields
-    Memory* pUpperCache_;
-    Memory* pLowerCache_;
+    Memory* const pUpperCache_;
+    std::unique_ptr<Memory> pLowerCache_;
     Memory* pMainMemory_;
     CacheLevel cacheLevel_;
 
-    uint64_t cycle_;
+    uint64_t cycle_ = 0;
 
-    RequestManager* pRequestManager_;
+    std::unique_ptr<RequestManager> pRequestManager_;
 
     // Data for simulator performance
     uint64_t earliestNextUsefulCycle_;

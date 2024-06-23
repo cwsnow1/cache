@@ -17,12 +17,11 @@ struct Block {
 };
 
 struct Set {
-    Block* ways;
+    std::vector<Block> ways;
     uint8_t* lruList;
     bool busy;
 
     Set() {
-        ways = nullptr;
         lruList = nullptr;
         busy = false;
     }
@@ -43,7 +42,7 @@ struct Configuration {
 
 class Cache : public Memory {
   public:
-    Cache() = default;
+    Cache() = delete;
     /**
      * @brief                       Tries to initialize a cache structure
      *
@@ -53,12 +52,6 @@ class Cache : public Memory {
      * @param pConfigs              Array of structure containing all the config info needed per cache level
      */
     Cache(Cache* pUpperCache, CacheLevel cacheLevel, uint8_t numberOfCacheLevels, Configuration* pConfigs);
-
-    /**
-     * @brief Destroy the Cache object
-     *
-     */
-    ~Cache();
 
     /**
      * @brief                       Checks whether a given cache config is valid, i.e. not redundant
@@ -103,7 +96,7 @@ class Cache : public Memory {
      *
      * @return  Configuration
      */
-    inline Configuration GetConfig() {
+    inline Configuration& GetConfig() {
         return config_;
     }
 
@@ -118,15 +111,6 @@ class Cache : public Memory {
             pUpperCache = pUpperCache->GetUpperCache();
         }
         return static_cast<Cache*>(pUpperCache);
-    }
-
-    /**
-     * @brief Set the Main Memory object
-     *
-     * @param pMainMemory Main memory to set
-     */
-    void SetMainMemory(Memory* pMainMemory) {
-        pMainMemory_ = pMainMemory;
     }
 
     /**
@@ -227,7 +211,7 @@ class Cache : public Memory {
     uint64_t blockAddressToSetIndexMask_;
 
     // Data
-    Set* sets_;
+    std::vector<Set> sets_;
 };
 
 struct TestParamaters {

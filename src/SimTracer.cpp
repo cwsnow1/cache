@@ -134,7 +134,7 @@ void SimTracer::WriteThreadBuffer(Cache* pCache) {
     Configuration* pConfigs = new Configuration[gTestParams.numberOfCacheLevels];
     uint8_t i = 0;
     for (Cache* pCacheIterator = pCache; pCacheIterator->GetCacheLevel() != kMainMemory;
-         pCacheIterator = static_cast<Cache*>(pCacheIterator->GetLowerCache()), i++) {
+         pCacheIterator = static_cast<Cache*>(&pCacheIterator->GetLowerCache()), i++) {
         pConfigs[i].cacheSize = pCacheIterator->GetConfig().cacheSize;
         pConfigs[i].blockSize = pCacheIterator->GetConfig().blockSize;
         pConfigs[i].associativity = pCacheIterator->GetConfig().associativity;

@@ -36,7 +36,7 @@ class IOUtilities {
      * @param cycle     Cycle, used to calculate CPI
      * @param stream    Output stream to print to
      */
-    static void PrintStatistics(Memory* memory, uint64_t cycle, FILE* stream);
+    static void PrintStatistics(Memory& memory, uint64_t cycle, FILE* stream);
 
     /**
      * @brief           Prints collected statistics to given stream in the form
@@ -46,7 +46,7 @@ class IOUtilities {
      * @param cycle     Cycle, used to calculate CPI
      * @param stream    Output stream to print to
      */
-    static void PrintStatisticsCSV(Memory* memory, uint64_t cycle, FILE* stream);
+    static void PrintStatisticsCSV(Memory& memory, uint64_t cycle, FILE* stream);
 
     /**
      * @brief Prints a message that the config of the cache structure(s) given
@@ -54,7 +54,7 @@ class IOUtilities {
      * @param memory        The pointer to the top-level cache structure
      * @param stream        The output stream
      */
-    static void PrintConfiguration(Memory* memory, FILE* stream);
+    static void PrintConfiguration(Memory& memory, FILE* stream);
 
     /**
      * @brief Loads test_params.ini if extant, creates it otherwise

@@ -1,4 +1,8 @@
 #include <assert.h>
+#include <memory>
+#include <stdlib.h>
+#include <stdbool.h>
+#include <string.h>
 #include <inttypes.h>
 #include <stdbool.h>
 #include <stdint.h>
@@ -28,9 +32,8 @@ extern SimTracer* gSimTracer;
 //          Public Functions
 // =====================================
 
-Cache::Cache(Cache* pUpperCache, CacheLevel cacheLevel, uint8_t numCacheLevels, Configuration* pCacheConfigs) {
+Cache::Cache(Cache* pUpperCache, CacheLevel cacheLevel, uint8_t numCacheLevels, Configuration* pCacheConfigs) : Memory(pUpperCache) {
     Configuration cacheConfig = pCacheConfigs[cacheLevel];
-    pUpperCache_ = pUpperCache;
     cacheLevel_ = cacheLevel;
     config_.cacheSize = cacheConfig.cacheSize;
     config_.blockSize = cacheConfig.blockSize;
@@ -52,36 +55,27 @@ Cache::Cache(Cache* pUpperCache, CacheLevel cacheLevel, uint8_t numCacheLevels, 
     blockAddressToSetIndexMask_ = numSets_ - 1;
     earliestNextUsefulCycle_ = UINT64_MAX;
     if (cacheLevel < numCacheLevels - 1) {
-        pLowerCache_ = new Cache(this, static_cast<CacheLevel>(cacheLevel + 1), numCacheLevels, pCacheConfigs);
+        pLowerCache_ = std::make_unique<Cache>(this, static_cast<CacheLevel>(cacheLevel + 1), numCacheLevels, pCacheConfigs);
     } else {
-        pLowerCache_ = new Memory(this);
+        pLowerCache_ = std::make_unique<Memory>(this);
     }
-    Memory* pMainMemory = this;
-    for (; pMainMemory->GetCacheLevel() != kMainMemory; pMainMemory = pMainMemory->GetLowerCache())
+    pMainMemory_ = pLowerCache_.get();
+    for (; pMainMemory_->GetCacheLevel() != kMainMemory; pMainMemory_ = &pMainMemory_->GetLowerCache())
         ;
-    pMainMemory_ = pMainMemory;
 }
 
-Cache::~Cache() {
-    for (Memory* pMemoryIterator = pLowerCache_; pMemoryIterator != nullptr;) {
-        Memory* pNextLowerMemory = pMemoryIterator->GetLowerCache();
-        delete pMemoryIterator;
-        pMemoryIterator = pNextLowerMemory;
-    }
-}
-
-void Cache::AllocateMemory() {
-    sets_ = new Set[numSets_];
+void Cache::AllocateMemory () {
+    sets_ = std::vector<Set>(numSets_);
     for (uint64_t i = 0; i < numSets_; i++) {
-        sets_[i].ways = new Block[config_.associativity];
+        sets_[i].ways = std::vector<Block>(config_.associativity);
         sets_[i].lruList = new uint8_t[config_.associativity];
         for (uint8_t j = 0; j < config_.associativity; j++) {
             sets_[i].lruList[j] = j;
         }
     }
-    pRequestManager_ = new RequestManager(cacheLevel_);
+    pRequestManager_ = std::make_unique<RequestManager>(cacheLevel_);
     if (pLowerCache_->GetCacheLevel() != kMainMemory) {
-        static_cast<Cache*>(pLowerCache_)->AllocateMemory();
+        static_cast<Cache*>(pLowerCache_.get())->AllocateMemory();
     } else {
         pLowerCache_->AllocateMemory();
     }
@@ -90,7 +84,7 @@ void Cache::AllocateMemory() {
 void Cache::SetThreadId(uint64_t threadId) {
     threadId_ = threadId;
     if (cacheLevel_ != kMainMemory) {
-        static_cast<Cache*>(pLowerCache_)->SetThreadId(threadId);
+        static_cast<Cache*>(pLowerCache_.get())->SetThreadId(threadId);
     }
 }
 
@@ -100,17 +94,17 @@ bool Cache::IsCacheConfigValid(Configuration config) {
     return numBlocks >= config.associativity;
 }
 
-void Cache::FreeMemory() {
-    assert(sets_);
+void Cache::FreeMemory () {
     for (uint64_t i = 0; i < numSets_; i++) {
-        assert(sets_[i].ways);
-        delete[] sets_[i].ways;
+        sets_[i].ways.clear();
+        sets_[i].ways.shrink_to_fit();
         delete[] sets_[i].lruList;
     }
-    delete[] sets_;
-    delete pRequestManager_;
+    sets_.clear();
+    sets_.shrink_to_fit();
+    pRequestManager_.reset(nullptr);
     if (pLowerCache_->GetCacheLevel() != kMainMemory) {
-        static_cast<Cache*>(pLowerCache_)->FreeMemory();
+        static_cast<Cache*>(pLowerCache_.get())->FreeMemory();
     } else {
         pLowerCache_->FreeMemory();
     }

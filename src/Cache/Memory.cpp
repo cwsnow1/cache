@@ -21,20 +21,18 @@ SimTracer dummySimTracer = SimTracer();
 SimTracer* gSimTracer = &dummySimTracer;
 #endif
 
-Memory::Memory(Memory* pLowestCache) {
+Memory::Memory(Memory* pLowestCache) : pUpperCache_(pLowestCache), pMainMemory_(this) {
     cacheLevel_ = kMainMemory;
-    pUpperCache_ = pLowestCache;
     earliestNextUsefulCycle_ = UINT64_MAX;
     pLowerCache_ = nullptr;
-    pMainMemory_ = this;
 }
 
 void Memory::AllocateMemory() {
-    pRequestManager_ = new RequestManager(cacheLevel_);
+    pRequestManager_ = std::make_unique<RequestManager>(cacheLevel_);
 }
 
 void Memory::FreeMemory() {
-    delete pRequestManager_;
+    pRequestManager_.reset(nullptr);
 }
 
 int16_t Memory::AddAccessRequest(Instruction access, uint64_t cycle) {
@@ -102,7 +100,7 @@ Status Memory::handleAccess(Request* request) {
 
 uint64_t Memory::CalculateEarliestNextUsefulCycle() {
     uint64_t earliestNextUsefulCycle = UINT64_MAX;
-    for (Memory* cacheIterator = this; cacheIterator != nullptr; cacheIterator = cacheIterator->GetLowerCache()) {
+    for (auto cacheIterator = this; cacheIterator != nullptr; cacheIterator = &cacheIterator->GetLowerCache()) {
         if (cacheIterator->GetEarliestNextUsefulCycle() < earliestNextUsefulCycle) {
             earliestNextUsefulCycle = cacheIterator->GetEarliestNextUsefulCycle();
         }
