@@ -112,22 +112,22 @@ void IOUtilities::verify_test_params(void) {
     if (!gTestParams.numberOfCacheLevels)
         goto verify_fail;
     line_number++;
-    if (!gTestParams.minBlockSize)
+    if (!gTestParams.minBlockSize[0])
         goto verify_fail;
     line_number++;
-    if (!gTestParams.maxBlockSize)
+    if (!gTestParams.maxBlockSize[0])
         goto verify_fail;
     line_number++;
-    if (!gTestParams.minCacheSize)
+    if (!gTestParams.minCacheSize[0])
         goto verify_fail;
     line_number++;
-    if (!gTestParams.maxCacheSize)
+    if (!gTestParams.maxCacheSize[0])
         goto verify_fail;
     line_number++;
-    if (!gTestParams.minBlocksPerSet)
+    if (!gTestParams.minBlocksPerSet[0])
         goto verify_fail;
     line_number++;
-    if (!gTestParams.maxBlocksPerSet)
+    if (!gTestParams.maxBlocksPerSet[0])
         goto verify_fail;
     line_number++;
     if (!gTestParams.maxNumberOfThreads)
