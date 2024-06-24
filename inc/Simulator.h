@@ -150,7 +150,7 @@ class Simulator {
     // number of outstanding threads. The only benefit is
     // memory savings & keeping the computer usable when
     // running with large numbers of configs
-    std::atomic<int32_t> numThreadsOutstanding_;
+    std::atomic<int64_t> numThreadsOutstanding_;
     uint64_t configsToTest_;
     std::vector<uint64_t> accessIndices_;
 };

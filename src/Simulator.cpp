@@ -35,9 +35,7 @@ FILE* sim_trace_f;
 
 TestParamaters gTestParams;
 
-Simulator::Simulator(const char* pInputFilename) {
-    numConfigs_ = 0;
-    numThreadsOutstanding_ = 0;
+Simulator::Simulator(const char* pInputFilename) : numThreadsOutstanding_(0) {
 
     // Look for test parameters file and generate a default if not found
     IOUtilities::LoadTestParameters();
@@ -69,7 +67,7 @@ Simulator::Simulator(const char* pInputFilename) {
     uint64_t simTraceBufferMemorySize = gTestParams.maxNumberOfThreads * kSimTraceBufferSizeInBytes;
     if (simTraceBufferMemorySize > MEMORY_USAGE_LIMIT) {
         const int32_t newMaxNumberOfThreads = MEMORY_USAGE_LIMIT / kSimTraceBufferSizeInBytes;
-        printf("Sim trace buffer memory is too big for %d threads. Lower thread "
+        printf("Sim trace buffer memory is too big for %" PRId64 " threads. Lower thread "
                "count to %d\n",
                gTestParams.maxNumberOfThreads, newMaxNumberOfThreads);
         gTestParams.maxNumberOfThreads = newMaxNumberOfThreads;
@@ -114,7 +112,7 @@ void* Simulator::TrackProgress(void* pSimulatorPointer) {
         }
         // Go back to beginning of line
         printf("\x1b[1A\x1b[1A");
-        printf("Running... %02d threads running, %02" PRIu64 " to go. %02.0f%% complete\n",
+        printf("Running... %02" PRId64 " threads running, %02" PRIu64 " to go. %02.0f%% complete\n",
                pSimulator->numThreadsOutstanding_.load(), pSimulator->configsToTest_, progressPercent);
         printf("%s\n", progressBar);
         std::this_thread::sleep_for(std::chrono::milliseconds(100));
@@ -354,7 +352,7 @@ void Simulator::DecrementNumThreadsOutstanding() {
 void Simulator::CreateAndRunThreads(void) {
     Multithreading::InitializeLock(&lock_);
 
-    uint64_t threadId = 0;
+    int64_t threadId = 0;
 
     // internal threadId to pthread threadId mapping used to track which threads are active
     threadsOutstanding_ = std::vector<Thread_t>(gTestParams.maxNumberOfThreads);
@@ -369,21 +367,21 @@ void Simulator::CreateAndRunThreads(void) {
 
     auto contexts = std::vector<SimCacheContext>(numConfigs_);
     for (uint64_t i = 0; i < numConfigs_; i++) {
-        while (numThreadsOutstanding_ == gTestParams.maxNumberOfThreads)
+        while (numThreadsOutstanding_.load() == gTestParams.maxNumberOfThreads)
             ;
         Multithreading::Lock(&lock_);
-        numThreadsOutstanding_++;
+        ++numThreadsOutstanding_;
         // Search for a threadId that is not in use
-        for (threadId = 0; threadId < static_cast<uint64_t>(gTestParams.maxNumberOfThreads); threadId++) {
+        for (threadId = 0; threadId < gTestParams.maxNumberOfThreads; threadId++) {
             if (threadsOutstanding_[threadId] == kInvalidThreadId) {
                 break;
             }
         }
-        caches_[i][kDataCache]->SetThreadId(threadId);
-        caches_[i][kInstructionCache]->SetThreadId(threadId);
         contexts[i].caches = std::vector<Cache*>();
-        for (size_t j = 0; j < caches_[i].size(); ++j)
+        for (size_t j = 0; j < caches_[i].size(); ++j) {
+            caches_[i][j]->SetThreadId(threadId);
             contexts[i].caches.push_back(caches_[i][j].get());
+        }
         contexts[i].pSimulator = this;
         contexts[i].configIndex = i;
         Multithreading::StartThread(Simulator::SimCache, static_cast<void*>(&contexts[i]), &threads_[i]);

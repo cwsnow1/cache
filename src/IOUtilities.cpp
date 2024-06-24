@@ -198,7 +198,7 @@ void IOUtilities::LoadTestParameters(void) {
         gTestParams.maxBlocksPerSet[i] = static_cast<uint8_t>(associativity);
         assert_release(cacheLevel == expectedCacheLevel);
     }
-    assert_release(fscanf(params_f, "MAX_NUM_THREADS=%d\n", &gTestParams.maxNumberOfThreads));
+    assert_release(fscanf(params_f, "MAX_NUM_THREADS=%" PRId64 "\n", &gTestParams.maxNumberOfThreads));
     fclose(params_f);
     verify_test_params();
 }

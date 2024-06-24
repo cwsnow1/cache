@@ -221,7 +221,7 @@ struct TestParamaters {
     uint64_t maxCacheSize[kMaxNumberOfCacheLevels];
     uint8_t minBlocksPerSet[kMaxNumberOfCacheLevels];
     uint8_t maxBlocksPerSet[kMaxNumberOfCacheLevels];
-    int32_t maxNumberOfThreads;
+    int64_t maxNumberOfThreads;
 };
 
 inline uint64_t Cache::addressToBlockAddress(uint64_t address) const {
