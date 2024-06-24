@@ -118,12 +118,11 @@ class Memory {
      * @brief                       Simulates a single clock cycle in a single cache level
      *
      * @param cycle                 Current clock cycle
-     * @param pCompletedRequests    Out. An array of the request indices that were completed this tick. Length is the
-     * return value
+     * @param completedRequests     Out. A vector of the request indices that were completed this tick.
      *
-     * @return                      Number of requests completed this tick
+     * @return                      None
      */
-    uint64_t InternalProcessCache(uint64_t cycle, int16_t* pCompletedRequests);
+    void InternalProcessCache(uint64_t cycle, std::vector<int16_t>& completedRequests);
 
     /**
      * @brief Get the Earliest Next Useful Cycle

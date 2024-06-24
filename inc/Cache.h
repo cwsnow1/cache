@@ -89,7 +89,7 @@ class Cache : public Memory {
      *
      * @return                      Number of requests completed this tick
      */
-    uint64_t ProcessCache(uint64_t pCycle, int16_t* pCompletedRequests);
+    void ProcessCache(uint64_t pCycle, std::vector<int16_t>& pCompletedRequests);
 
     /**
      * @brief   Get the Config object
@@ -124,12 +124,11 @@ class Cache : public Memory {
      * @brief                       Simulates a single clock cycle in a single cache level
      *
      * @param cycle                 Current clock cycle
-     * @param pCompletedRequests    Out. An array of the request indices that were completed this tick. Length is the
-     * return value
+     * @param completedRequests     Out. Vector of the request indices that were completed this tick.
      *
-     * @return                      Number of requests completed this tick
+     * @return                      None
      */
-    uint64_t InternalProcessCache(uint64_t cycle, int16_t* pCompletedRequests);
+    void InternalProcessCache(uint64_t cycle, std::vector<int16_t>& completedRequests);
 
     /**
      *  @brief Translates a raw address to a set index
@@ -137,7 +136,7 @@ class Cache : public Memory {
      *  @param pAddress     Raw address, 64 bits
      *  @return             Set index
      */
-    inline uint64_t addressToSetIndex(uint64_t pAddress);
+    inline uint64_t addressToSetIndex(uint64_t pAddress) const;
 
   private:
     /**
@@ -146,7 +145,7 @@ class Cache : public Memory {
      *  @param address          Raw address, 64 bits
      *  @return                 Block address, i.e. x MSB of the raw address
      */
-    inline uint64_t addressToBlockAddress(uint64_t address);
+    inline uint64_t addressToBlockAddress(uint64_t address) const;
 
     /**
      *  @brief Translates a block address to a set index
@@ -154,7 +153,7 @@ class Cache : public Memory {
      *  @param blockAddress     Block address, i.e. the raw address shifted
      *  @return                 Set index
      */
-    inline uint64_t blockAddressToSetIndex(uint64_t blockAddress);
+    inline uint64_t blockAddressToSetIndex(uint64_t blockAddress) const;
 
     /**
      * @brief               Reorder the LRU list for the given set
@@ -225,14 +224,14 @@ struct TestParamaters {
     int32_t maxNumberOfThreads;
 };
 
-inline uint64_t Cache::addressToBlockAddress(uint64_t address) {
+inline uint64_t Cache::addressToBlockAddress(uint64_t address) const {
     return address >> blockSizeBits_;
 }
 
-inline uint64_t Cache::blockAddressToSetIndex(uint64_t blockAddress) {
+inline uint64_t Cache::blockAddressToSetIndex(uint64_t blockAddress) const {
     return (blockAddress & blockAddressToSetIndexMask_);
 }
 
-inline uint64_t Cache::addressToSetIndex(uint64_t address) {
+inline uint64_t Cache::addressToSetIndex(uint64_t address) const {
     return blockAddressToSetIndex(addressToBlockAddress(address));
 }

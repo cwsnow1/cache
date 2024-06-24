@@ -186,8 +186,7 @@ void* Simulator::SimCache(void* pSimCacheContext) {
     uint64_t localCycleCounter = 0;
     uint64_t outstanding_requests[kNumberOfCacheTypes][RequestManager::kMaxNumberOfRequests] = {
         Simulator::kInvalidRequestIndex};
-    int16_t completed_requests[kNumberOfCacheTypes][RequestManager::kMaxNumberOfRequests] = {0};
-    uint64_t num_completed_requests[kNumberOfCacheTypes] = {0};
+    auto completed_requests = std::vector<std::vector<int16_t>>(kNumberOfCacheTypes, std::vector<int16_t>());
 
     DoubleList* pDataAccessRequests = new DoubleList(RequestManager::kMaxNumberOfRequests);
     DoubleList* pFreeAccessRequests = new DoubleList(RequestManager::kMaxNumberOfRequests);
@@ -248,17 +247,18 @@ void* Simulator::SimCache(void* pSimCacheContext) {
                 printf("Instruction Cache\n");
             }
 #endif
-            num_completed_requests[j] = theseCaches[j]->ProcessCache(localCycleCounter, completed_requests[j]);
+            completed_requests[j].clear();
+            theseCaches[j]->ProcessCache(localCycleCounter, completed_requests[j]);
             work_done |= theseCaches[j]->GetWasWorkDoneThisCycle();
         }
 
-        for (uint64_t j = 0; j < num_completed_requests[kDataCache]; j++) {
+        for (uint64_t j = 0; j < completed_requests[kDataCache].size(); j++) {
             assert(outstanding_requests[kDataCache][completed_requests[kDataCache][j]] ==
                    Simulator::kDataAccessRequest);
             outstanding_requests[kDataCache][completed_requests[kDataCache][j]] = Simulator::kInvalidRequestIndex;
         }
 
-        for (uint64_t j = 0; j < num_completed_requests[kInstructionCache]; j++) {
+        for (uint64_t j = 0; j < completed_requests[kInstructionCache].size(); j++) {
             work_done = true;
             // Clear out outstanding requests
             assert(outstanding_requests[kInstructionCache][completed_requests[kInstructionCache][j]] !=
@@ -417,7 +417,8 @@ void Simulator::SetupCaches(CacheLevel cacheLevel, uint64_t minBlockSize, uint64
                                     gTestParams.minCacheSize[cacheLevel + 1]);
                     } else {
                         caches_.push_back(std::vector<std::unique_ptr<Cache>>());
-                        caches_.back().push_back(std::make_unique<Cache>(nullptr, kL1, gTestParams.numberOfCacheLevels, configs));
+                        caches_.back().push_back(
+                            std::make_unique<Cache>(nullptr, kL1, gTestParams.numberOfCacheLevels, configs));
                         Configuration instructionCacheConfig = Configuration(65536, 1024, 2);
                         caches_.back().push_back(std::make_unique<Cache>(nullptr, kL1, 1, &instructionCacheConfig));
                     }

@@ -51,8 +51,7 @@ int16_t Memory::AddAccessRequest(Instruction access, uint64_t cycle) {
     return RequestManager::kInvalidRequestIndex;
 }
 
-uint64_t Memory::InternalProcessCache(uint64_t cycle, int16_t* pCompletedRequests) {
-    uint64_t numberOfRequestsCompleted = 0;
+void Memory::InternalProcessCache(uint64_t cycle, std::vector<int16_t>& completedRequests) {
     Cache* upperCache = static_cast<Cache*>(pUpperCache_);
     wasWorkDoneThisCycle_ = false;
     cycle_ = cycle;
@@ -76,10 +75,9 @@ uint64_t Memory::InternalProcessCache(uint64_t cycle, int16_t* pCompletedRequest
         pRequestManager_->PushRequestToFreeList(elementIterator);
     }
     DEBUG_TRACE("\n");
-    numberOfRequestsCompleted = upperCache->InternalProcessCache(cycle, pCompletedRequests);
+    upperCache->InternalProcessCache(cycle, completedRequests);
     pUpperCache_->wasWorkDoneThisCycle_ = wasWorkDoneThisCycle_;
 
-    return numberOfRequestsCompleted;
 }
 
 Status Memory::handleAccess(Request* request) {

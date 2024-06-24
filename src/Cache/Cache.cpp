@@ -110,8 +110,8 @@ void Cache::FreeMemory () {
     }
 }
 
-uint64_t Cache::ProcessCache(uint64_t cycle, int16_t* pCompletedRequests) {
-    return pMainMemory_->InternalProcessCache(cycle, pCompletedRequests);
+void Cache::ProcessCache(uint64_t cycle, std::vector<int16_t>& completedRequests) {
+    pMainMemory_->InternalProcessCache(cycle, completedRequests);
 }
 
 // =====================================
@@ -256,8 +256,7 @@ void Cache::ResetCacheSetBusy(uint64_t setIndex) {
     sets_[setIndex].busy = false;
 }
 
-uint64_t Cache::InternalProcessCache(uint64_t cycle, int16_t* pCompletedRequests) {
-    uint64_t numberOfRequestsCompleted = 0;
+void Cache::InternalProcessCache(uint64_t cycle, std::vector<int16_t>& completedRequests) {
     wasWorkDoneThisCycle_ = false;
     cycle_ = cycle;
     if (pLowerCache_->GetWasWorkDoneThisCycle()) {
@@ -277,7 +276,7 @@ uint64_t Cache::InternalProcessCache(uint64_t cycle, int16_t* pCompletedRequests
                     static_cast<Cache*>(pUpperCache_)->ResetCacheSetBusy(setIndex);
                 }
                 if (cacheLevel_ == kL1) {
-                    pCompletedRequests[numberOfRequestsCompleted++] = poolIndex;
+                    completedRequests.push_back(poolIndex);
                 }
                 pRequestManager_->RemoveRequestFromBusyList(elementIterator);
                 pRequestManager_->PushRequestToFreeList(elementIterator);
@@ -305,7 +304,7 @@ uint64_t Cache::InternalProcessCache(uint64_t cycle, int16_t* pCompletedRequests
                 upperCache->sets_[setIndex].busy = false;
             }
             if (cacheLevel_ == kL1) {
-                pCompletedRequests[numberOfRequestsCompleted++] = poolIndex;
+                completedRequests.push_back(poolIndex);
             }
             pRequestManager_->RemoveRequestFromWaitingList(elementIterator);
             pRequestManager_->PushRequestToFreeList(elementIterator);
@@ -330,8 +329,7 @@ out_of_loop:
 
     if (pUpperCache_) {
         Cache* upperCache = static_cast<Cache*>(pUpperCache_);
-        numberOfRequestsCompleted = upperCache->InternalProcessCache(cycle, pCompletedRequests);
+        upperCache->InternalProcessCache(cycle, completedRequests);
         upperCache->SetWasWorkDoneThisCycle(wasWorkDoneThisCycle_);
     }
-    return numberOfRequestsCompleted;
 }
