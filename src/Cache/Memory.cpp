@@ -21,20 +21,18 @@ SimTracer dummySimTracer = SimTracer();
 SimTracer* gSimTracer = &dummySimTracer;
 #endif
 
-Memory::Memory(Memory* pLowestCache) {
+Memory::Memory(Memory* pLowestCache) : pUpperCache_(pLowestCache), pMainMemory_(this) {
     cacheLevel_ = kMainMemory;
-    pUpperCache_ = pLowestCache;
     earliestNextUsefulCycle_ = UINT64_MAX;
     pLowerCache_ = nullptr;
-    pMainMemory_ = this;
 }
 
 void Memory::AllocateMemory() {
-    pRequestManager_ = new RequestManager(cacheLevel_);
+    pRequestManager_ = std::make_unique<RequestManager>(cacheLevel_);
 }
 
 void Memory::FreeMemory() {
-    delete pRequestManager_;
+    pRequestManager_.reset(nullptr);
 }
 
 int16_t Memory::AddAccessRequest(Instruction access, uint64_t cycle) {
@@ -53,8 +51,7 @@ int16_t Memory::AddAccessRequest(Instruction access, uint64_t cycle) {
     return RequestManager::kInvalidRequestIndex;
 }
 
-uint64_t Memory::InternalProcessCache(uint64_t cycle, int16_t* pCompletedRequests) {
-    uint64_t numberOfRequestsCompleted = 0;
+void Memory::InternalProcessCache(uint64_t cycle, std::vector<int16_t>& completedRequests) {
     Cache* upperCache = static_cast<Cache*>(pUpperCache_);
     wasWorkDoneThisCycle_ = false;
     cycle_ = cycle;
@@ -78,10 +75,9 @@ uint64_t Memory::InternalProcessCache(uint64_t cycle, int16_t* pCompletedRequest
         pRequestManager_->PushRequestToFreeList(elementIterator);
     }
     DEBUG_TRACE("\n");
-    numberOfRequestsCompleted = upperCache->InternalProcessCache(cycle, pCompletedRequests);
+    upperCache->InternalProcessCache(cycle, completedRequests);
     pUpperCache_->wasWorkDoneThisCycle_ = wasWorkDoneThisCycle_;
 
-    return numberOfRequestsCompleted;
 }
 
 Status Memory::handleAccess(Request* request) {
@@ -102,7 +98,7 @@ Status Memory::handleAccess(Request* request) {
 
 uint64_t Memory::CalculateEarliestNextUsefulCycle() {
     uint64_t earliestNextUsefulCycle = UINT64_MAX;
-    for (Memory* cacheIterator = this; cacheIterator != nullptr; cacheIterator = cacheIterator->GetLowerCache()) {
+    for (auto cacheIterator = this; cacheIterator != nullptr; cacheIterator = &cacheIterator->GetLowerCache()) {
         if (cacheIterator->GetEarliestNextUsefulCycle() < earliestNextUsefulCycle) {
             earliestNextUsefulCycle = cacheIterator->GetEarliestNextUsefulCycle();
         }

@@ -15,14 +15,15 @@
 extern TestParamaters gTestParams;
 const char kParametersFilename[] = "./test_params.ini";
 
-void IOUtilities::PrintStatistics(Memory* memory, uint64_t cycle, FILE* stream) {
-    Statistics stats = memory->GetStats();
-    CacheLevel cache_level = memory->GetCacheLevel();
-    if (memory->GetCacheLevel() == kMainMemory) {
+void IOUtilities::PrintStatistics(Memory& memory, uint64_t cycle, FILE* stream) {
+
+    Statistics stats = memory.GetStats();
+    CacheLevel cache_level = memory.GetCacheLevel();
+    if (cache_level == kMainMemory) {
         return;
     }
-    Cache* cache = static_cast<Cache*>(memory);
-    Configuration config = cache->GetConfig();
+    Cache& cache = static_cast<Cache&>(memory);
+    Configuration& config = cache.GetConfig();
     if (cache_level == kL1) {
         fprintf(stream, "=========================\n");
     } else {
@@ -46,23 +47,23 @@ void IOUtilities::PrintStatistics(Memory* memory, uint64_t cycle, FILE* stream) 
         fprintf(stream, "Main memory reads:  %08" PRIu64 "\n", stats.readMisses + stats.writeMisses);
         fprintf(stream, "Main memory writes: %08" PRIu64 "\n\n", stats.writebacks);
         fprintf(stream, "Total number of cycles: %010" PRIu64 "\n", cycle);
-        Statistics topLevelStats = cache->GetTopLevelCache()->GetStats();
+        Statistics topLevelStats = cache.GetTopLevelCache()->GetStats();
         float cpi = static_cast<float>(cycle) / (topLevelStats.numInstructions);
         fprintf(stream, "CPI: %.4f\n", cpi);
         fprintf(stream, "=========================\n\n");
     } else {
-        PrintStatistics(memory->GetLowerCache(), cycle, stream);
+        PrintStatistics(memory.GetLowerCache(), cycle, stream);
     }
 }
 
-void IOUtilities::PrintStatisticsCSV(Memory* memory, uint64_t cycle, FILE* stream) {
-    Statistics stats = memory->GetStats();
-    CacheLevel cache_level = memory->GetCacheLevel();
-    if (memory->GetCacheLevel() == kMainMemory) {
+void IOUtilities::PrintStatisticsCSV(Memory& memory, uint64_t cycle, FILE* stream) {
+    Statistics stats = memory.GetStats();
+    CacheLevel cache_level = memory.GetCacheLevel();
+    if (cache_level == kMainMemory) {
         return;
     }
-    Cache* cache = static_cast<Cache*>(memory);
-    Configuration config = cache->GetConfig();
+    Cache& cache = static_cast<Cache&>(memory);
+    Configuration& config = cache.GetConfig();
     if (stream == nullptr) {
         return;
     }
@@ -78,22 +79,22 @@ void IOUtilities::PrintStatisticsCSV(Memory* memory, uint64_t cycle, FILE* strea
     if (cache_level == gTestParams.numberOfCacheLevels - 1) {
         fprintf(stream, "%08" PRIu64 ",%08" PRIu64 ",%010" PRIu64 ",", stats.readMisses + stats.writeMisses,
                 stats.writebacks, cycle);
-        Statistics topLevelStats = cache->GetTopLevelCache()->GetStats();
+        Statistics topLevelStats = cache.GetTopLevelCache()->GetStats();
         float cpi = static_cast<float>(cycle) / (topLevelStats.numInstructions);
         fprintf(stream, "%.4f\n", cpi);
     } else {
-        PrintStatisticsCSV(memory->GetLowerCache(), cycle, stream);
+        PrintStatisticsCSV(memory.GetLowerCache(), cycle, stream);
     }
 }
 
-void IOUtilities::PrintConfiguration(Memory* memory, FILE* stream) {
-    CacheLevel cache_level = memory->GetCacheLevel();
+void IOUtilities::PrintConfiguration(Memory& memory, FILE* stream) {
+    CacheLevel cache_level = memory.GetCacheLevel();
     if (cache_level == kMainMemory) {
         fprintf(stream, "=========================\n\n");
         return;
     }
-    Cache* cache = static_cast<Cache*>(memory);
-    Configuration config = cache->GetConfig();
+    Cache& cache = static_cast<Cache&>(memory);
+    Configuration& config = cache.GetConfig();
     if (cache_level == 0) {
         fprintf(stream, "=========================\n");
     } else {
@@ -102,7 +103,7 @@ void IOUtilities::PrintConfiguration(Memory* memory, FILE* stream) {
     fprintf(stream, "CACHE LEVEL %d\n", cache_level);
     fprintf(stream, "size=%" PRIu64 "B, block_size=%" PRIu64 "B, associativity=%" PRIu64 "\n", config.cacheSize,
             config.blockSize, config.associativity);
-    PrintConfiguration(memory->GetLowerCache(), stream);
+    PrintConfiguration(memory.GetLowerCache(), stream);
 }
 
 void IOUtilities::verify_test_params(void) {
@@ -111,22 +112,22 @@ void IOUtilities::verify_test_params(void) {
     if (!gTestParams.numberOfCacheLevels)
         goto verify_fail;
     line_number++;
-    if (!gTestParams.minBlockSize)
+    if (!gTestParams.minBlockSize[0])
         goto verify_fail;
     line_number++;
-    if (!gTestParams.maxBlockSize)
+    if (!gTestParams.maxBlockSize[0])
         goto verify_fail;
     line_number++;
-    if (!gTestParams.minCacheSize)
+    if (!gTestParams.minCacheSize[0])
         goto verify_fail;
     line_number++;
-    if (!gTestParams.maxCacheSize)
+    if (!gTestParams.maxCacheSize[0])
         goto verify_fail;
     line_number++;
-    if (!gTestParams.minBlocksPerSet)
+    if (!gTestParams.minBlocksPerSet[0])
         goto verify_fail;
     line_number++;
-    if (!gTestParams.maxBlocksPerSet)
+    if (!gTestParams.maxBlocksPerSet[0])
         goto verify_fail;
     line_number++;
     if (!gTestParams.maxNumberOfThreads)
@@ -197,7 +198,7 @@ void IOUtilities::LoadTestParameters(void) {
         gTestParams.maxBlocksPerSet[i] = static_cast<uint8_t>(associativity);
         assert_release(cacheLevel == expectedCacheLevel);
     }
-    assert_release(fscanf(params_f, "MAX_NUM_THREADS=%d\n", &gTestParams.maxNumberOfThreads));
+    assert_release(fscanf(params_f, "MAX_NUM_THREADS=%" PRId64 "\n", &gTestParams.maxNumberOfThreads));
     fclose(params_f);
     verify_test_params();
 }

@@ -35,9 +35,7 @@ FILE* sim_trace_f;
 
 TestParamaters gTestParams;
 
-Simulator::Simulator(const char* pInputFilename) {
-    numConfigs_ = 0;
-    numThreadsOutstanding_ = 0;
+Simulator::Simulator(const char* pInputFilename) : numThreadsOutstanding_(0) {
 
     // Look for test parameters file and generate a default if not found
     IOUtilities::LoadTestParameters();
@@ -47,34 +45,35 @@ Simulator::Simulator(const char* pInputFilename) {
     uint8_t* pFileContents = IOUtilities::ReadInFile(pInputFilename, fileLength);
     IOUtilities::ParseBuffer(pFileContents, fileLength, accesses_);
 
-    CalculateNumValidConfigs(numConfigs_, 0, gTestParams.minBlockSize[kL1], gTestParams.minCacheSize[kL1]);
-    printf("Total number of possible configs = %" PRIu64 "\n", numConfigs_);
-    if (numConfigs_ < static_cast<uint64_t>(gTestParams.maxNumberOfThreads) || (gTestParams.maxNumberOfThreads < 0)) {
-        gTestParams.maxNumberOfThreads = numConfigs_;
-    }
-    configsToTest_ = numConfigs_;
 #ifdef _MSC_VER
     if (gTestParams.maxNumberOfThreads > MAXIMUM_WAIT_OBJECTS) {
         gTestParams.maxNumberOfThreads = MAXIMUM_WAIT_OBJECTS;
         printf("Setting maximum number of threads to Windows maximum of %" PRId32 "\n", MAXIMUM_WAIT_OBJECTS);
     }
 #endif
+    caches_ = std::vector<std::vector<std::unique_ptr<Cache>>>();
+
+    SetupCaches(kL1, gTestParams.minBlockSize[kL1], gTestParams.minCacheSize[kL1]);
+    numConfigs_ = caches_.size();
+    printf("Total number of possible configs = %" PRIu64 "\n", numConfigs_);
+    if (numConfigs_ < static_cast<uint64_t>(gTestParams.maxNumberOfThreads) || (gTestParams.maxNumberOfThreads < 0)) {
+        gTestParams.maxNumberOfThreads = numConfigs_;
+    }
+    configsToTest_ = numConfigs_;
+    cycleCounters_ = std::vector<uint64_t>(numConfigs_);
+    threads_ = std::vector<Thread_t>(numConfigs_);
+
 #if (SIM_TRACE == 1)
     uint64_t simTraceBufferMemorySize = gTestParams.maxNumberOfThreads * kSimTraceBufferSizeInBytes;
     if (simTraceBufferMemorySize > MEMORY_USAGE_LIMIT) {
         const int32_t newMaxNumberOfThreads = MEMORY_USAGE_LIMIT / kSimTraceBufferSizeInBytes;
-        printf("Sim trace buffer memory is too big for %d threads. Lower thread "
+        printf("Sim trace buffer memory is too big for %" PRId64 " threads. Lower thread "
                "count to %d\n",
                gTestParams.maxNumberOfThreads, newMaxNumberOfThreads);
         gTestParams.maxNumberOfThreads = newMaxNumberOfThreads;
     }
     gSimTracer = new SimTracer(SIM_TRACE_FILENAME, numConfigs_);
 #endif
-    cycleCounters_ = std::vector<uint64_t>(numConfigs_);
-    threads_ = std::vector<Thread_t>(numConfigs_);
-    caches_ = std::vector<std::vector<Cache*>>(numConfigs_, std::vector<Cache*>(kNumberOfCacheTypes));
-
-    SetupCaches(kL1, gTestParams.minBlockSize[kL1], gTestParams.minCacheSize[kL1]);
 }
 
 #ifdef _MSC_VER
@@ -113,8 +112,8 @@ void* Simulator::TrackProgress(void* pSimulatorPointer) {
         }
         // Go back to beginning of line
         printf("\x1b[1A\x1b[1A");
-        printf("Running... %02d threads running, %02" PRIu64 " to go. %02.0f%% complete\n",
-               pSimulator->numThreadsOutstanding_, pSimulator->configsToTest_, progressPercent);
+        printf("Running... %02" PRId64 " threads running, %02" PRIu64 " to go. %02.0f%% complete\n",
+               pSimulator->numThreadsOutstanding_.load(), pSimulator->configsToTest_, progressPercent);
         printf("%s\n", progressBar);
         std::this_thread::sleep_for(std::chrono::milliseconds(100));
     }
@@ -141,8 +140,8 @@ void Simulator::PrintStats(FILE* pTextStream, FILE* pCSVStream) {
                             "cycles, CPI\n");
     }
     for (uint64_t i = 0; i < numConfigs_; i++) {
-        IOUtilities::PrintStatistics(caches_[i][kDataCache], cycleCounters_[i], pTextStream);
-        IOUtilities::PrintStatisticsCSV(caches_[i][kDataCache], cycleCounters_[i], pCSVStream);
+        IOUtilities::PrintStatistics(*caches_[i][kDataCache], cycleCounters_[i], pTextStream);
+        IOUtilities::PrintStatisticsCSV(*caches_[i][kDataCache], cycleCounters_[i], pCSVStream);
         Statistics stats = caches_[i][kDataCache]->GetStats();
         float cpi = static_cast<float>(cycleCounters_[i]) / (stats.numInstructions);
         if (cpi < minCpi) {
@@ -154,7 +153,7 @@ void Simulator::PrintStats(FILE* pTextStream, FILE* pCSVStream) {
         fclose(pCSVStream);
     }
     fprintf(pTextStream, "The config with the lowest CPI of %.4f:\n", minCpi);
-    IOUtilities::PrintConfiguration(caches_[min_i][kDataCache], pTextStream);
+    IOUtilities::PrintConfiguration(*caches_[min_i][kDataCache], pTextStream);
 }
 
 Simulator::~Simulator() {
@@ -185,8 +184,7 @@ void* Simulator::SimCache(void* pSimCacheContext) {
     uint64_t localCycleCounter = 0;
     uint64_t outstanding_requests[kNumberOfCacheTypes][RequestManager::kMaxNumberOfRequests] = {
         Simulator::kInvalidRequestIndex};
-    int16_t completed_requests[kNumberOfCacheTypes][RequestManager::kMaxNumberOfRequests] = {0};
-    uint64_t num_completed_requests[kNumberOfCacheTypes] = {0};
+    auto completed_requests = std::vector<std::vector<int16_t>>(kNumberOfCacheTypes, std::vector<int16_t>());
 
     DoubleList* pDataAccessRequests = new DoubleList(RequestManager::kMaxNumberOfRequests);
     DoubleList* pFreeAccessRequests = new DoubleList(RequestManager::kMaxNumberOfRequests);
@@ -247,17 +245,18 @@ void* Simulator::SimCache(void* pSimCacheContext) {
                 printf("Instruction Cache\n");
             }
 #endif
-            num_completed_requests[j] = theseCaches[j]->ProcessCache(localCycleCounter, completed_requests[j]);
+            completed_requests[j].clear();
+            theseCaches[j]->ProcessCache(localCycleCounter, completed_requests[j]);
             work_done |= theseCaches[j]->GetWasWorkDoneThisCycle();
         }
 
-        for (uint64_t j = 0; j < num_completed_requests[kDataCache]; j++) {
+        for (uint64_t j = 0; j < completed_requests[kDataCache].size(); j++) {
             assert(outstanding_requests[kDataCache][completed_requests[kDataCache][j]] ==
                    Simulator::kDataAccessRequest);
             outstanding_requests[kDataCache][completed_requests[kDataCache][j]] = Simulator::kInvalidRequestIndex;
         }
 
-        for (uint64_t j = 0; j < num_completed_requests[kInstructionCache]; j++) {
+        for (uint64_t j = 0; j < completed_requests[kInstructionCache].size(); j++) {
             work_done = true;
             // Clear out outstanding requests
             assert(outstanding_requests[kInstructionCache][completed_requests[kInstructionCache][j]] !=
@@ -353,34 +352,36 @@ void Simulator::DecrementNumThreadsOutstanding() {
 void Simulator::CreateAndRunThreads(void) {
     Multithreading::InitializeLock(&lock_);
 
-#if (CONSOLE_PRINT == 0)
-    Thread_t progressThread;
-    Multithreading::StartThread(Simulator::TrackProgress, this, &progressThread);
-#endif
-    uint64_t threadId = 0;
+    int64_t threadId = 0;
 
-    // internal threadId to pthread threadId mapping used to track which threads
-    // are active
+    // internal threadId to pthread threadId mapping used to track which threads are active
     threadsOutstanding_ = std::vector<Thread_t>(gTestParams.maxNumberOfThreads);
     memset(threadsOutstanding_.data(), -1, sizeof(Thread_t) * threadsOutstanding_.size());
 
     accessIndices_ = std::vector<uint64_t>(gTestParams.maxNumberOfThreads, 0);
 
+#if (CONSOLE_PRINT == 0)
+    Thread_t progressThread;
+    Multithreading::StartThread(Simulator::TrackProgress, this, &progressThread);
+#endif
+
     auto contexts = std::vector<SimCacheContext>(numConfigs_);
     for (uint64_t i = 0; i < numConfigs_; i++) {
-        while (numThreadsOutstanding_ == gTestParams.maxNumberOfThreads)
+        while (numThreadsOutstanding_.load() == gTestParams.maxNumberOfThreads)
             ;
         Multithreading::Lock(&lock_);
-        numThreadsOutstanding_++;
+        ++numThreadsOutstanding_;
         // Search for a threadId that is not in use
-        for (threadId = 0; threadId < static_cast<uint64_t>(gTestParams.maxNumberOfThreads); threadId++) {
+        for (threadId = 0; threadId < gTestParams.maxNumberOfThreads; threadId++) {
             if (threadsOutstanding_[threadId] == kInvalidThreadId) {
                 break;
             }
         }
-        caches_[i][kDataCache]->SetThreadId(threadId);
-        caches_[i][kInstructionCache]->SetThreadId(threadId);
-        contexts[i].caches = caches_[i];
+        contexts[i].caches = std::vector<Cache*>();
+        for (size_t j = 0; j < caches_[i].size(); ++j) {
+            caches_[i][j]->SetThreadId(threadId);
+            contexts[i].caches.push_back(caches_[i][j].get());
+        }
         contexts[i].pSimulator = this;
         contexts[i].configIndex = i;
         Multithreading::StartThread(Simulator::SimCache, static_cast<void*>(&contexts[i]), &threads_[i]);
@@ -397,7 +398,6 @@ void Simulator::CreateAndRunThreads(void) {
 }
 
 void Simulator::SetupCaches(CacheLevel cacheLevel, uint64_t minBlockSize, uint64_t minCacheSize) {
-    static uint64_t threadNumber = 0;
     static Configuration configs[kMaxNumberOfCacheLevels];
     for (uint64_t blockSize = std::max(minBlockSize, gTestParams.minBlockSize[cacheLevel]);
          blockSize <= gTestParams.maxBlockSize[cacheLevel]; blockSize <<= 1) {
@@ -410,36 +410,15 @@ void Simulator::SetupCaches(CacheLevel cacheLevel, uint64_t minBlockSize, uint64
                 configs[cacheLevel].associativity = blocksPerSet;
                 if (Cache::IsCacheConfigValid(configs[cacheLevel])) {
                     if (cacheLevel < gTestParams.numberOfCacheLevels - 1) {
+                        assert(cacheLevel != kMaxNumberOfCacheLevels);
                         SetupCaches(static_cast<CacheLevel>(cacheLevel + 1), blockSize,
                                     gTestParams.minCacheSize[cacheLevel + 1]);
                     } else {
-                        caches_[threadNumber][kDataCache] =
-                            new Cache(nullptr, kL1, gTestParams.numberOfCacheLevels, configs);
+                        caches_.push_back(std::vector<std::unique_ptr<Cache>>());
+                        caches_.back().push_back(
+                            std::make_unique<Cache>(nullptr, kL1, gTestParams.numberOfCacheLevels, configs));
                         Configuration instructionCacheConfig = Configuration(65536, 1024, 2);
-                        caches_[threadNumber][kInstructionCache] = new Cache(nullptr, kL1, 1, &instructionCacheConfig);
-                        threadNumber++;
-                    }
-                }
-            }
-        }
-    }
-}
-
-void Simulator::CalculateNumValidConfigs(uint64_t& pNumConfigs, uint8_t cacheLevel, uint64_t minBlockSize,
-                                         uint64_t minCacheSize) {
-    for (uint64_t blockSize = std::max(minBlockSize, gTestParams.minBlockSize[cacheLevel]);
-         blockSize <= gTestParams.maxBlockSize[cacheLevel]; blockSize <<= 1) {
-        for (uint64_t cacheSize = std::max(minCacheSize, blockSize); cacheSize <= gTestParams.maxCacheSize[cacheLevel];
-             cacheSize <<= 1) {
-            for (uint8_t blocksPerSet = gTestParams.minBlocksPerSet[cacheLevel];
-                 blocksPerSet <= gTestParams.maxBlocksPerSet[cacheLevel]; blocksPerSet <<= 1) {
-                Configuration config = Configuration(cacheSize, blockSize, blocksPerSet);
-                if (Cache::IsCacheConfigValid(config)) {
-                    if (cacheLevel < gTestParams.numberOfCacheLevels - 1) {
-                        CalculateNumValidConfigs(pNumConfigs, cacheLevel + 1, blockSize,
-                                                 gTestParams.minCacheSize[cacheLevel + 1]);
-                    } else {
-                        pNumConfigs++;
+                        caches_.back().push_back(std::make_unique<Cache>(nullptr, kL1, 1, &instructionCacheConfig));
                     }
                 }
             }

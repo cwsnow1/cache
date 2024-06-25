@@ -17,12 +17,11 @@ struct Block {
 };
 
 struct Set {
-    Block* ways;
+    std::vector<Block> ways;
     uint8_t* lruList;
     bool busy;
 
     Set() {
-        ways = nullptr;
         lruList = nullptr;
         busy = false;
     }
@@ -43,7 +42,7 @@ struct Configuration {
 
 class Cache : public Memory {
   public:
-    Cache() = default;
+    Cache() = delete;
     /**
      * @brief                       Tries to initialize a cache structure
      *
@@ -53,12 +52,6 @@ class Cache : public Memory {
      * @param pConfigs              Array of structure containing all the config info needed per cache level
      */
     Cache(Cache* pUpperCache, CacheLevel cacheLevel, uint8_t numberOfCacheLevels, Configuration* pConfigs);
-
-    /**
-     * @brief Destroy the Cache object
-     *
-     */
-    ~Cache();
 
     /**
      * @brief                       Checks whether a given cache config is valid, i.e. not redundant
@@ -96,14 +89,14 @@ class Cache : public Memory {
      *
      * @return                      Number of requests completed this tick
      */
-    uint64_t ProcessCache(uint64_t pCycle, int16_t* pCompletedRequests);
+    void ProcessCache(uint64_t pCycle, std::vector<int16_t>& pCompletedRequests);
 
     /**
      * @brief   Get the Config object
      *
      * @return  Configuration
      */
-    inline Configuration GetConfig() {
+    inline Configuration& GetConfig() {
         return config_;
     }
 
@@ -121,15 +114,6 @@ class Cache : public Memory {
     }
 
     /**
-     * @brief Set the Main Memory object
-     *
-     * @param pMainMemory Main memory to set
-     */
-    void SetMainMemory(Memory* pMainMemory) {
-        pMainMemory_ = pMainMemory;
-    }
-
-    /**
      * @brief           Marks a set as no longer busy
      *
      * @param setIndex  Set to mark as not busy
@@ -140,12 +124,11 @@ class Cache : public Memory {
      * @brief                       Simulates a single clock cycle in a single cache level
      *
      * @param cycle                 Current clock cycle
-     * @param pCompletedRequests    Out. An array of the request indices that were completed this tick. Length is the
-     * return value
+     * @param completedRequests     Out. Vector of the request indices that were completed this tick.
      *
-     * @return                      Number of requests completed this tick
+     * @return                      None
      */
-    uint64_t InternalProcessCache(uint64_t cycle, int16_t* pCompletedRequests);
+    void InternalProcessCache(uint64_t cycle, std::vector<int16_t>& completedRequests);
 
     /**
      *  @brief Translates a raw address to a set index
@@ -153,7 +136,7 @@ class Cache : public Memory {
      *  @param pAddress     Raw address, 64 bits
      *  @return             Set index
      */
-    inline uint64_t addressToSetIndex(uint64_t pAddress);
+    inline uint64_t addressToSetIndex(uint64_t pAddress) const;
 
   private:
     /**
@@ -162,7 +145,7 @@ class Cache : public Memory {
      *  @param address          Raw address, 64 bits
      *  @return                 Block address, i.e. x MSB of the raw address
      */
-    inline uint64_t addressToBlockAddress(uint64_t address);
+    inline uint64_t addressToBlockAddress(uint64_t address) const;
 
     /**
      *  @brief Translates a block address to a set index
@@ -170,7 +153,7 @@ class Cache : public Memory {
      *  @param blockAddress     Block address, i.e. the raw address shifted
      *  @return                 Set index
      */
-    inline uint64_t blockAddressToSetIndex(uint64_t blockAddress);
+    inline uint64_t blockAddressToSetIndex(uint64_t blockAddress) const;
 
     /**
      * @brief               Reorder the LRU list for the given set
@@ -227,7 +210,7 @@ class Cache : public Memory {
     uint64_t blockAddressToSetIndexMask_;
 
     // Data
-    Set* sets_;
+    std::vector<Set> sets_;
 };
 
 struct TestParamaters {
@@ -238,17 +221,17 @@ struct TestParamaters {
     uint64_t maxCacheSize[kMaxNumberOfCacheLevels];
     uint8_t minBlocksPerSet[kMaxNumberOfCacheLevels];
     uint8_t maxBlocksPerSet[kMaxNumberOfCacheLevels];
-    int32_t maxNumberOfThreads;
+    int64_t maxNumberOfThreads;
 };
 
-inline uint64_t Cache::addressToBlockAddress(uint64_t address) {
+inline uint64_t Cache::addressToBlockAddress(uint64_t address) const {
     return address >> blockSizeBits_;
 }
 
-inline uint64_t Cache::blockAddressToSetIndex(uint64_t blockAddress) {
+inline uint64_t Cache::blockAddressToSetIndex(uint64_t blockAddress) const {
     return (blockAddress & blockAddressToSetIndexMask_);
 }
 
-inline uint64_t Cache::addressToSetIndex(uint64_t address) {
+inline uint64_t Cache::addressToSetIndex(uint64_t address) const {
     return blockAddressToSetIndex(addressToBlockAddress(address));
 }

@@ -1,5 +1,6 @@
 #pragma once
 
+#include <atomic>
 #include <stdint.h>
 #include <stdio.h>
 #include <vector>
@@ -117,7 +118,12 @@ class Simulator {
 
     Lock_t lock_;
 
-    static constexpr Thread_t kInvalidThreadId = reinterpret_cast<Thread_t>(UINT64_MAX);
+    static constexpr Thread_t kInvalidThreadId =
+#ifdef __GNUC__
+        static_cast<Thread_t>(UINT64_MAX);
+#elif defined(_MSC_VER)
+        reinterpret_cast<Thread_t>(UINT64_MAX);
+#endif
 
     static constexpr uint64_t kInvalidRequestIndex = UINT64_MAX;
 
@@ -130,28 +136,17 @@ class Simulator {
   private:
     /**
      *  @brief Recursive function to tell all cache configs
-     *
-     *  @param pCacheLevel      the level of the cache this function will try to init
+     * 
+     *  @param cacheLevel      the level of the cache this function will try to init
      *  @param minBlockSize     minimum block size this cache level will try to init
      *  @param minCacheSize     minimum cache size this cache level will try to init
      */
-    void SetupCaches(CacheLevel pCacheLevel, uint64_t minBlockSize, uint64_t minCacheSize);
-
-    /**
-     * @brief                   Recursively calculate the total number of valid cache configs
-     *
-     * @param pNumConfigs       Out. Tracks the total number of valid configs
-     * @param cacheLevel        Level of cache the function is in, 0 (L1) when called from without
-     * @param minBlockSize      Minimum block size as specfied in cache_params.h
-     * @param minCacheSize      Minimum cache size as specfied in cache_params.h
-     */
-    void CalculateNumValidConfigs(uint64_t& pNumConfigs, uint8_t cacheLevel, uint64_t minBlockSize,
-                                  uint64_t minCacheSize);
+    void SetupCaches(CacheLevel cacheLevel, uint64_t minBlockSize, uint64_t minCacheSize);
 
     // Common across all threads
     MemoryAccesses accesses_;
     std::vector<Thread_t> threads_;
-    std::vector<std::vector<Cache*>> caches_;
+    std::vector<std::vector<std::unique_ptr<Cache>>> caches_;
     std::vector<uint64_t> cycleCounters_;
     std::vector<Thread_t> threadsOutstanding_;
     uint64_t numConfigs_;
@@ -160,7 +155,7 @@ class Simulator {
     // number of outstanding threads. The only benefit is
     // memory savings & keeping the computer usable when
     // running with large numbers of configs
-    volatile int32_t numThreadsOutstanding_;
+    std::atomic<int64_t> numThreadsOutstanding_;
     uint64_t configsToTest_;
     std::vector<uint64_t> accessIndices_;
 };
