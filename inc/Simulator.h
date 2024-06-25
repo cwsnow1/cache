@@ -118,7 +118,12 @@ class Simulator {
 
     Lock_t lock_;
 
-    static constexpr Thread_t kInvalidThreadId = static_cast<Thread_t>(UINT64_MAX);
+    static constexpr Thread_t kInvalidThreadId =
+#ifdef __GNUC__
+        static_cast<Thread_t>(UINT64_MAX);
+#elif defined(_MSC_VER)
+        reinterpret_cast<Thread_t>(UINT64_MAX);
+#endif
 
     static constexpr uint64_t kInvalidRequestIndex = UINT64_MAX;
 
