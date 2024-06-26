@@ -17,7 +17,7 @@ const char kParametersFilename[] = "./test_params.ini";
 
 void IOUtilities::PrintStatistics(Memory& memory, uint64_t cycle, FILE* stream) {
 
-    Statistics stats = memory.GetStats();
+    const Statistics& stats = memory.ViewStats();
     CacheLevel cache_level = memory.GetCacheLevel();
     if (cache_level == kMainMemory) {
         return;
@@ -47,7 +47,7 @@ void IOUtilities::PrintStatistics(Memory& memory, uint64_t cycle, FILE* stream) 
         fprintf(stream, "Main memory reads:  %08" PRIu64 "\n", stats.readMisses + stats.writeMisses);
         fprintf(stream, "Main memory writes: %08" PRIu64 "\n\n", stats.writebacks);
         fprintf(stream, "Total number of cycles: %010" PRIu64 "\n", cycle);
-        Statistics topLevelStats = cache.GetTopLevelCache()->GetStats();
+        const Statistics& topLevelStats = cache.GetTopLevelCache()->ViewStats();
         float cpi = static_cast<float>(cycle) / (topLevelStats.numInstructions);
         fprintf(stream, "CPI: %.4f\n", cpi);
         fprintf(stream, "=========================\n\n");
@@ -57,7 +57,7 @@ void IOUtilities::PrintStatistics(Memory& memory, uint64_t cycle, FILE* stream) 
 }
 
 void IOUtilities::PrintStatisticsCSV(Memory& memory, uint64_t cycle, FILE* stream) {
-    Statistics stats = memory.GetStats();
+    const Statistics& stats = memory.ViewStats();
     CacheLevel cache_level = memory.GetCacheLevel();
     if (cache_level == kMainMemory) {
         return;
@@ -79,7 +79,7 @@ void IOUtilities::PrintStatisticsCSV(Memory& memory, uint64_t cycle, FILE* strea
     if (cache_level == gTestParams.numberOfCacheLevels - 1) {
         fprintf(stream, "%08" PRIu64 ",%08" PRIu64 ",%010" PRIu64 ",", stats.readMisses + stats.writeMisses,
                 stats.writebacks, cycle);
-        Statistics topLevelStats = cache.GetTopLevelCache()->GetStats();
+        const Statistics& topLevelStats = cache.GetTopLevelCache()->ViewStats();
         float cpi = static_cast<float>(cycle) / (topLevelStats.numInstructions);
         fprintf(stream, "%.4f\n", cpi);
     } else {
@@ -206,7 +206,7 @@ void IOUtilities::LoadTestParameters(void) {
 uint8_t* IOUtilities::ReadInFile(const char* filename, uint64_t& length) {
 
     uint8_t* buffer = NULL;
-    uint64_t m;
+    long m;
 
     FILE* f = fopen(filename, "r");
     if (f == NULL) {
@@ -226,7 +226,7 @@ uint8_t* IOUtilities::ReadInFile(const char* filename, uint64_t& length) {
         goto error;
     if (fseek(f, 0, SEEK_SET))
         goto error;
-    if (fread(buffer, 1, m, f) != m)
+    if (fread(buffer, 1, m, f) != static_cast<size_t>(m))
         goto error;
     fclose(f);
 

@@ -17,6 +17,10 @@ class DoubleList {
      */
     DoubleList(uint64_t capacity);
 
+    DoubleList(const DoubleList&) = delete;
+
+    DoubleList operator=(const DoubleList&) = delete;
+
     /**
      * @brief Destroy the Double List object
      *
