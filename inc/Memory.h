@@ -32,13 +32,15 @@ struct Statistics {
 class Memory {
   public:
     Memory() = delete;
+    Memory(const Memory&) = delete;
+    Memory operator=(const Memory&) = delete;
 
     /**
      * @brief Construct a new Memory object
      *
      * @param pLowestCache
      */
-    Memory(Memory* pLowestCache);
+    Memory(Memory* pLowestCache, CacheLevel cacheLevel);
 
     /**
      * @brief Destroy the Memory object
@@ -66,7 +68,7 @@ class Memory {
      *
      * @return Memory* memory object one level below this
      */
-    Memory& GetLowerCache() {
+    Memory& GetLowerCache() const {
         return *pLowerCache_;
     }
 
@@ -80,11 +82,20 @@ class Memory {
     }
 
     /**
+     * @brief Get a readonly reference to the Stats object
+     *
+     * @return Statistics
+     */
+    inline const Statistics& ViewStats() const {
+        return stats_;
+    }
+
+    /**
      * @brief Get the cache level
      *
      * @return CacheLevel
      */
-    inline CacheLevel GetCacheLevel() {
+    inline CacheLevel GetCacheLevel() const {
         return cacheLevel_;
     }
 
@@ -100,7 +111,7 @@ class Memory {
      * @return true if work was done
      * @return false id work wasn't done
      */
-    bool GetWasWorkDoneThisCycle() {
+    inline bool GetWasWorkDoneThisCycle() const {
         return wasWorkDoneThisCycle_;
     }
 
@@ -110,7 +121,7 @@ class Memory {
      * @param wasWorkDoneThisCycle  whether a meaningful piece of work was done such that the upper cache needs to check
      * its busy list
      */
-    void SetWasWorkDoneThisCycle(bool wasWorkDoneThisCycle) {
+    inline void SetWasWorkDoneThisCycle(bool wasWorkDoneThisCycle) {
         wasWorkDoneThisCycle_ = wasWorkDoneThisCycle;
     }
 
@@ -129,7 +140,7 @@ class Memory {
      *
      * @return uint64_t the cycle wherein the next useful piece of work can be done
      */
-    uint64_t GetEarliestNextUsefulCycle() {
+    inline uint64_t GetEarliestNextUsefulCycle() const {
         return earliestNextUsefulCycle_;
     }
 
@@ -138,7 +149,7 @@ class Memory {
      *
      * @return uint64_t the cycle wherein the next useful piece of work can be done
      */
-    uint64_t CalculateEarliestNextUsefulCycle();
+    uint64_t CalculateEarliestNextUsefulCycle() const;
 
     /**
      * @brief Simulates a read or write to an address
@@ -170,7 +181,7 @@ class Memory {
      * @return true     If the request was completed and need not be called
      * again
      */
-    Status handleAccess(Request* pRequest);
+    Status handleAccess(Request& pRequest);
 
     // Cache hierarchy fields
     Memory* const pUpperCache_;

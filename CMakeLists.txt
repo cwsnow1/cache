@@ -9,7 +9,7 @@ add_subdirectory(sim_trace_decoder)
 set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_COMPILER g++)
 if(NOT WIN32)
-set(CMAKE_CXX_FLAGS "-Wall -Werror -pedantic")
+set(CMAKE_CXX_FLAGS "-Wall -Werror -pedantic -Wextra")
 endif()
 
 if(SIM_TRACE EQUAL 1)

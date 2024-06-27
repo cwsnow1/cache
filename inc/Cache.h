@@ -5,26 +5,15 @@
 struct Block {
     // The LSB of the blockAddress will be the
     // setIndex, and would be redudant to store
-    uint64_t blockAddress;
-    bool dirty;
-    bool valid;
-
-    Block() {
-        blockAddress = 0;
-        dirty = false;
-        valid = false;
-    }
+    uint64_t blockAddress = 0;
+    bool dirty = false;
+    bool valid = false;
 };
 
 struct Set {
     std::vector<Block> ways;
-    uint8_t* lruList;
-    bool busy;
-
-    Set() {
-        lruList = nullptr;
-        busy = false;
-    }
+    std::vector<uint8_t> lruList;
+    bool busy = false;
 };
 
 struct Configuration {
@@ -33,10 +22,8 @@ struct Configuration {
     uint64_t associativity;
 
     Configuration() = default;
-    Configuration(uint64_t pCacheSize, uint64_t pBlockSize, uint64_t pAssociativity) {
-        cacheSize = pCacheSize;
-        blockSize = pBlockSize;
-        associativity = pAssociativity;
+    Configuration(uint64_t cacheSize, uint64_t blockSize, uint64_t associativity)
+        : cacheSize(cacheSize), blockSize(blockSize), associativity(associativity) {
     }
 };
 
@@ -199,7 +186,7 @@ class Cache : public Memory {
      * @param pRequest  Request structure to attempt
      * @return true     If the request was completed and need not be called again
      */
-    Status handleAccess(Request* pRequest);
+    Status handleAccess(Request& pRequest);
 
     // Cache sizing fields
     Configuration config_;

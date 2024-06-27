@@ -82,7 +82,7 @@ DWORD WINAPI Simulator::TrackProgress(void* pSimulatorPointer) {
 void* Simulator::TrackProgress(void* pSimulatorPointer) {
 #endif
     Simulator* pSimulator = static_cast<Simulator*>(pSimulatorPointer);
-    uint64_t numAccesses = static_cast<float>(pSimulator->GetNumAccesses());
+    const uint64_t numAccesses = static_cast<float>(pSimulator->GetNumAccesses());
     float oneConfigPercentage = 100.0f / static_cast<float>(pSimulator->numConfigs_);
     char progressBar[] = "[                                        ]";
     const int progressBars = sizeof(progressBar) / sizeof(char) - 3;
@@ -142,7 +142,7 @@ void Simulator::PrintStats(FILE* pTextStream, FILE* pCSVStream) {
     for (uint64_t i = 0; i < numConfigs_; i++) {
         IOUtilities::PrintStatistics(*caches_[i][kDataCache], cycleCounters_[i], pTextStream);
         IOUtilities::PrintStatisticsCSV(*caches_[i][kDataCache], cycleCounters_[i], pCSVStream);
-        Statistics stats = caches_[i][kDataCache]->GetStats();
+        const Statistics& stats = caches_[i][kDataCache]->ViewStats();
         float cpi = static_cast<float>(cycleCounters_[i]) / (stats.numInstructions);
         if (cpi < minCpi) {
             minCpi = cpi;

@@ -29,11 +29,9 @@ PACK(struct SimTraceEntry {
     TraceEntryId trace_entry_id;
     CacheLevel cache_level;
 
-    SimTraceEntry(uint16_t cycle_offset, TraceEntryId trace_entry_id, CacheLevel cache_level) {
-        this->cycle_offset = cycle_offset;
-        this->trace_entry_id = trace_entry_id;
-        this->cache_level = cache_level;
-    };
+    SimTraceEntry(uint16_t cycle_offset, TraceEntryId trace_entry_id, CacheLevel cache_level)
+        : cycle_offset(cycle_offset) COMMA trace_entry_id(trace_entry_id) COMMA cache_level(cache_level) {
+    }
 
 });
 

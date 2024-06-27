@@ -85,7 +85,7 @@ class Simulator {
     /**
      * @brief Get the number of accesses in trace file
      */
-    inline const uint64_t GetNumAccesses() const;
+    inline uint64_t GetNumAccesses() const;
 
     /**
      * @brief Get accesses, a list of Instruction objects
@@ -160,7 +160,7 @@ class Simulator {
     std::vector<uint64_t> accessIndices_;
 };
 
-inline const uint64_t Simulator::GetNumAccesses() const {
+inline uint64_t Simulator::GetNumAccesses() const {
     return accesses_.instructionAccesses_.size();
 }
 

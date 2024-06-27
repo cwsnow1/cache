@@ -13,7 +13,9 @@ struct Request {
 
 class RequestManager {
   public:
-    RequestManager() = default;
+    RequestManager() = delete;
+    RequestManager(const RequestManager&) = delete;
+    RequestManager operator=(const RequestManager&) = delete;
 
     /**
      * @brief               Initializes the request manager and the request lists it maintains
@@ -107,8 +109,8 @@ class RequestManager {
      * @param poolIndex     Pool index of request to get
      * @return              Pointer to request
      */
-    Request* GetRequestAtIndex(uint64_t poolIndex) {
-        return &pRequestPool_[poolIndex];
+    Request& GetRequestAtIndex(uint64_t poolIndex) {
+        return pRequestPool_[poolIndex];
     }
 
     /**
